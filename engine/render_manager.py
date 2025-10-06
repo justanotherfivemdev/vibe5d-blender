@@ -17,8 +17,6 @@ from ..utils .logger import logger
 
 
 class RenderResultManager :
-    """Manages render operations and result access with Blender 4.4 API."""
-
     def __init__ (self ):
         self .active_renders ={}
         self .render_callbacks ={}
@@ -26,17 +24,14 @@ class RenderResultManager :
         self ._render_counter =0 
 
     def register_handlers (self ):
-        """Register render completion handlers."""
         if not self .render_handlers_registered :
 
             bpy .app .handlers .render_complete .append (self ._on_render_complete )
             bpy .app .handlers .render_cancel .append (self ._on_render_cancel )
             bpy .app .handlers .render_write .append (self ._on_render_write )
             self .render_handlers_registered =True 
-            logger .info ("Render handlers registered")
 
     def unregister_handlers (self ):
-        """Unregister render completion handlers."""
         if self .render_handlers_registered :
             if self ._on_render_complete in bpy .app .handlers .render_complete :
                 bpy .app .handlers .render_complete .remove (self ._on_render_complete )
@@ -45,7 +40,6 @@ class RenderResultManager :
             if self ._on_render_write in bpy .app .handlers .render_write :
                 bpy .app .handlers .render_write .remove (self ._on_render_write )
             self .render_handlers_registered =False 
-            logger .info ("Render handlers unregistered")
 
     def start_render_with_callback (
     self ,
@@ -176,15 +170,6 @@ class RenderResultManager :
             return ""
 
     def get_render_result (self ,render_id :str )->Optional [Dict [str ,Any ]]:
-        """
-        Get render result for a completed render.
-        
-        Args:
-            render_id: Render ID from start_render_with_callback
-            
-        Returns:
-            Dictionary with render result data or None if not found
-        """
         if render_id not in self .active_renders :
             return None 
 
@@ -196,15 +181,6 @@ class RenderResultManager :
         return render_info .get ('result_data')
 
     def cancel_render (self ,render_id :str )->bool :
-        """
-        Cancel an active render operation.
-        
-        Args:
-            render_id: Render ID to cancel
-            
-        Returns:
-            True if cancellation was successful
-        """
         if render_id not in self .active_renders :
             return False 
 
@@ -229,17 +205,14 @@ class RenderResultManager :
             return False 
 
     def get_active_renders (self )->List [str ]:
-        """Get list of active render IDs."""
         return [rid for rid ,info in self .active_renders .items ()
         if info ['status']in ['starting','rendering']]
 
     def is_render_active (self ,render_id :str )->bool :
-        """Check if a render is currently active."""
         return render_id in self .active_renders and self .active_renders [render_id ]['status']in ['starting','rendering']
 
     @persistent 
     def _on_render_complete (self ,scene ,depsgraph =None ):
-        """Handle render completion."""
         try :
 
             completed_render =None 
@@ -309,7 +282,6 @@ class RenderResultManager :
 
     @persistent 
     def _on_render_cancel (self ,scene ,depsgraph =None ):
-        """Handle render cancellation."""
         try :
 
             for render_id ,render_info in list (self .active_renders .items ()):
@@ -326,7 +298,6 @@ class RenderResultManager :
 
     @persistent 
     def _on_render_write (self ,scene ,depsgraph =None ):
-        """Handle render frame write (called after each frame is written)."""
         try :
 
 
@@ -336,23 +307,6 @@ class RenderResultManager :
             logger .error (f"Error in render write handler: {str(e)}")
 
     def _get_existing_render_result (self ,scene ,camera )->Optional [dict ]:
-        """
-        Try to harvest the most recent "Render Result" image and convert it into
-        the same dictionary structure returned by :meth:`render_sync`.
-
-        Parameters
-        ----------
-        scene : bpy.types.Scene | None
-            Scene that would otherwise be rendered (unused here, kept for parity).
-        camera : bpy.types.Object | None
-            Camera that would otherwise be rendered (unused here, kept for parity).
-
-        Returns
-        -------
-        dict | None
-            A dict compatible with _process_render_result(), or *None* if no
-            usable cached frame exists.
-        """
 
         tmp =tempfile .NamedTemporaryFile (suffix =".png",delete =False )
         output_path =tmp .name 
@@ -407,16 +361,6 @@ class RenderResultManager :
                 pass 
 
     def _process_render_result (self ,render_id :str ,output_path :str )->Optional [Dict [str ,Any ]]:
-        """
-        Process render result and create result data.
-        
-        Args:
-            render_id: Render ID
-            output_path: Path to rendered image
-            
-        Returns:
-            Dictionary with render result data
-        """
         try :
             render_info =self .active_renders [render_id ]
             scene =render_info ['scene']
@@ -449,7 +393,7 @@ class RenderResultManager :
 
             result_data ={
             "render_id":render_id ,
-            "data_uri":data_uri ,
+            "image_data":data_uri ,
             "width":width ,
             "height":height ,
             "render_resolution":[scene .render .resolution_x ,scene .render .resolution_y ],
@@ -464,7 +408,6 @@ class RenderResultManager :
             "render_time":time .time ()-render_info ['start_time']
             }
 
-            logger .info (f"Processed render result: {width}x{height}, {file_size} bytes")
             return result_data 
 
         except Exception as e :
@@ -508,26 +451,12 @@ class RenderResultManager :
         except Exception as e :
             logger .error (f"Error cleaning up render {render_id}: {str(e)}")
 
-
-
-
     def render_sync (
     self ,
     scene_name :Optional [str ]=None ,
     camera_name :Optional [str ]=None ,
     output_path :Optional [str ]=None 
     )->Dict [str ,Any ]:
-        """
-        Check for existing render result without performing new renders.
-        
-        Args:
-            scene_name: Name of scene to check (None for current)
-            camera_name: Name of camera to check (None for scene camera)
-            output_path: Custom output path (unused in check-only mode)
-            
-        Returns:
-            Dictionary with render result data or message if no result found
-        """
         try :
 
             scene =bpy .data .scenes .get (scene_name )if scene_name else bpy .context .scene 
@@ -565,7 +494,6 @@ class RenderResultManager :
             raise RuntimeError (error_msg )
 
     def cleanup (self ):
-        """Clean up all resources."""
 
         for render_id in list (self .active_renders .keys ()):
             self ._cleanup_render (render_id )

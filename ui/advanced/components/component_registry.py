@@ -48,7 +48,7 @@ class ComponentRegistry :
 
         if component_id :
             if component_id in self ._components_by_id :
-                logger .warning (f"Component ID '{component_id}' already exists, replacing")
+                pass 
             self ._components_by_id [component_id ]=component 
             final_id =component_id 
         else :

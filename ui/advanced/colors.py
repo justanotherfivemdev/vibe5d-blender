@@ -31,6 +31,10 @@ class Colors :
         return UnifiedStyles .Primary 
 
     @property 
+    def Transparent (self )->Tuple [float ,float ,float ,float ]:
+        return (0 ,0 ,0 ,0 )
+
+    @property 
     def Panel (self )->Tuple [float ,float ,float ,float ]:
         return UnifiedStyles .Panel 
 

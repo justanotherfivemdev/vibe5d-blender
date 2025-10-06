@@ -26,9 +26,9 @@ logger =logging .getLogger (__name__ )
 
 
 CURSOR_BLINK_INTERVAL =0.45 
-SCROLL_SENSITIVITY =30 
+SCROLL_SENSITIVITY =90 
 SCROLL_MARGIN =20 
-SCROLL_SPEED =20 
+SCROLL_SPEED =60 
 AUTO_SCROLL_TOLERANCE =10 
 LINE_HEIGHT_MULTIPLIER =1.21 
 FONT_BASELINE_OFFSET_RATIO =0.5 
@@ -102,44 +102,90 @@ class TextState :
 
 
 def wrap_text_blf (text :str ,max_width :int ,font_size :int =14 )->List [str ]:
-    """Wrap text using BLF text measurements with correct font size."""
+    """Wrap text using BLF text measurements with correct font size, preserving indentation."""
     if not text :
         return [""]
 
 
     blf .size (0 ,font_size )
-    full_width =blf .dimensions (0 ,text )[0 ]
-
-    if full_width <=max_width :
-        return [text ]
 
 
-    segments =[]
-    words =text .split (' ')
-    current_segment =""
+    lines =text .split ('\n')
+    result_lines =[]
 
-    for word in words :
+    for line in lines :
 
-        test_segment =current_segment +(" "if current_segment else "")+word 
-        test_width =blf .dimensions (0 ,test_segment )[0 ]
+        if not line .strip ():
+            result_lines .append (line )
+            continue 
 
-        if test_width <=max_width -DIMENSION_BUFFER :
-            current_segment =test_segment 
-        else :
 
-            if current_segment :
-                segments .append (current_segment )
-                current_segment =word 
+        full_width =blf .dimensions (0 ,line )[0 ]
+        if full_width <=max_width :
+            result_lines .append (line )
+            continue 
+
+
+
+        leading_whitespace =''
+        content_start =0 
+        for i ,char in enumerate (line ):
+            if char .isspace ():
+                leading_whitespace +=char 
+                content_start =i +1 
+            else :
+                break 
+
+
+        content =line [content_start :]
+
+
+        words =[]
+        current_word =""
+        for char in content :
+            if char .isspace ():
+                if current_word :
+                    words .append (current_word )
+                    current_word =""
+                words .append (char )
+            else :
+                current_word +=char 
+        if current_word :
+            words .append (current_word )
+
+
+        segments =[]
+        current_segment =leading_whitespace 
+
+        for word in words :
+
+            test_segment =current_segment +word 
+            test_width =blf .dimensions (0 ,test_segment )[0 ]
+
+            if test_width <=max_width -DIMENSION_BUFFER :
+                current_segment =test_segment 
             else :
 
-                segments .append (word )
-                current_segment =""
+                if current_segment .strip ():
+                    segments .append (current_segment )
 
 
-    if current_segment :
-        segments .append (current_segment )
+                word_width =blf .dimensions (0 ,word )[0 ]
+                if word_width <=max_width -DIMENSION_BUFFER :
+                    current_segment =word 
+                else :
 
-    return segments if segments else [text ]
+                    segments .append (word )
+                    current_segment =""
+
+
+        if current_segment .strip ():
+            segments .append (current_segment )
+
+
+        result_lines .extend (segments )
+
+    return result_lines if result_lines else [text ]
 
 
 def _get_numeric_value (obj ,attr_name :str ,default =0 ):
@@ -397,12 +443,11 @@ class TextInput (UIComponent ):
                     self .cursor_col =0 
 
 
-        if self .auto_resize :
-            self ._update_auto_resize ()
+        self ._update_scrolling_and_resize ()
 
-    def _update_auto_resize (self ):
-        """Update component height based on content when auto-resize is enabled, with scrolling support."""
-        if not self .auto_resize :
+    def _update_scrolling_and_resize (self ):
+        """Update scrolling state and auto-resize if enabled."""
+        if not self .multiline :
             return 
 
 
@@ -420,32 +465,48 @@ class TextInput (UIComponent ):
 
         content_height =total_display_lines *line_height 
         required_height =content_height +self ._get_total_padding_vertical ()
-
         required_height +=0.6 *line_height 
 
+        if self .auto_resize :
 
-        new_height =max (self .min_height ,min (self .max_height ,required_height ))
-
-
-        if required_height >self .max_height :
-            self .is_scrollable =True 
-
-            visible_content_height =self .max_height -self ._get_total_padding_vertical ()
-
-            self .max_scroll_offset =max (0 ,content_height -visible_content_height )
+            new_height =max (self .min_height ,min (self .max_height ,required_height ))
 
 
-            self .scroll_offset_y =max (0 ,min (self .scroll_offset_y ,self .max_scroll_offset ))
+            if required_height >self .max_height :
+                self .is_scrollable =True 
+
+                visible_content_height =self .max_height -self ._get_total_padding_vertical ()
+                self .max_scroll_offset =max (0 ,content_height -visible_content_height )
+
+
+                self .scroll_offset_y =max (0 ,min (self .scroll_offset_y ,self .max_scroll_offset ))
+            else :
+                self .is_scrollable =False 
+                self .scroll_offset_y =0 
+                self .max_scroll_offset =0 
+
+
+            height_diff =abs (new_height -self .bounds .height )
+            if height_diff >HEIGHT_CHANGE_THRESHOLD :
+                self ._last_content_height =content_height 
+                self .set_size (self .bounds .width ,new_height )
         else :
-            self .is_scrollable =False 
-            self .scroll_offset_y =0 
-            self .max_scroll_offset =0 
+
+            current_height =self .bounds .height 
 
 
-        height_diff =abs (new_height -self .bounds .height )
-        if height_diff >HEIGHT_CHANGE_THRESHOLD :
-            self ._last_content_height =content_height 
-            self .set_size (self .bounds .width ,new_height )
+            if required_height >current_height :
+                self .is_scrollable =True 
+
+                visible_content_height =current_height -self ._get_total_padding_vertical ()
+                self .max_scroll_offset =max (0 ,content_height -visible_content_height )
+
+
+                self .scroll_offset_y =max (0 ,min (self .scroll_offset_y ,self .max_scroll_offset ))
+            else :
+                self .is_scrollable =False 
+                self .scroll_offset_y =0 
+                self .max_scroll_offset =0 
 
 
         self ._ensure_cursor_visible ()
@@ -860,7 +921,7 @@ class TextInput (UIComponent ):
                 self .cursor_col =len (lines [-1 ])
 
 
-        self .invalidate ()
+        self ._on_text_changed ()
 
 
         if self .multiline :
@@ -950,7 +1011,7 @@ class TextInput (UIComponent ):
 
         if self .selection .active :
             self ._delete_selection ()
-            self .invalidate ()
+            self ._on_text_changed ()
             self ._ensure_cursor_visible ()
             self ._save_state_on_next_change =True 
             return True 
@@ -968,7 +1029,7 @@ class TextInput (UIComponent ):
             self .cursor_col =len (self ._text_lines [self .cursor_row ])
             self ._text_lines [self .cursor_row ]+=current_line 
 
-        self .invalidate ()
+        self ._on_text_changed ()
         self ._ensure_cursor_visible ()
         self ._save_state_on_next_change =True 
         return True 
@@ -979,7 +1040,7 @@ class TextInput (UIComponent ):
 
         if self .selection .active :
             self ._delete_selection ()
-            self .invalidate ()
+            self ._on_text_changed ()
             self ._ensure_cursor_visible ()
             self ._save_state_on_next_change =True 
             return True 
@@ -994,7 +1055,7 @@ class TextInput (UIComponent ):
             next_line =self ._text_lines .pop (self .cursor_row +1 )
             self ._text_lines [self .cursor_row ]+=next_line 
 
-        self .invalidate ()
+        self ._on_text_changed ()
         self ._ensure_cursor_visible ()
         self ._save_state_on_next_change =True 
         return True 
@@ -1146,7 +1207,7 @@ class TextInput (UIComponent ):
         self .cursor_col =0 
         self ._text_lines .insert (self .cursor_row ,new_line )
 
-        self .invalidate ()
+        self ._on_text_changed ()
         self ._ensure_cursor_visible ()
         self ._save_state_on_next_change =True 
         return True 
@@ -1258,7 +1319,7 @@ class TextInput (UIComponent ):
         self .cursor_row =self .selection .start_row 
         self .cursor_col =self .selection .start_col 
         self .selection .clear ()
-        self .invalidate ()
+        self ._on_text_changed ()
         self ._ensure_cursor_visible ()
 
 
@@ -1268,21 +1329,19 @@ class TextInput (UIComponent ):
 
     def set_text (self ,text :str ):
         """Set the text content."""
-        self ._text_lines =text .split ('\n')if text else [""]
+        new_lines =text .split ('\n')if text else [""]
+        if self ._text_lines !=new_lines :
+            self ._save_state ()
+            self ._text_lines =new_lines 
 
-        if self .cursor_row >=len (self ._text_lines ):
-            self .cursor_row =len (self ._text_lines )-1 
-        if self .cursor_row >=0 and self .cursor_row <len (self ._text_lines ):
-            if self .cursor_col >len (self ._text_lines [self .cursor_row ]):
-                self .cursor_col =len (self ._text_lines [self .cursor_row ])
+            if self .cursor_row >=len (self ._text_lines ):
+                self .cursor_row =len (self ._text_lines )-1 
+            if self .cursor_row >=0 and self .cursor_row <len (self ._text_lines ):
+                if self .cursor_col >len (self ._text_lines [self .cursor_row ]):
+                    self .cursor_col =len (self ._text_lines [self .cursor_row ])
 
-        self .selection .clear ()
-        self ._mark_dirty ()
-
-
-        if self .auto_resize :
-            self ._invalidate_wrap_cache ()
-            self ._update_word_wrap ()
+            self .selection .clear ()
+            self ._on_text_changed ()
 
     def set_size (self ,width :int ,height :int ):
         """Set component size and invalidate wrap cache."""
@@ -2029,6 +2088,10 @@ class TextInput (UIComponent ):
 
         if enabled :
             self ._mark_dirty ()
+        else :
+
+            self ._invalidate_wrap_cache ()
+            self ._update_word_wrap ()
 
     def get_content_height (self )->int :
         """Get the height required for current content."""
@@ -2798,3 +2861,8 @@ class TextInput (UIComponent ):
 
         relative_y =event .mouse_y -content_y_bottom 
         return max (0.0 ,min (1.0 ,relative_y /content_height ))if content_height >0 else 0.0 
+
+    def _update_auto_resize (self ):
+        """Update component height based on content when auto-resize is enabled, with scrolling support."""
+
+        self ._update_scrolling_and_resize ()

@@ -43,44 +43,90 @@ class RenderedSegment :
     line_index :int 
 
 def wrap_text_blf (text :str ,max_width :int ,font_size :int =14 )->List [str ]:
-    """Wrap text using BLF text measurements with correct font size."""
+    """Wrap text using BLF text measurements with correct font size, preserving indentation."""
     if not text :
         return [""]
 
 
     blf .size (0 ,font_size )
-    full_width =blf .dimensions (0 ,text )[0 ]
-
-    if full_width <=max_width :
-        return [text ]
 
 
-    segments =[]
-    words =text .split (' ')
-    current_segment =""
+    lines =text .split ('\n')
+    result_lines =[]
 
-    for word in words :
+    for line in lines :
 
-        test_segment =current_segment +(" "if current_segment else "")+word 
-        test_width =blf .dimensions (0 ,test_segment )[0 ]
+        if not line .strip ():
+            result_lines .append (line )
+            continue 
 
-        if test_width <=max_width -2 :
-            current_segment =test_segment 
-        else :
 
-            if current_segment :
-                segments .append (current_segment )
-                current_segment =word 
+        full_width =blf .dimensions (0 ,line )[0 ]
+        if full_width <=max_width :
+            result_lines .append (line )
+            continue 
+
+
+
+        leading_whitespace =''
+        content_start =0 
+        for i ,char in enumerate (line ):
+            if char .isspace ():
+                leading_whitespace +=char 
+                content_start =i +1 
+            else :
+                break 
+
+
+        content =line [content_start :]
+
+
+        words =[]
+        current_word =""
+        for char in content :
+            if char .isspace ():
+                if current_word :
+                    words .append (current_word )
+                    current_word =""
+                words .append (char )
+            else :
+                current_word +=char 
+        if current_word :
+            words .append (current_word )
+
+
+        segments =[]
+        current_segment =leading_whitespace 
+
+        for word in words :
+
+            test_segment =current_segment +word 
+            test_width =blf .dimensions (0 ,test_segment )[0 ]
+
+            if test_width <=max_width -2 :
+                current_segment =test_segment 
             else :
 
-                segments .append (word )
-                current_segment =""
+                if current_segment .strip ():
+                    segments .append (current_segment )
 
 
-    if current_segment :
-        segments .append (current_segment )
+                word_width =blf .dimensions (0 ,word )[0 ]
+                if word_width <=max_width -2 :
+                    current_segment =word 
+                else :
 
-    return segments if segments else [text ]
+                    segments .append (word )
+                    current_segment =""
+
+
+        if current_segment .strip ():
+            segments .append (current_segment )
+
+
+        result_lines .extend (segments )
+
+    return result_lines if result_lines else [text ]
 
 class Label (UIComponent ):
     """Label component for displaying text with multiline support and interactivity."""
@@ -170,7 +216,6 @@ class Label (UIComponent ):
         self ._update_cursor_type ()
         self ._update_wrapped_lines ()
 
-        logger .info (f"Added interactive text segment: '{segment_text}' (clickable={clickable}, hoverable={hoverable})")
 
     def add_highlight_style (self ,name :str ,background_color :Tuple =None ,
     text_color :Tuple =None ):

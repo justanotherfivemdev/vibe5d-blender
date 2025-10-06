@@ -1085,6 +1085,10 @@ class SceneQueryEngine :
         'custom_properties':'Custom properties from all data blocks',
 
 
+        'texts':'Text data blocks (script texts and internal text files)',
+        'curves':'Curve data blocks including text curves and bezier curves',
+
+
         'tables':'Meta-table listing all available tables'
         }
 
@@ -1768,9 +1772,7 @@ class SceneQueryEngine :
 
 
             for table_name ,description in self .available_tables .items ():
-                if table_name =='tables':
-                    continue 
-                lines .append (f"- **{table_name}**: {description}")
+                lines .append (f"- {table_name}")
 
             lines .append ("")
             lines .append ("## Query Examples")
@@ -1815,6 +1817,11 @@ class SceneQueryEngine :
             lines .append ("")
             lines .append ("-- Node tree complexity analysis")
             lines .append ("SELECT tree_name, tree_type, nodes_count, links_count FROM node_trees ORDER BY nodes_count DESC LIMIT 10")
+            lines .append ("")
+            lines .append ("-- Text objects and content")
+            lines .append ("SELECT name, text_body, font_size FROM objects WHERE type = 'FONT'")
+            lines .append ("SELECT name, text FROM texts WHERE name LIKE '%script%'")
+            lines .append ("")
             lines .append ("```")
 
             lines .append ("")
@@ -2127,6 +2134,10 @@ class SceneQueryEngine :
             return self ._get_constraints_data (context )
         elif table =="custom_properties":
             return self ._get_custom_properties_data (context )
+        elif table =="texts":
+            return self ._get_texts_data (context )
+        elif table =="curves":
+            return self ._get_curves_data (context )
         elif table =="tables":
             return self ._get_tables_data (context )
         else :
@@ -2163,6 +2174,23 @@ class SceneQueryEngine :
             elif obj .type =='CAMERA'and obj .data :
                 obj_data ["focal_length"]=obj .data .lens 
                 obj_data ["sensor_width"]=obj .data .sensor_width 
+            elif obj .type =='FONT'and obj .data :
+
+                obj_data ["text_body"]=obj .data .body 
+                obj_data ["font_size"]=obj .data .size 
+                obj_data ["extrude"]=obj .data .extrude 
+                obj_data ["bevel_depth"]=obj .data .bevel_depth 
+                obj_data ["font_name"]=obj .data .font .name if obj .data .font else None 
+                obj_data ["align_x"]=obj .data .align_x 
+                obj_data ["align_y"]=obj .data .align_y 
+                obj_data ["text_on_curve"]=obj .data .follow_curve .name if obj .data .follow_curve else None 
+            elif obj .type =='CURVE'and obj .data :
+
+                obj_data ["curve_type"]=obj .data .type 
+                obj_data ["splines_count"]=len (obj .data .splines )
+                obj_data ["dimensions"]=obj .data .dimensions 
+                obj_data ["extrude"]=obj .data .extrude 
+                obj_data ["bevel_depth"]=obj .data .bevel_depth 
 
             objects_data .append (obj_data )
 
@@ -3642,6 +3670,95 @@ class SceneQueryEngine :
 
         return custom_props_data 
 
+    def _get_texts_data (self ,context )->List [Dict [str ,Any ]]:
+        """Get text data blocks."""
+        texts_data =[]
+        for text in bpy .data .texts :
+            text_data ={
+            'name':text .name ,
+            'type':'TEXT',
+            'users':text .users ,
+            'lines_count':len (text .lines ),
+            'is_modified':text .is_modified ,
+            'is_in_memory':text .is_in_memory ,
+            'filepath':text .filepath if text .filepath else None 
+            }
+
+
+            try :
+                text_data ['text']=text .as_string ()
+                text_data ['text_length']=len (text_data ['text'])
+
+                lines_preview =text .as_string ().split ('\n')[:5 ]
+                text_data ['text_preview']='\n'.join (lines_preview )
+                if len (text .lines )>5 :
+                    text_data ['text_preview']+='\n...'
+            except Exception as e :
+                text_data ['text']=f"Error reading text: {str(e)}"
+                text_data ['text_length']=0 
+                text_data ['text_preview']="Unable to read text content"
+
+            texts_data .append (text_data )
+        return texts_data 
+
+    def _get_curves_data (self ,context )->List [Dict [str ,Any ]]:
+        """Get curve data blocks."""
+        curves_data =[]
+        for curve in bpy .data .curves :
+            curve_data ={
+            'name':curve .name ,
+            'type':curve .type ,
+            'users':curve .users ,
+            'dimensions':curve .dimensions ,
+            'extrude':curve .extrude ,
+            'bevel_depth':curve .bevel_depth ,
+            'splines_count':len (curve .splines )
+            }
+
+
+            if hasattr (curve ,'body'):
+                curve_data ['text_body']=curve .body 
+                curve_data ['font_size']=curve .size 
+                curve_data ['font_name']=curve .font .name if curve .font else None 
+                curve_data ['align_x']=curve .align_x 
+                curve_data ['align_y']=curve .align_y 
+
+
+            splines_info =[]
+            for i ,spline in enumerate (curve .splines ):
+                spline_info ={
+                'index':i ,
+                'type':spline .type ,
+                'points_count':len (spline .points )if hasattr (spline ,'points')and spline .points else 0 ,
+                'bezier_points_count':len (spline .bezier_points )if hasattr (spline ,'bezier_points')and spline .bezier_points else 0 
+                }
+
+
+                if hasattr (spline ,'bezier_points')and spline .bezier_points and len (spline .bezier_points )>0 :
+                    spline_info ['sample_bezier_points']=[
+                    {
+                    'co':to_json_serializable (point .co ),
+                    'handle_left':to_json_serializable (point .handle_left ),
+                    'handle_right':to_json_serializable (point .handle_right )
+                    }
+                    for point in list (spline .bezier_points )[:3 ]
+                    ]
+                elif hasattr (spline ,'points')and spline .points and len (spline .points )>0 :
+                    spline_info ['sample_points']=[
+                    {
+                    'co':to_json_serializable (point .co ),
+                    'weight':point .weight if hasattr (point ,'weight')else 1.0 
+                    }
+                    for point in list (spline .points )[:3 ]
+                    ]
+
+                splines_info .append (spline_info )
+
+            curve_data ['splines']=splines_info 
+            curves_data .append (curve_data )
+
+        return curves_data 
+
     def get_lightweight_table_counts (self ,context )->Dict [str ,Any ]:
         """
         Get basic table counts without loading all table data.
@@ -3668,6 +3785,8 @@ class SceneQueryEngine :
             counts ['worlds']=len (bpy .data .worlds )
             counts ['images']=len (bpy .data .images )
             counts ['textures']=len (bpy .data .textures )
+            counts ['texts']=len (bpy .data .texts )
+            counts ['curves']=len (bpy .data .curves )
             counts ['node_groups']=len (bpy .data .node_groups )
             counts ['tables']=len (self .available_tables )
 

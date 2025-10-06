@@ -19,53 +19,92 @@ logger =logging .getLogger (__name__ )
 
 
 def wrap_text_blf (text :str ,max_width :int ,font_size :int =28 )->List [str ]:
-    """Wrap text using BLF text measurements with correct font size."""
+    """Wrap text using BLF text measurements with correct font size, preserving indentation."""
     if not text :
         return [""]
 
     try :
 
         blf .size (0 ,font_size )
-        full_width =blf .dimensions (0 ,text )[0 ]
 
 
-        if full_width <=max_width :
-            return [text ]
+        lines =text .split ('\n')
+        result_lines =[]
+
+        for line in lines :
+
+            if not line .strip ():
+                result_lines .append (line )
+                continue 
 
 
-        segments =[]
-        words =text .split (' ')
-        current_segment =""
+            full_width =blf .dimensions (0 ,line )[0 ]
+            if full_width <=max_width :
+                result_lines .append (line )
+                continue 
 
-        for word in words :
 
-            test_segment =current_segment +(" "if current_segment else "")+word 
-            test_width =blf .dimensions (0 ,test_segment )[0 ]
 
-            if test_width <=max_width -4 :
-                current_segment =test_segment 
-            else :
+            leading_whitespace =''
+            content_start =0 
+            for i ,char in enumerate (line ):
+                if char .isspace ():
+                    leading_whitespace +=char 
+                    content_start =i +1 
+                else :
+                    break 
 
-                if current_segment :
-                    segments .append (current_segment )
+
+            content =line [content_start :]
+
+
+            words =[]
+            current_word =""
+            for char in content :
+                if char .isspace ():
+                    if current_word :
+                        words .append (current_word )
+                        current_word =""
+                    words .append (char )
+                else :
+                    current_word +=char 
+            if current_word :
+                words .append (current_word )
+
+
+            segments =[]
+            current_segment =leading_whitespace 
+
+            for word in words :
+
+                test_segment =current_segment +word 
+                test_width =blf .dimensions (0 ,test_segment )[0 ]
+
+                if test_width <=max_width -4 :
+                    current_segment =test_segment 
+                else :
+
+                    if current_segment .strip ():
+                        segments .append (current_segment )
+
 
                     word_width =blf .dimensions (0 ,word )[0 ]
                     if word_width <=max_width -4 :
                         current_segment =word 
                     else :
 
-                        segments .extend (_break_long_word_blf (word ,max_width -4 ,font_size ))
+                        broken_words =_break_long_word_blf (word ,max_width -4 ,font_size )
+                        segments .extend (broken_words )
                         current_segment =""
-                else :
-
-                    segments .extend (_break_long_word_blf (word ,max_width -4 ,font_size ))
-                    current_segment =""
 
 
-        if current_segment :
-            segments .append (current_segment )
+            if current_segment .strip ():
+                segments .append (current_segment )
 
-        result =segments if segments else [text ]
+
+            result_lines .extend (segments )
+
+        result =result_lines if result_lines else [text ]
         logger .debug (f"Wrapped text '{text[:50]}...' into {len(result)} segments")
         return result 
 
@@ -109,27 +148,73 @@ def _break_long_word_blf (word :str ,max_width :int ,font_size :int )->List [str
 
 
 def _fallback_wrap (text :str ,max_width :int ,font_size :int )->List [str ]:
-    """Fallback text wrapping when BLF is not available."""
+    """Fallback text wrapping when BLF is not available, preserving indentation."""
 
     chars_per_line =max (10 ,max_width //max (8 ,font_size //4 ))
 
-    words =text .split (' ')
-    lines =[]
-    current_line =""
 
-    for word in words :
-        test_line =current_line +(" "if current_line else "")+word 
-        if len (test_line )<=chars_per_line :
-            current_line =test_line 
-        else :
-            if current_line :
-                lines .append (current_line )
-            current_line =word 
+    lines =text .split ('\n')
+    result_lines =[]
 
-    if current_line :
-        lines .append (current_line )
+    for line in lines :
 
-    return lines if lines else [text ]
+        if not line .strip ():
+            result_lines .append (line )
+            continue 
+
+
+        if len (line )<=chars_per_line :
+            result_lines .append (line )
+            continue 
+
+
+
+        leading_whitespace =''
+        content_start =0 
+        for i ,char in enumerate (line ):
+            if char .isspace ():
+                leading_whitespace +=char 
+                content_start =i +1 
+            else :
+                break 
+
+
+        content =line [content_start :]
+
+
+        words =[]
+        current_word =""
+        for char in content :
+            if char .isspace ():
+                if current_word :
+                    words .append (current_word )
+                    current_word =""
+                words .append (char )
+            else :
+                current_word +=char 
+        if current_word :
+            words .append (current_word )
+
+
+        segments =[]
+        current_segment =leading_whitespace 
+
+        for word in words :
+            test_line =current_segment +word 
+            if len (test_line )<=chars_per_line :
+                current_segment =test_line 
+            else :
+                if current_segment .strip ():
+                    segments .append (current_segment )
+                current_segment =word 
+
+        if current_segment .strip ():
+            segments .append (current_segment )
+
+
+        result_lines .extend (segments )
+
+    return result_lines if result_lines else [text ]
 
 
 class MessageComponent (UIComponent ):

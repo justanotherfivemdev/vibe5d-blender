@@ -26,12 +26,11 @@ class SettingsManager :
 
             if saved_settings :
 
-                model =saved_settings .get ("model","gpt-4.1-mini")
+                model =saved_settings .get ("model","gpt-5-mini")
 
 
                 context .scene .vibe4d_model =model 
 
-                logger .info (f"Loaded global settings: model={model}")
             else :
                 logger .info ("No saved settings found, using defaults")
 
@@ -47,14 +46,17 @@ class SettingsManager :
         """Save current settings to persistent storage."""
         try :
 
-            current_model =getattr (context .scene ,'vibe4d_model','gpt-4.1-mini')
+            current_model =getattr (context .scene ,'vibe4d_model','gpt-5-mini')
 
 
             settings_data ={
-            "model":current_model 
+            "agent_model":current_model ,
+            "ask_model":current_model ,
+            "model":current_model ,
+            "mode":"agent"
             }
 
-            return secure_storage .save_all_settings (settings_data )
+            return secure_storage .save_settings (settings_data )
 
         except Exception as e :
             logger .error (f"Failed to save settings: {str(e)}")
@@ -86,7 +88,7 @@ class SettingsManager :
             secure_storage .clear_settings ()
 
 
-            context .scene .vibe4d_model ="gpt-4.1-mini"
+            context .scene .vibe4d_model ="gpt-5-mini"
 
             logger .info ("Global settings cleared and reset to defaults")
             return True 

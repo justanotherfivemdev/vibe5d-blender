@@ -151,13 +151,11 @@ class HistoryManager :
             except Exception as e :
                 logger .debug (f"Could not clear UI text input: {e}")
 
-            logger .info (f"🔍 Created new chat: {chat_id} for scene '{scene_name}'")
             return chat_id 
 
         except Exception as e :
             logger .error (f"Failed to create new chat: {str(e)}")
             fallback_id =f"fallback_chat_{int(datetime.now().timestamp())}"
-            logger .info (f"🔍 Using fallback chat ID: {fallback_id}")
             return fallback_id 
 
     def get_current_chat_id (self ,context )->str :

@@ -112,7 +112,7 @@ class StreamingResponse :
 class LLMWebSocketClient :
     """WebSocket client for streaming LLM API communication."""
 
-    WEBSOCKET_URL ="wss://api.emalakai.com/vibe4d/v1/chat"
+    WEBSOCKET_URL ="wss://api.emalakai.com/vibe4d/v2/chat"
 
     def __init__ (self ):
         self .ws =None 
@@ -359,8 +359,16 @@ class LLMWebSocketClient :
             tool_name =data .get ("name","")
             arguments_json =data .get ("arguments","{}")
 
+            if not arguments_json or arguments_json .strip ()=="":
+                arguments_json ="{}"
 
-            arguments =json .loads (arguments_json )
+            try :
+                arguments =json .loads (arguments_json )
+            except json .JSONDecodeError as json_err :
+                logger .error (f"Failed to parse tool arguments JSON: {json_err}")
+                logger .error (f"Arguments JSON content: '{arguments_json}'")
+                logger .error (f"Tool name: {tool_name}, Call ID: {call_id}")
+                raise ValueError (f"Invalid JSON in tool arguments: {json_err}")from json_err 
 
 
             self .response .current_tool_call ={
@@ -426,71 +434,52 @@ class LLMWebSocketClient :
 
 
 
+                        if not success :
+                            status ="error"
+                            result_data ["status"]="error"
+                            logger .debug (f"Tool {tool_name} failed, forcing status to error")
+                        else :
+                            status =result_data .get ("status","success")
+                            logger .debug (f"Tool {tool_name} succeeded, status: {status}")
+
                         backend_result =result_data 
 
 
-                        ui_status_message =None 
+                        if status =="success":
+                            tool_result =result_data .get ("result","")
+                            if tool_name =="execute":
+
+                                ui_status_message =tool_result .strip ()if tool_result .strip ()else "Code executed successfully"
+                            elif tool_name in ["viewport","see_viewport","add_viewport_render","see_render"]:
+
+                                image_data_key ="data_uri"if "data_uri"in (tool_result if isinstance (tool_result ,dict )else {})else "image_data"
+                                if isinstance (tool_result ,dict )and image_data_key in tool_result :
+                                    image_width =tool_result .get ("width",0 )
+                                    image_height =tool_result .get ("height",0 )
+                                    ui_status_message =f"Captured {image_width}x{image_height} image successfully"
 
 
-                        if tool_name in ["viewport","see_viewport","add_viewport_render","see_render"]:
-                            if success and isinstance (result_data ,dict ):
-
-                                if "result"in result_data :
-                                    tool_result =result_data ["result"]
-                                    if isinstance (tool_result ,dict )and "data_uri"in tool_result :
-
-                                        image_data_uri =tool_result ["data_uri"]
-                                        image_width =tool_result .get ("width",0 )
-                                        image_height =tool_result .get ("height",0 )
-
-                                        ui_status_message =f"Captured {image_width}x{image_height} image successfully"
-
-
-
-                                        image_message_text ="[Render captured]"if tool_name =="see_render"else "[Viewport captured]"
-
-
-                                        backend_result ["_image_data"]={
-                                        "data_uri":image_data_uri ,
-                                        "message_text":image_message_text 
-                                        }
-
-                                        logger .info (f"Prepared image data for centralized tracking: {image_message_text}")
-                                    else :
-                                        ui_status_message ="Image capture failed"
+                                    image_message_text ="[Render captured]"if tool_name =="see_render"else "[Viewport captured]"
+                                    backend_result ["_image_data"]={
+                                    "data_uri":tool_result [image_data_key ],
+                                    "message_text":image_message_text 
+                                    }
                                 else :
                                     ui_status_message ="Image capture failed"
+                                    status ="error"
+                                    backend_result ["status"]="error"
+                            elif tool_name =="query":
+                                if isinstance (tool_result ,dict )and "count"in tool_result :
+                                    count =tool_result .get ("count",0 )
+                                    ui_status_message =f"Found {count} results"
+                                else :
+                                    ui_status_message ="Query executed successfully"
                             else :
-
-                                ui_status_message =str (result_data .get ("result","Image capture failed"))if not success else "Image capture failed"
+                                ui_status_message ="Tool executed successfully"
                         else :
 
-                            if success :
-
-                                if tool_name =="execute":
-
-                                    tool_result =result_data .get ("result","")
-                                    if isinstance (tool_result ,str )and tool_result .strip ():
-                                        ui_status_message =tool_result .strip ()
-                                    else :
-                                        ui_status_message ="Code executed successfully"
-                                elif tool_name =="query":
-
-
-                                    tool_result =result_data .get ("result",{})
-                                    if isinstance (tool_result ,dict )and "count"in tool_result :
-                                        count =tool_result .get ("count",0 )
-                                        ui_status_message =f"Found {count} results"
-                                    else :
-                                        ui_status_message ="Query executed successfully"
-                                elif tool_name =="scene_context":
-
-                                    ui_status_message ="Scene context retrieved"
-                                else :
-
-                                    ui_status_message ="Tool executed successfully"
-                            else :
-                                ui_status_message =str (result_data .get ("result","Tool execution failed"))
+                            error_message =result_data .get ("result","Tool execution failed")
+                            ui_status_message =error_message 
 
                     except Exception as e :
                         logger .error (f"Error executing tool '{tool_name}' on main thread: {str(e)}")
@@ -593,33 +582,35 @@ class LLMWebSocketClient :
                 return 
 
 
+
             if not isinstance (result ,dict ):
-                result ={"status":"error","result":str (result )}
+                result ={"result":str (result )}
 
 
-            if "status"not in result :
-                result ["status"]="success"if result .get ("result")and not str (result .get ("result")).startswith ("Error")else "error"
+            status =result .get ("status","success")
+            result_content =result .get ("result","")
+
 
             response_data ={
             "call_id":call_id ,
-            "output":json .dumps (result ),
-            "status":result .get ("status","error")
+            "output":json .dumps ({"result":result_content }),
+            "status":status 
             }
 
             message =json .dumps (response_data )
 
 
             self .ws .send (message )
-            logger .debug (f"Sent tool call response: {message}")
+            logger .debug (f"Sent tool call response: call_id={call_id}, status={status}")
 
 
 
-            if result .get ("status")=="success":
+            if status =="success":
 
                 self .response .success =True 
-                logger .debug ("Tool call completed successfully, conversation may end soon")
+                logger .debug ("Tool call completed successfully")
             else :
-                logger .warning (f"Tool call response indicates failure: {result}")
+                logger .warning (f"Tool call response indicates failure: {status}")
 
         except Exception as e :
             error_msg =f"Failed to send tool call response: {str(e)}"

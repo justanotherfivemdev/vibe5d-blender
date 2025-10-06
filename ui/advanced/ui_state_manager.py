@@ -176,46 +176,38 @@ class UIStateManager :
 
             target_area =self ._find_by_area_index (screen ,config )
             if target_area :
-                self .logger .info (f"✅ Found UI viewport by area index: {config.area_index}")
                 return target_area 
 
 
             target_area =self ._find_by_relative_position (screen ,config )
             if target_area :
-                self .logger .info (f"✅ Found UI viewport by relative position: {config.relative_x:.2%},{config.relative_y:.2%}")
                 return target_area 
 
 
             target_area =self ._find_by_fingerprint (screen ,config )
             if target_area :
-                self .logger .info (f"✅ Found UI viewport by fingerprint matching")
                 return target_area 
 
 
             target_area =self ._find_by_neighbors (screen ,config )
             if target_area :
-                self .logger .info (f"✅ Found UI viewport by neighbor analysis")
                 return target_area 
 
 
             target_area =self ._find_marked_ui_area (context )
             if target_area :
-                self .logger .info (f"✅ Found UI viewport by scene markers")
                 return target_area 
 
 
             target_area =self ._find_by_dimensions (screen ,config )
             if target_area :
-                self .logger .info (f"⚠️ Found UI viewport by dimension fallback")
                 return target_area 
 
 
             target_area =self ._find_any_suitable_viewport (screen )
             if target_area :
-                self .logger .warning (f"⚠️ Using fallback viewport - original identification failed")
                 return target_area 
 
-            self .logger .error ("❌ Could not find any suitable viewport for UI recovery")
             return None 
 
         except Exception as e :

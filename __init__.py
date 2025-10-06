@@ -7,12 +7,12 @@ This addon provides AI-powered code generation and assistance for Blender.
 bl_info ={
 "name":"Vibe4D",
 "author":"Emalakai",
-"version":(0 ,1 ,0 ),
+"version":(0 ,2 ,0 ),
 "blender":(4 ,4 ,0 ),
 "location":"View3D > Sidebar > Vibe4D",
-"description":"Ultimate Blender AI Assistant",
+"description":"Ultimate Blender AI assistant",
 "warning":"",
-"doc_url":"",
+"doc_url":"https://vibe4d.com",
 "category":"Development",
 }
 
@@ -22,7 +22,7 @@ from bpy .app .handlers import persistent
 from .utils .logger import logger 
 from .utils .history_manager import history_manager 
 from .utils .settings_manager import settings_manager 
-from .utils .instructions_manager import instructions_manager 
+from .utils .instructions_manager import instruction_manager 
 from .auth .manager import auth_manager 
 
 
@@ -52,6 +52,7 @@ get_render_result =api .get_render_result
 cancel_render =api .cancel_render 
 list_active_renders =api .list_active_renders 
 render_with_callback =api .render_with_callback 
+analyse_mesh_image =api .analyse_mesh_image 
 
 
 @persistent 
@@ -67,7 +68,7 @@ def load_auth_and_settings_on_file_load (file ):
                 auth_manager .initialize_auth (bpy .context )
 
             settings_manager .initialize_settings (bpy .context )
-            instructions_manager .initialize_instructions (bpy .context )
+            instruction_manager .initialize_instruction (bpy .context )
     except Exception as e :
         logger .debug (f"Failed to load auth/settings/instructions on file load: {str(e)}")
 
@@ -82,7 +83,6 @@ def recover_ui_overlay_on_file_load (file ):
             from .ui .advanced .manager import ui_manager 
             from .ui .advanced .ui_state_manager import ui_state_manager 
 
-            logger .info ("Starting robust UI recovery process")
 
 
             recovery_success =ui_state_manager .recover_ui_state (bpy .context ,ui_manager )
@@ -93,7 +93,7 @@ def recover_ui_overlay_on_file_load (file ):
                 logger .debug ("No UI state to recover or recovery not needed")
 
         except Exception as e :
-            logger .error (f"Error in robust UI recovery: {e}")
+            logger .error (f"Error in UI recovery: {e}")
             import traceback 
             logger .error (traceback .format_exc ())
 
@@ -167,13 +167,10 @@ def auto_open_chat_ui_on_file_load (file ):
                 logger .debug ("No suitable 3D viewport found for auto-opening chat UI")
                 return None 
 
-            logger .info ("Auto-opening chat UI for new scene")
-
 
             try :
                 with bpy .context .temp_override (area =target_area ):
                     bpy .ops .vibe4d .show_advanced_ui ()
-                logger .info ("Successfully auto-opened chat UI")
             except Exception as e :
                 logger .error (f"Failed to auto-open chat UI using operator: {e}")
 
@@ -236,7 +233,7 @@ def register ():
 
 
         try :
-            bpy .app .timers .register (delayed_modal_handler_start ,first_interval =0.1 )
+            bpy .app .timers .register (delayed_modal_handler_start ,first_interval =0.2 )
         except Exception as e :
             logger .warning (f"Failed to schedule viewport button modal handler: {e}")
 
@@ -246,7 +243,7 @@ def register ():
 
                 auth_manager .initialize_auth (bpy .context )
                 settings_manager .initialize_settings (bpy .context )
-                instructions_manager .initialize_instructions (bpy .context )
+                instruction_manager .initialize_instruction (bpy .context )
         except Exception as e :
             logger .debug (f"Failed to load initial auth/settings/instructions: {str(e)}")
 
@@ -267,7 +264,7 @@ def unregister ():
             if bpy .context .scene :
 
                 settings_manager .save_settings (bpy .context )
-                instructions_manager .save_instructions (bpy .context )
+                instruction_manager .save_instruction (bpy .context )
         except Exception as e :
             logger .debug (f"Failed to save settings/instructions on unregister: {str(e)}")
 

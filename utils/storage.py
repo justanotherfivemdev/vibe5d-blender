@@ -6,8 +6,11 @@ Handles persistent storage of user credentials and custom instructions.
 
 import json 
 import os 
+import tempfile 
+import shutil 
 from pathlib import Path 
 from typing import Dict ,Optional ,List 
+import time 
 
 from .logger import logger 
 
@@ -25,6 +28,63 @@ class SecureStorage :
 
         self .config_dir .mkdir (parents =True ,exist_ok =True )
 
+    def _atomic_write (self ,file_path :Path ,data :dict ,max_retries :int =3 )->bool :
+        """
+        Atomic write operation with retry logic.
+        
+        Args:
+            file_path: Path to the target file
+            data: Data to write
+            max_retries: Maximum number of retry attempts
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        for attempt in range (max_retries ):
+            try :
+
+                temp_file =None 
+                with tempfile .NamedTemporaryFile (
+                mode ='w',
+                dir =file_path .parent ,
+                prefix =f".{file_path.name}.",
+                suffix =".tmp",
+                delete =False 
+                )as temp_file :
+
+                    json .dump (data ,temp_file ,indent =2 ,ensure_ascii =False )
+                    temp_file .flush ()
+                    os .fsync (temp_file .fileno ())
+                    temp_file_path =temp_file .name 
+
+
+                os .chmod (temp_file_path ,0o600 )
+
+
+                shutil .move (temp_file_path ,file_path )
+
+                logger .debug (f"Successfully wrote {file_path} on attempt {attempt + 1}")
+                return True 
+
+            except Exception as e :
+                logger .warning (f"Write attempt {attempt + 1} failed for {file_path}: {str(e)}")
+
+
+                if temp_file and os .path .exists (temp_file .name ):
+                    try :
+                        os .unlink (temp_file .name )
+                    except :
+                        pass 
+
+                if attempt <max_retries -1 :
+
+                    time .sleep (0.1 *(2 **attempt ))
+                else :
+                    logger .error (f"Failed to write {file_path} after {max_retries} attempts")
+                    return False 
+
+        return False 
+
     def save_credentials (self ,user_id :str ,token :str ,email :str ="",plan :str ="")->bool :
         """Save user credentials securely."""
         try :
@@ -35,15 +95,14 @@ class SecureStorage :
             "plan":plan 
             }
 
+            success =self ._atomic_write (self .credentials_file ,credentials )
 
-            with open (self .credentials_file ,'w')as f :
-                json .dump (credentials ,f ,indent =2 )
+            if success :
+                pass 
+            else :
+                logger .error ("Failed to save credentials")
 
-
-            os .chmod (self .credentials_file ,0o600 )
-
-            logger .info ("User credentials saved securely")
-            return True 
+            return success 
 
         except Exception as e :
             logger .error (f"Failed to save credentials: {str(e)}")
@@ -64,7 +123,6 @@ class SecureStorage :
                 logger .warning ("Invalid credentials file - missing required fields")
                 return None 
 
-            logger .info ("User credentials loaded successfully")
             return credentials 
 
         except json .JSONDecodeError as e :
@@ -79,65 +137,103 @@ class SecureStorage :
         try :
             if self .credentials_file .exists ():
                 self .credentials_file .unlink ()
-                logger .info ("User credentials cleared")
+
             return True 
 
         except Exception as e :
             logger .error (f"Failed to clear credentials: {str(e)}")
             return False 
 
-    def save_custom_instructions (self ,instructions )->bool :
-        """Save custom instructions to persistent storage."""
+    def save_custom_instructions (self ,instructions :List [Dict [str ,any ]])->bool :
+        """
+        Save custom instructions to persistent storage.
+        
+        Args:
+            instructions: List of instruction dictionaries with 'text' and 'enabled' keys
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
         try :
 
-            if isinstance (instructions ,dict )and ("agent"in instructions or "ask"in instructions ):
+            if not isinstance (instructions ,list ):
+                logger .error (f"Invalid instructions format: expected list, got {type(instructions)}")
+                return False 
 
-                data ={
-                "instructions":instructions ,
-                "version":"2.0"
+
+            validated_instructions =[]
+            for i ,instruction in enumerate (instructions ):
+                if not isinstance (instruction ,dict ):
+                    logger .error (f"Invalid instruction at index {i}: expected dict, got {type(instruction)}")
+                    return False 
+
+                if "text"not in instruction :
+                    logger .error (f"Invalid instruction at index {i}: missing 'text' field")
+                    return False 
+
+
+                validated_instruction ={
+                "text":str (instruction .get ("text","")),
+                "enabled":bool (instruction .get ("enabled",True ))
                 }
+                validated_instructions .append (validated_instruction )
+
+
+            success =self ._atomic_write (self .instructions_file ,validated_instructions )
+
+            if success :
+                logger .info (f"Saved {len(validated_instructions)} custom instructions")
             else :
+                logger .error ("Failed to save custom instructions")
 
-                instructions_data =[]
-                for instruction in instructions :
-                    if isinstance (instruction ,dict ):
-                        instructions_data .append ({
-                        "text":instruction .get ("text",""),
-                        "enabled":instruction .get ("enabled",True )
-                        })
-                    elif isinstance (instruction ,str ):
-
-                        instructions_data .append ({
-                        "text":instruction ,
-                        "enabled":True 
-                        })
-
-                data ={
-                "instructions":instructions_data ,
-                "version":"1.0"
-                }
-
-
-            with open (self .instructions_file ,'w')as f :
-                json .dump (data ,f ,indent =2 )
-
-
-            os .chmod (self .instructions_file ,0o600 )
-
-            if isinstance (instructions ,dict ):
-                agent_count =len (instructions .get ("agent",[]))
-                ask_count =len (instructions .get ("ask",[]))
-                logger .info (f"Saved {agent_count} agent and {ask_count} ask custom instructions")
-            else :
-                logger .info (f"Saved {len(instructions)} custom instructions")
-            return True 
+            return success 
 
         except Exception as e :
             logger .error (f"Failed to save custom instructions: {str(e)}")
             return False 
 
-    def load_custom_instructions (self ):
-        """Load saved custom instructions."""
+    def save_custom_instruction (self ,instruction_text :str )->bool :
+        """
+        Save single custom instruction to persistent storage.
+        
+        Args:
+            instruction_text: Single instruction text string
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try :
+
+            if not isinstance (instruction_text ,str ):
+                logger .error (f"Invalid instruction format: expected str, got {type(instruction_text)}")
+                return False 
+
+
+            instruction_data ={
+            "instruction":instruction_text .strip ()
+            }
+
+
+            success =self ._atomic_write (self .instructions_file ,instruction_data )
+
+            if success :
+                logger .info (f"Saved custom instruction ({len(instruction_text)} characters)")
+            else :
+                logger .error ("Failed to save custom instruction")
+
+            return success 
+
+        except Exception as e :
+            logger .error (f"Failed to save custom instruction: {str(e)}")
+            return False 
+
+    def load_custom_instructions (self )->Optional [List [Dict [str ,any ]]]:
+        """
+        Load saved custom instructions.
+        
+        Returns:
+            List of instruction dictionaries or None if no instructions found
+        """
         try :
             if not self .instructions_file .exists ():
                 logger .debug ("No saved custom instructions found")
@@ -147,100 +243,89 @@ class SecureStorage :
                 data =json .load (f )
 
 
-            if isinstance (data ,dict ):
-                version =data .get ("version","1.0")
-
-                if version =="2.0":
-
-                    instructions =data .get ("instructions",{})
-                    if not isinstance (instructions ,dict ):
-                        logger .warning ("Invalid instructions format in version 2.0 file")
-                        return None 
+            if not isinstance (data ,list ):
+                logger .error (f"Invalid instructions file format: expected list, got {type(data)}")
+                return None 
 
 
-                    for mode in ["agent","ask"]:
-                        mode_instructions =instructions .get (mode ,[])
-                        if not isinstance (mode_instructions ,list ):
-                            logger .warning (f"Invalid {mode} instructions format")
-                            return None 
+            validated_instructions =[]
+            for i ,instruction in enumerate (data ):
+                if not isinstance (instruction ,dict ):
+                    logger .warning (f"Invalid instruction at index {i}: expected dict, got {type(instruction)}")
+                    continue 
+
+                if "text"not in instruction :
+                    logger .warning (f"Invalid instruction at index {i}: missing 'text' field")
+                    continue 
 
 
-                        for instruction in mode_instructions :
-                            if isinstance (instruction ,str ):
+                validated_instruction ={
+                "text":str (instruction .get ("text","")),
+                "enabled":bool (instruction .get ("enabled",True ))
+                }
+                validated_instructions .append (validated_instruction )
 
-                                instruction ={"text":instruction ,"enabled":True }
-                            elif not isinstance (instruction ,dict )or "text"not in instruction :
-                                logger .warning (f"Invalid {mode} instruction format in file")
-                                return None 
-
-
-                            if "enabled"not in instruction :
-                                instruction ["enabled"]=True 
-
-                    return instructions 
-
-                elif version =="1.0"or "instructions"in data :
-
-                    legacy_instructions =data .get ("instructions",[])
-
-                    if not isinstance (legacy_instructions ,list ):
-                        logger .warning ("Invalid legacy instructions format")
-                        return None 
-
-
-                    converted_instructions =[]
-                    for instruction in legacy_instructions :
-                        if isinstance (instruction ,str ):
-
-                            converted_instructions .append ({
-                            "text":instruction ,
-                            "enabled":True 
-                            })
-                        elif isinstance (instruction ,dict ):
-                            if "text"not in instruction :
-                                logger .warning ("Invalid instruction format in legacy file")
-                                return None 
-
-
-                            if "enabled"not in instruction :
-                                instruction ["enabled"]=True 
-                            converted_instructions .append (instruction )
-                        else :
-                            logger .warning ("Invalid instruction type in legacy file")
-                            return None 
-
-                    return converted_instructions 
-
-            elif isinstance (data ,list ):
-
-                converted_instructions =[]
-                for instruction in data :
-                    if isinstance (instruction ,str ):
-                        converted_instructions .append ({
-                        "text":instruction ,
-                        "enabled":True 
-                        })
-                    elif isinstance (instruction ,dict ):
-                        if "text"not in instruction :
-                            logger .warning ("Invalid instruction format in old file")
-                            return None 
-                        if "enabled"not in instruction :
-                            instruction ["enabled"]=True 
-                        converted_instructions .append (instruction )
-                    else :
-                        logger .warning ("Invalid instruction type in old file")
-                        return None 
-
-                return converted_instructions 
-
-            logger .warning ("Unknown instructions file format")
-            return None 
+            logger .info (f"Loaded {len(validated_instructions)} custom instructions")
+            return validated_instructions 
 
         except json .JSONDecodeError as e :
             logger .error (f"Invalid instructions file format: {str(e)}")
             return None 
         except Exception as e :
             logger .error (f"Failed to load custom instructions: {str(e)}")
+            return None 
+
+    def load_custom_instruction (self )->Optional [str ]:
+        """
+        Load saved single custom instruction.
+        
+        Returns:
+            Instruction text string or None if no instruction found
+        """
+        try :
+            if not self .instructions_file .exists ():
+                return None 
+
+            with open (self .instructions_file ,'r')as f :
+                data =json .load (f )
+
+
+            if isinstance (data ,list ):
+
+                combined_instructions =[]
+                for instruction in data :
+                    if isinstance (instruction ,dict )and instruction .get ("enabled",True ):
+                        text =instruction .get ("text","").strip ()
+                        if text :
+                            combined_instructions .append (text )
+
+                if combined_instructions :
+
+                    combined_text ="\n\n".join (combined_instructions )
+
+
+                    self .save_custom_instruction (combined_text )
+
+                    return combined_text 
+                else :
+                    return None 
+
+            elif isinstance (data ,dict ):
+
+                instruction_text =data .get ("instruction","")
+                if instruction_text :
+                    return instruction_text 
+                else :
+                    return None 
+            else :
+                logger .error (f"Invalid instruction file format: expected dict or list, got {type(data)}")
+                return None 
+
+        except json .JSONDecodeError as e :
+            logger .error (f"Invalid instruction file format: {str(e)}")
+            return None 
+        except Exception as e :
+            logger .error (f"Failed to load custom instruction: {str(e)}")
             return None 
 
     def clear_custom_instructions (self )->bool :
@@ -255,56 +340,63 @@ class SecureStorage :
             logger .error (f"Failed to clear custom instructions: {str(e)}")
             return False 
 
-    def save_settings (self ,model :str ,mode :str )->bool :
-        """Save global settings (model and mode) - legacy method."""
+    def clear_custom_instruction (self )->bool :
+        """Clear saved single custom instruction."""
         try :
-            settings_data ={
-            "model":model ,
-            "mode":mode ,
-            "version":"1.0"
+            if self .instructions_file .exists ():
+                self .instructions_file .unlink ()
+                logger .info ("Custom instruction cleared")
+            return True 
+
+        except Exception as e :
+            logger .error (f"Failed to clear custom instruction: {str(e)}")
+            return False 
+
+    def save_settings (self ,settings_data :Dict [str ,str ])->bool :
+        """
+        Save global settings.
+        
+        Args:
+            settings_data: Dictionary containing settings data
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try :
+
+            if not isinstance (settings_data ,dict ):
+                logger .error (f"Invalid settings format: expected dict, got {type(settings_data)}")
+                return False 
+
+
+            normalized_settings ={
+            "agent_model":str (settings_data .get ("agent_model","gpt-5-mini")),
+            "ask_model":str (settings_data .get ("ask_model","gpt-5-mini")),
+            "model":str (settings_data .get ("model","gpt-5-mini")),
+            "mode":str (settings_data .get ("mode","agent"))
             }
 
 
-            with open (self .settings_file ,'w')as f :
-                json .dump (settings_data ,f ,indent =2 )
+            success =self ._atomic_write (self .settings_file ,normalized_settings )
 
+            if success :
+                logger .info (f"Saved settings: agent_model={normalized_settings['agent_model']}, ask_model={normalized_settings['ask_model']}, mode={normalized_settings['mode']}")
+            else :
+                logger .error ("Failed to save settings")
 
-            os .chmod (self .settings_file ,0o600 )
-
-            logger .debug (f"Saved global settings: model={model}, mode={mode}")
-            return True 
+            return success 
 
         except Exception as e :
             logger .error (f"Failed to save settings: {str(e)}")
             return False 
 
-    def save_all_settings (self ,settings_data :Dict [str ,str ])->bool :
-        """Save all settings including agent/ask models."""
-        try :
-            data ={
-            "agent_model":settings_data .get ("agent_model","gpt-4.1-mini"),
-            "ask_model":settings_data .get ("ask_model","gpt-4.1-mini"),
-            "model":settings_data .get ("model","gpt-4.1-mini"),
-            "mode":settings_data .get ("mode","agent"),
-            "version":"2.0"
-            }
-
-
-            with open (self .settings_file ,'w')as f :
-                json .dump (data ,f ,indent =2 )
-
-
-            os .chmod (self .settings_file ,0o600 )
-
-            logger .debug (f"Saved all settings: agent_model={data['agent_model']}, ask_model={data['ask_model']}, mode={data['mode']}")
-            return True 
-
-        except Exception as e :
-            logger .error (f"Failed to save all settings: {str(e)}")
-            return False 
-
     def load_settings (self )->Optional [Dict [str ,str ]]:
-        """Load saved global settings."""
+        """
+        Load saved global settings.
+        
+        Returns:
+            Dictionary containing settings or None if no settings found
+        """
         try :
             if not self .settings_file .exists ():
                 logger .debug ("No saved settings found, using defaults")
@@ -315,30 +407,16 @@ class SecureStorage :
 
 
             if not isinstance (data ,dict ):
-                logger .warning ("Invalid settings file format")
+                logger .error ("Invalid settings file format: expected dict")
                 return None 
 
-            version =data .get ("version","1.0")
 
-            if version =="2.0":
-
-                settings ={
-                "agent_model":data .get ("agent_model","gpt-4.1-mini"),
-                "ask_model":data .get ("ask_model","gpt-4.1-mini"),
-                "model":data .get ("model","gpt-4.1-mini"),
-                "mode":data .get ("mode","agent")
-                }
-                logger .debug (f"Loaded settings (v{version}): agent_model={settings['agent_model']}, ask_model={settings['ask_model']}, mode={settings['mode']}")
-            else :
-
-                legacy_model =data .get ("model","gpt-4.1-mini")
-                settings ={
-                "agent_model":legacy_model ,
-                "ask_model":legacy_model ,
-                "model":legacy_model ,
-                "mode":data .get ("mode","agent")
-                }
-                logger .debug (f"Loaded legacy settings (v{version}): model={legacy_model}, mode={settings['mode']}")
+            settings ={
+            "agent_model":str (data .get ("agent_model","gpt-5-mini")),
+            "ask_model":str (data .get ("ask_model","gpt-5-mini")),
+            "model":str (data .get ("model","gpt-5-mini")),
+            "mode":str (data .get ("mode","agent"))
+            }
 
             return settings 
 

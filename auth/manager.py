@@ -55,7 +55,6 @@ class AuthManager :
 
             return False 
 
-        logger .info ("Initializing authentication system")
 
         try :
 
@@ -107,7 +106,6 @@ class AuthManager :
                 context .window_manager .vibe4d_status =f"Authenticated ({plan} plan)"if plan else "Authenticated"
 
                 self .last_validation_time =current_time 
-                logger .info (f"Auto-authenticated user: {email}")
 
 
                 self .update_usage_info (context )

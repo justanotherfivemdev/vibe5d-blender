@@ -13,7 +13,7 @@ from ..utils .logger import logger
 class LLMRequestBuilder :
     """Builds LLM API requests in the required format."""
 
-    DEFAULT_MODEL ="gpt-4.1-mini"
+    DEFAULT_MODEL ="gpt-5-mini"
     SOFTWARE_NAME ="blender"
 
     @staticmethod 
@@ -95,15 +95,15 @@ class LLMRequestBuilder :
             }
 
     @staticmethod 
-    def _get_model_and_instructions (context ):
-        """Get model and custom instructions from unified properties."""
+    def _get_model_and_instruction (context ):
+        """Get model and custom instruction from unified properties."""
 
         model_prop =getattr (context .scene ,'vibe4d_model',LLMRequestBuilder .DEFAULT_MODEL )
 
 
-        instructions =getattr (context .scene ,'vibe4d_custom_instructions',[])
+        instruction =getattr (context .scene ,'vibe4d_custom_instruction','')
 
-        return model_prop ,instructions 
+        return model_prop ,instruction 
 
     @staticmethod 
     def build_chat_request (
@@ -130,11 +130,11 @@ class LLMRequestBuilder :
         """
         try :
 
-            selected_model ,raw_instructions =LLMRequestBuilder ._get_model_and_instructions (context )
+            selected_model ,raw_instruction =LLMRequestBuilder ._get_model_and_instruction (context )
             selected_model =model or selected_model 
 
 
-            instructions =LLMRequestBuilder ._get_enabled_instructions_from_collection (raw_instructions )
+            instructions =LLMRequestBuilder ._get_instruction_array (raw_instruction )
 
 
             blender_version =LLMRequestBuilder ._get_blender_version ()
@@ -182,7 +182,7 @@ class LLMRequestBuilder :
             }
             }
 
-            logger .debug (f"Built chat request with {len(messages)} messages")
+            logger .debug (f"Built chat request with {len(messages)} messages and {len(instructions)} instructions")
             return request 
 
         except Exception as e :
@@ -246,36 +246,39 @@ class LLMRequestBuilder :
             return "4.4"
 
     @staticmethod 
-    def _get_enabled_instructions (context )->List [str ]:
-        """Get list of enabled custom instructions."""
+    def _get_instruction_array (instruction_text :str )->List [str ]:
+        """Convert single instruction text to array format for server compatibility."""
         try :
-            instructions =[]
-            custom_instructions =getattr (context .scene ,'vibe4d_custom_instructions',[])
+            if instruction_text and instruction_text .strip ():
 
-            for instruction in custom_instructions :
-                if instruction .enabled and instruction .text .strip ():
-                    instructions .append (instruction .text .strip ())
+                return [instruction_text .strip ()]
+            else :
 
-            logger .debug (f"Found {len(instructions)} enabled custom instructions")
-            return instructions 
+                return []
 
         except Exception as e :
-            logger .error (f"Failed to get custom instructions: {str(e)}")
+            logger .error (f"Failed to process instruction text: {str(e)}")
             return []
 
     @staticmethod 
-    def _get_enabled_instructions_from_collection (custom_instructions )->List [str ]:
-        """Get list of enabled custom instructions from a specific collection."""
+    def _get_enabled_instructions (context )->List [str ]:
+        """Get list of enabled custom instructions (legacy compatibility method)."""
         try :
-            instructions =[]
 
-            for instruction in custom_instructions :
-                if instruction .enabled and instruction .text .strip ():
-                    instructions .append (instruction .text .strip ())
-
-            logger .debug (f"Found {len(instructions)} enabled custom instructions from collection")
-            return instructions 
+            instruction =getattr (context .scene ,'vibe4d_custom_instruction','')
+            return LLMRequestBuilder ._get_instruction_array (instruction )
 
         except Exception as e :
-            logger .error (f"Failed to get custom instructions from collection: {str(e)}")
+            logger .error (f"Failed to get custom instruction: {str(e)}")
+            return []
+
+    @staticmethod 
+    def _get_enabled_instructions_from_collection (custom_instruction )->List [str ]:
+        """Get list of enabled custom instructions from a specific instruction (legacy compatibility method)."""
+        try :
+
+            return LLMRequestBuilder ._get_instruction_array (custom_instruction )
+
+        except Exception as e :
+            logger .error (f"Failed to get custom instruction from input: {str(e)}")
             return []

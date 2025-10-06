@@ -27,14 +27,70 @@ class ViewportButton :
         self .draw_handler =None 
         self .logo_image =None 
         self .logo_texture =None 
-        self .button_size =CoordinateSystem .scale_int (40 )
-        self .button_margin =CoordinateSystem .scale_int (10 )
         self .is_hovered =False 
         self .is_pressed =False 
         self .logo_loaded =False 
         self .logo_load_attempted =False 
 
 
+        self ._current_ui_scale =None 
+        self ._last_scale_check_time =0 
+        self ._scale_check_interval =1.0 
+
+
+        self ._update_scaled_values ()
+
+
+
+    def _update_scaled_values (self ):
+        """Update all scaled values based on current UI scale."""
+        self .button_size =CoordinateSystem .scale_int (40 )
+        self .button_margin =CoordinateSystem .scale_int (10 )
+
+
+        self ._current_ui_scale =CoordinateSystem .get_ui_scale ()
+
+    def _check_ui_scale_changes (self )->bool :
+        """Check if UI scale has changed and update scaled values if needed."""
+        current_time =time .time ()
+
+
+        if current_time -self ._last_scale_check_time <self ._scale_check_interval :
+            return False 
+
+        self ._last_scale_check_time =current_time 
+
+        try :
+            current_scale =CoordinateSystem .get_ui_scale ()
+
+            if self ._current_ui_scale is None :
+
+                self ._current_ui_scale =current_scale 
+                return False 
+
+            if abs (current_scale -self ._current_ui_scale )>0.01 :
+                logger .info (f"Viewport button: UI scale changed: {self._current_ui_scale} -> {current_scale}")
+                self ._update_scaled_values ()
+
+
+                self ._force_viewport_redraw ()
+
+                return True 
+
+            return False 
+        except Exception as e :
+            logger .error (f"Error checking UI scale changes in viewport button: {e}")
+            return False 
+
+    def _force_viewport_redraw (self ):
+        """Force a redraw of all 3D viewports to update the button immediately."""
+        try :
+
+            for area in bpy .context .screen .areas :
+                if area .type =='VIEW_3D':
+                    area .tag_redraw ()
+        except Exception as e :
+            logger .error (f"Error forcing viewport redraw: {e}")
 
     def _load_logo_texture (self ):
         """Load the logo texture from the icons directory."""
@@ -70,7 +126,6 @@ class ViewportButton :
                         import gpu .texture 
                         self .logo_texture =gpu .texture .from_image (self .logo_image )
                         self .logo_loaded =True 
-                        logger .info (f"Logo texture loaded from {logo_path}")
                     except Exception as e :
                         logger .error (f"Failed to create GPU texture from image: {e}")
                         self .logo_texture =None 
@@ -87,17 +142,29 @@ class ViewportButton :
             self .draw_handler =bpy .types .SpaceView3D .draw_handler_add (
             self ._draw_callback ,(),'WINDOW','POST_PIXEL'
             )
-            logger .info ("Viewport button enabled")
 
     def disable (self ):
         """Disable the viewport button by removing draw handler."""
         if self .draw_handler :
             bpy .types .SpaceView3D .draw_handler_remove (self .draw_handler ,'WINDOW')
             self .draw_handler =None 
-            logger .info ("Viewport button disabled")
 
 
         self ._cleanup_texture ()
+
+
+        self ._current_ui_scale =None 
+        self ._last_scale_check_time =0 
+
+    def refresh (self ):
+        """Manually refresh the button (useful for external scale change notifications)."""
+        try :
+
+            self ._last_scale_check_time =0 
+            if self ._check_ui_scale_changes ():
+                pass 
+        except Exception as e :
+            logger .error (f"Error refreshing viewport button: {e}")
 
     def _cleanup_texture (self ):
         """Clean up texture resources."""
@@ -109,7 +176,6 @@ class ViewportButton :
             if self .logo_image and hasattr (bpy ,'data')and hasattr (bpy .data ,'images')and self .logo_image .name in bpy .data .images :
 
                 bpy .data .images .remove (self .logo_image )
-                logger .info ("Logo texture cleaned up")
         except Exception as e :
             logger .debug (f"Error cleaning up logo texture: {e}")
         finally :
@@ -146,6 +212,9 @@ class ViewportButton :
                 return 
 
 
+            scale_changed =self ._check_ui_scale_changes ()
+
+
             if not self .logo_load_attempted :
                 self ._load_logo_texture ()
 
@@ -156,6 +225,8 @@ class ViewportButton :
             current_time =time .time ()
             if not hasattr (self ,'_last_draw_log_time')or current_time -self ._last_draw_log_time >5.0 :
                 self ._last_draw_log_time =current_time 
+                if scale_changed :
+                    logger .debug (f"Viewport button redrawn with new scale: {self._current_ui_scale}")
 
 
             is_ui_active =ui_manager .is_ui_active ()

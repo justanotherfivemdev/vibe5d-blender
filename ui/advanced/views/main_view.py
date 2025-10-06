@@ -348,7 +348,7 @@ class MainView (BaseView ):
         send_button_spacing =self .SEND_BUTTON_SPACING 
 
 
-        model_options =["GPT 4.1","GPT 4.1 Mini","GPT 4.1 Nano"]
+        model_options =["Claude Sonnet 4.5","GPT 5","GPT 5 Mini"]
         model_dropdown =ModelDropdown (
         model_options ,
         0 ,0 ,self .DROPDOWN_WIDTH ,self .DROPDOWN_HEIGHT ,
@@ -361,16 +361,16 @@ class MainView (BaseView ):
             context =bpy .context 
 
 
-            current_model =getattr (context .scene ,'vibe4d_model','gpt-4.1-mini')
+            current_model =getattr (context .scene ,'vibe4d_model','gpt-5-mini')
 
 
             model_reverse_mapping ={
-            "gpt-4.1":"GPT 4.1",
-            "gpt-4.1-mini":"GPT 4.1 Mini",
-            "gpt-4.1-nano":"GPT 4.1 Nano"
+            "claude-sonnet-4-5":"Claude Sonnet 4.5",
+            "gpt-5":"GPT 5",
+            "gpt-5-mini":"GPT 5 Mini"
             }
 
-            display_model =model_reverse_mapping .get (current_model ,"GPT 4.1 Mini")
+            display_model =model_reverse_mapping .get (current_model ,"GPT 5 Mini")
 
 
             if display_model in model_options :
@@ -635,7 +635,10 @@ class MainView (BaseView ):
 
                 max_width =new_scrollview_width -(message_padding *2 )
                 if message_scrollview .show_scrollbars :
-                    max_width -=message_scrollview .scrollbar_width 
+                    from ..components .scrollview import ScrollDirection 
+                    if (message_scrollview .scroll_direction in [ScrollDirection .VERTICAL ,ScrollDirection .BOTH ]and 
+                    message_scrollview .max_scroll_y >0 ):
+                        max_width -=message_scrollview .scrollbar_width 
 
 
                 for child in message_scrollview .children :
@@ -754,8 +757,6 @@ class MainView (BaseView ):
             from ....utils .history_manager import history_manager 
             new_chat_id =history_manager .create_new_chat (context )
 
-            logger .info (f"✅ Started new chat: {new_chat_id}")
-
         except Exception as e :
             logger .error (f"Failed to start new chat: {str(e)}")
 
@@ -805,26 +806,55 @@ class MainView (BaseView ):
             def scrollview_handle_event (event ):
                 try :
 
+
+                    logger .debug (f"ScrollView: Trying original handler for {event.event_type} at ({event.mouse_x}, {event.mouse_y})")
                     handled =original_handle_event (event )
                     if handled :
+                        logger .debug (f"ScrollView: Original handler consumed {event.event_type}")
                         return True 
+
 
 
                     from ..types import EventType 
                     if (event .event_type ==EventType .MOUSE_PRESS and 
+                    event .data .get ('button')=='LEFT'and 
                     message_scrollview .bounds .contains_point (event .mouse_x ,event .mouse_y )):
 
-                        logger .info (f"ScrollView unfocus handler triggered: mouse at ({event.mouse_x}, {event.mouse_y})")
-                        text_input =components .get ('text_input')
-                        if text_input and hasattr (text_input ,'ui_state')and text_input .ui_state :
-                            logger .info ("Unfocusing text input via ScrollView click")
-                            text_input .ui_state .set_focus (None )
-                        return True 
 
+                        content_width =message_scrollview .bounds .width 
+                        content_height =message_scrollview .bounds .height 
+
+                        if message_scrollview .show_scrollbars :
+                            from ..components .scrollview import ScrollDirection 
+                            if (message_scrollview .scroll_direction in [ScrollDirection .VERTICAL ,ScrollDirection .BOTH ]and 
+                            message_scrollview .max_scroll_y >0 ):
+                                content_width -=message_scrollview .scrollbar_width 
+                            if (message_scrollview .scroll_direction in [ScrollDirection .HORIZONTAL ,ScrollDirection .BOTH ]and 
+                            message_scrollview .max_scroll_x >0 ):
+                                content_height -=message_scrollview .scrollbar_width 
+
+
+                        if (event .mouse_x <message_scrollview .bounds .x +content_width and 
+                        event .mouse_y <message_scrollview .bounds .y +content_height ):
+
+
+                            logger .info (f"ScrollView unfocus handler triggered: click on empty content area at ({event.mouse_x}, {event.mouse_y})")
+                            text_input =components .get ('text_input')
+                            if text_input and hasattr (text_input ,'ui_state')and text_input .ui_state :
+                                logger .info ("Unfocusing text input via ScrollView empty area click")
+                                text_input .ui_state .set_focus (None )
+                            return True 
+
+
+                    logger .debug (f"ScrollView: Event {event.event_type} not consumed")
                     return False 
+
                 except Exception as e :
                     logger .error (f"Error in scrollview handle_event handler: {e}")
+                    import traceback 
+                    logger .error (traceback .format_exc ())
                     return False 
+
 
             message_scrollview .handle_event =scrollview_handle_event 
 
@@ -1432,8 +1462,6 @@ class MainView (BaseView ):
 
 
             message_scrollview ._update_content_bounds ()
-
-            logger .debug ("✅ Updated empty chat message position for new scrollview size")
 
         except Exception as e :
             logger .error (f"❌ Failed to update empty chat message position: {str(e)}")

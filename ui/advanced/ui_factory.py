@@ -92,8 +92,6 @@ class ImprovedUIFactory :
     def create_layout (self ,viewport_width :int ,viewport_height :int ,**callbacks )->Dict [str ,Any ]:
         """Create layout for current view."""
         try :
-            logger .info (f"Creating layout for {self.current_view.value} view with dimensions {viewport_width}x{viewport_height}")
-
 
             self ._save_unsent_text_before_ui_change ()
 
@@ -457,8 +455,6 @@ class ImprovedUIFactory :
 
                     message_scrollview .show_scrollbars =True 
 
-                    logger .info ("✅ Removed empty state message and re-enabled scrollbars")
-
         except Exception as e :
             logger .warning (f"Error removing empty state message: {e}")
 
@@ -630,9 +626,7 @@ class ImprovedUIFactory :
                 if not ui_manager ._conversation_tracking .get ('conversation_saved',False ):
                     try :
 
-                        logger .info ("Saving conversation data before stopping generation")
                         ui_manager ._save_conversation_to_history ()
-                        logger .info ("✅ Conversation data saved successfully before stop")
                     except Exception as save_error :
                         logger .error (f"Failed to save conversation data before stop: {str(save_error)}")
 
@@ -681,7 +675,6 @@ class ImprovedUIFactory :
     def _refresh_current_view (self ):
         """Refresh the current view by triggering UI recreation."""
         if self .on_view_change_callback :
-            logger .info (f"Refreshing current view: {self.current_view.value}")
             self .on_view_change_callback ()
 
     def _on_component_created (self ,component ,state ):
@@ -749,22 +742,16 @@ class ImprovedUIFactory :
             import bpy 
             context =bpy .context 
 
-            logger .info ("Determining appropriate startup view...")
-
 
             if not self .check_and_handle_connectivity ():
-
-                logger .info ("No internet connection detected - staying on NO_CONNECTION view")
                 return 
 
 
             is_authenticated =getattr (context .window_manager ,'vibe4d_authenticated',False )
 
             if is_authenticated :
-                logger .info ("User is authenticated - switching to main view")
                 self .switch_to_view (ViewState .MAIN )
             else :
-                logger .info ("User not authenticated - staying on auth view")
                 self .switch_to_view (ViewState .AUTH )
 
         except Exception as e :

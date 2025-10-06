@@ -142,14 +142,12 @@ class UIRenderer :
         except Exception as e :
             logger .error (f"Error drawing line: {e}")
 
-    def draw_text (self ,text :str ,x :int ,y :int ,size :int ,color :Tuple [float ,float ,float ,float ]):
-        """Draw text using centralized coordinate system with consistent DPI scaling."""
+    def draw_text (self ,text :str ,x :int ,y :int ,size :int ,color :Tuple [float ,float ,float ,float ],font_id :int =0 ):
+        """Draw text using centralized coordinate system with consistent DPI scaling and font support."""
 
         gpu_x ,gpu_y =CoordinateSystem .region_to_gpu (x ,y )
 
         try :
-            font_id =0 
-
 
             blf .size (font_id ,size )
 
@@ -157,21 +155,20 @@ class UIRenderer :
             blf .color (font_id ,*color )
             blf .draw (font_id ,text )
         except Exception as e :
-            logger .error (f"Error drawing text: {e}")
+            logger .error (f"Error drawing text with font {font_id}: {e}")
 
-    def get_text_dimensions (self ,text :str ,size :int )->Tuple [int ,int ]:
-        """Get text dimensions with consistent DPI scaling."""
-        cache_key =(text ,size )
+    def get_text_dimensions (self ,text :str ,size :int ,font_id :int =0 )->Tuple [int ,int ]:
+        """Get text dimensions with consistent DPI scaling and font support."""
+        cache_key =(text ,size ,font_id )
 
         if cache_key not in self ._font_cache :
             try :
-                font_id =0 
 
                 blf .size (font_id ,size )
 
                 self ._font_cache [cache_key ]=blf .dimensions (font_id ,text )
             except Exception as e :
-                logger .error (f"Error getting text dimensions: {e}")
+                logger .error (f"Error getting text dimensions with font {font_id}: {e}")
                 self ._font_cache [cache_key ]=(0 ,0 )
 
         return self ._font_cache [cache_key ]
@@ -644,17 +641,192 @@ class UIRenderer :
 
     def draw_rounded_textured_rect (self ,bounds :Bounds ,texture ,corner_radius :int ,texture_coords =None ):
         """Draw a textured rectangle with rounded corners."""
+        if corner_radius <=0 :
+
+            self .draw_textured_rect (bounds .x ,bounds .y ,bounds .width ,bounds .height ,texture ,texture_coords )
+            return 
+
+
+        gpu_x ,gpu_y =CoordinateSystem .region_to_gpu (bounds .x ,bounds .y )
+
+
+        max_radius =min (bounds .width ,bounds .height )//2 
+        corner_radius =min (corner_radius ,max_radius )
+
+        if corner_radius <=0 :
+            self .draw_textured_rect (bounds .x ,bounds .y ,bounds .width ,bounds .height ,texture ,texture_coords )
+            return 
+
+
+        if texture_coords :
+            u_min ,v_min ,u_max ,v_max =texture_coords 
+        else :
+            u_min ,v_min ,u_max ,v_max =0 ,0 ,1 ,1 
+
+
+        u_range =u_max -u_min 
+        v_range =v_max -v_min 
+
         try :
+            import math 
+            vertices =[]
+            uvs =[]
+            indices =[]
+            vertex_count =0 
 
 
-            if corner_radius >0 :
-                logger .warning ("Rounded textured rectangles not yet implemented, falling back to regular texture")
+            corner_segments =8 
 
 
-            self .draw_textured_rect (
-            bounds .x ,bounds .y ,bounds .width ,bounds .height ,
-            texture ,texture_coords 
-            )
+            def calc_uv (x ,y ):
+
+                u_ratio =(x -gpu_x )/bounds .width if bounds .width >0 else 0 
+                v_ratio =(y -gpu_y )/bounds .height if bounds .height >0 else 0 
+
+
+                u =u_min +u_ratio *u_range 
+                v =v_min +v_ratio *v_range 
+
+                return (u ,v )
+
+
+            center_left =gpu_x +corner_radius 
+            center_right =gpu_x +bounds .width -corner_radius 
+            center_bottom =gpu_y 
+            center_top =gpu_y +bounds .height 
+
+            if center_right >center_left :
+                center_vertices =[
+                (center_left ,center_bottom ),
+                (center_right ,center_bottom ),
+                (center_right ,center_top ),
+                (center_left ,center_top )
+                ]
+                vertices .extend (center_vertices )
+
+
+                for vertex in center_vertices :
+                    uvs .append (calc_uv (vertex [0 ],vertex [1 ]))
+
+                indices .extend ([
+                (vertex_count ,vertex_count +1 ,vertex_count +2 ),
+                (vertex_count ,vertex_count +2 ,vertex_count +3 )
+                ])
+                vertex_count +=4 
+
+
+            left_bottom =gpu_y +corner_radius 
+            left_top =gpu_y +bounds .height -corner_radius 
+
+            if left_top >left_bottom :
+                left_vertices =[
+                (gpu_x ,left_bottom ),
+                (gpu_x +corner_radius ,left_bottom ),
+                (gpu_x +corner_radius ,left_top ),
+                (gpu_x ,left_top )
+                ]
+                vertices .extend (left_vertices )
+
+
+                for vertex in left_vertices :
+                    uvs .append (calc_uv (vertex [0 ],vertex [1 ]))
+
+                indices .extend ([
+                (vertex_count ,vertex_count +1 ,vertex_count +2 ),
+                (vertex_count ,vertex_count +2 ,vertex_count +3 )
+                ])
+                vertex_count +=4 
+
+
+            if left_top >left_bottom :
+                right_vertices =[
+                (gpu_x +bounds .width -corner_radius ,left_bottom ),
+                (gpu_x +bounds .width ,left_bottom ),
+                (gpu_x +bounds .width ,left_top ),
+                (gpu_x +bounds .width -corner_radius ,left_top )
+                ]
+                vertices .extend (right_vertices )
+
+
+                for vertex in right_vertices :
+                    uvs .append (calc_uv (vertex [0 ],vertex [1 ]))
+
+                indices .extend ([
+                (vertex_count ,vertex_count +1 ,vertex_count +2 ),
+                (vertex_count ,vertex_count +2 ,vertex_count +3 )
+                ])
+                vertex_count +=4 
+
+
+            corners =[
+
+            {
+            'center_x':gpu_x +corner_radius ,
+            'center_y':gpu_y +corner_radius ,
+            'start_angle':math .pi ,
+            'end_angle':3 *math .pi /2 
+            },
+
+            {
+            'center_x':gpu_x +bounds .width -corner_radius ,
+            'center_y':gpu_y +corner_radius ,
+            'start_angle':3 *math .pi /2 ,
+            'end_angle':2 *math .pi 
+            },
+
+            {
+            'center_x':gpu_x +bounds .width -corner_radius ,
+            'center_y':gpu_y +bounds .height -corner_radius ,
+            'start_angle':0 ,
+            'end_angle':math .pi /2 
+            },
+
+            {
+            'center_x':gpu_x +corner_radius ,
+            'center_y':gpu_y +bounds .height -corner_radius ,
+            'start_angle':math .pi /2 ,
+            'end_angle':math .pi 
+            }
+            ]
+
+            for corner in corners :
+                center_x =corner ['center_x']
+                center_y =corner ['center_y']
+                start_angle =corner ['start_angle']
+                end_angle =corner ['end_angle']
+
+
+                center_vertex_idx =vertex_count 
+                vertices .append ((center_x ,center_y ))
+                uvs .append (calc_uv (center_x ,center_y ))
+                vertex_count +=1 
+
+
+                for i in range (corner_segments +1 ):
+                    angle =start_angle +(end_angle -start_angle )*i /corner_segments 
+                    x =center_x +corner_radius *math .cos (angle )
+                    y =center_y +corner_radius *math .sin (angle )
+                    vertices .append ((x ,y ))
+                    uvs .append (calc_uv (x ,y ))
+
+                    if i >0 :
+
+                        indices .append ((center_vertex_idx ,vertex_count -1 ,vertex_count ))
+
+                    vertex_count +=1 
+
+            if vertices and indices and uvs :
+                batch =batch_for_shader (
+                self .texture_shader ,'TRIS',
+                {"pos":vertices ,"texCoord":uvs },
+                indices =indices 
+                )
+
+                gpu .state .blend_set ('ALPHA')
+                self .texture_shader .bind ()
+                self .texture_shader .uniform_sampler ("image",texture )
+                batch .draw (self .texture_shader )
+                gpu .state .blend_set ('NONE')
 
         except Exception as e :
             logger .error (f"Error drawing rounded textured rectangle: {e}")

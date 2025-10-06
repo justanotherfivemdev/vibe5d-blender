@@ -110,7 +110,7 @@ class VIBE4D_OT_open_discord (Operator ):
     def execute (self ,context ):
         """Open the Discord server."""
         try :
-            discord_url ="https://discord.gg/hcu5PQ7Rfp"
+            discord_url ="https://discord.gg/dXAN23NwkM"
 
             logger .info ("Opening Discord server")
             webbrowser .open (discord_url )
@@ -122,32 +122,6 @@ class VIBE4D_OT_open_discord (Operator ):
             logger .error (f"Failed to open Discord: {str(e)}")
             self .report ({'ERROR'},f"Failed to open Discord: {str(e)}")
             return {'CANCELLED'}
-
-
-class VIBE4D_OT_open_patreon (Operator ):
-    """Open Vibe4D Patreon page."""
-
-    bl_idname ="vibe4d.open_patreon"
-    bl_label ="Patreon"
-    bl_description ="Support Vibe4D on Patreon"
-    bl_options ={'REGISTER'}
-
-    def execute (self ,context ):
-        """Open the Patreon page."""
-        try :
-            patreon_url ="https://patreon.com/vibe4d"
-
-            logger .info ("Opening Patreon page")
-            webbrowser .open (patreon_url )
-
-            self .report ({'INFO'},"Patreon page opened in browser")
-            return {'FINISHED'}
-
-        except Exception as e :
-            logger .error (f"Failed to open Patreon: {str(e)}")
-            self .report ({'ERROR'},f"Failed to open Patreon: {str(e)}")
-            return {'CANCELLED'}
-
 
 class VIBE4D_OT_open_website (Operator ):
     """Open Vibe4D website."""
@@ -186,7 +160,7 @@ class VIBE4D_OT_manage_subscription (Operator ):
         """Open the subscription management page."""
         try :
 
-            subscription_url ="https://vibe4d.com/dashboard"
+            subscription_url ="https://vibe4d.gumroad.com/l/blender"
 
             logger .info ("Opening subscription management page")
             webbrowser .open (subscription_url )
@@ -425,7 +399,6 @@ classes =[
 VIBE4D_OT_verify_license ,
 VIBE4D_OT_get_license_key ,
 VIBE4D_OT_open_discord ,
-VIBE4D_OT_open_patreon ,
 VIBE4D_OT_open_website ,
 VIBE4D_OT_manage_subscription ,
 VIBE4D_OT_logout ,

@@ -303,8 +303,6 @@ class HistoryView (BaseView ):
             from ....utils .history_manager import history_manager 
             new_chat_id =history_manager .create_new_chat (context )
 
-            logger .info (f"✅ Started new chat from history view: {new_chat_id}")
-
 
             if self .callbacks .get ('on_view_change'):
                 from ..ui_factory import ViewState 

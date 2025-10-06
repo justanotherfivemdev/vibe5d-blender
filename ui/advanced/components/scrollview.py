@@ -64,7 +64,7 @@ class ScrollView (UIComponent ):
         self .drag_start_scroll_x =0 
 
 
-        self .scroll_speed =30 
+        self .scroll_speed =90 
         self .smooth_scrolling =True 
 
 
@@ -589,6 +589,7 @@ class ScrollView (UIComponent ):
 
         if self .bounds .contains_point (event .mouse_x ,event .mouse_y ):
 
+
             content_width =self .bounds .width 
             content_height =self .bounds .height 
 
@@ -628,10 +629,14 @@ class ScrollView (UIComponent ):
                 )
 
 
-                for child in reversed (self .children ):
+                for i ,child in enumerate (reversed (self .children )):
                     if child .visible and child .bounds .contains_point (adjusted_event .mouse_x ,adjusted_event .mouse_y ):
                         if child .handle_event (adjusted_event ):
                             return True 
+                        else :
+                            pass 
+                    else :
+                        pass 
 
         return False 
 

@@ -580,3 +580,34 @@ output_path :Optional [str ]=None
     except Exception as e :
         logger .error (f"Render with callback API error: {str(e)}")
         raise 
+
+
+def analyse_mesh_image (object_name :str )->str :
+    """
+    Analyze a mesh object by rendering it and sending it for AI analysis.
+    
+    Args:
+        object_name: Name of the Blender object to analyze
+        
+    Returns:
+        Analysis result from AI describing what the object represents
+        
+    Example:
+        >>> import vibe4d
+        >>> result = vibe4d.analyse_mesh_image("Cube")
+        >>> print(f"Analysis: {result}")
+    """
+    try :
+        context =_get_context ()
+        success ,result =tools_manager .handle_tool_call ("analyse_mesh_image",{
+        "object_name":object_name 
+        },context )
+
+        if success :
+            return result ["result"]
+        else :
+            raise RuntimeError (f"Analysis failed: {result['result']}")
+
+    except Exception as e :
+        logger .error (f"Analyse mesh image API error: {str(e)}")
+        raise 

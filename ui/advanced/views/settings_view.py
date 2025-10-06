@@ -466,10 +466,7 @@ class SettingsView (BaseView ):
 
     def __init__ (self ):
         super ().__init__ ()
-        self .new_rule_text =""
-        self .editing_rule_index =-1 
         self .refresh_callback =None 
-        self .last_input_text =""
         self .is_fetching_usage =False 
         self .usage_data_fetched =False 
 
@@ -483,6 +480,28 @@ class SettingsView (BaseView ):
         is_authenticated =getattr (context .window_manager ,'vibe4d_authenticated',False )
         user_email =getattr (context .window_manager ,'vibe4d_user_email','')
         user_plan =getattr (context .window_manager ,'vibe4d_user_plan','')
+
+
+
+        try :
+            from ....utils .instructions_manager import instruction_manager 
+            from ....utils .storage import secure_storage 
+
+
+            current_instruction_in_scene =getattr (context .scene ,'vibe4d_custom_instruction','')
+
+            if not current_instruction_in_scene :
+
+                saved_instruction =secure_storage .load_custom_instruction ()
+                if saved_instruction :
+                    context .scene .vibe4d_custom_instruction =str (saved_instruction )
+                    logger .info (f"Loaded custom instruction from storage for settings view: {len(saved_instruction)} characters")
+                else :
+                    logger .debug ("No saved custom instruction found in storage")
+            else :
+                logger .debug (f"Custom instruction already loaded in scene: {len(current_instruction_in_scene)} characters")
+        except Exception as e :
+            logger .error (f"Failed to load custom instructions for settings view: {e}")
 
 
         current_usage =getattr (context .window_manager ,'vibe4d_current_usage',0 )
@@ -623,170 +642,54 @@ class SettingsView (BaseView ):
             current_y =adjustCurrectY (current_y ,get_info_container_height (),get_big_spacing ())
 
 
-            rules_section_title =Label ("Custom rules",get_left_margin (),current_y ,get_plan_label_width (),get_label_height ())
-            rules_section_title .style =get_themed_style ("title")
-            rules_section_title .style .font_size =get_font_size ()
-            rules_section_title .set_text_align ("left")
-            components ['rules_section_title']=rules_section_title 
+            instruction_section_title =Label ("Custom instruction",get_left_margin (),current_y ,get_plan_label_width (),get_label_height ())
+            instruction_section_title .style =get_themed_style ("title")
+            instruction_section_title .style .font_size =get_font_size ()
+            instruction_section_title .set_text_align ("left")
+            components ['instruction_section_title']=instruction_section_title 
 
             current_y =adjustCurrectY (current_y ,get_label_height (),get_small_spacing ())
 
 
-            rules_container =Container (get_left_margin (),current_y -get_rules_container_height (),
-            viewport_width -get_left_margin ()-get_right_margin (),get_rules_container_height ())
-            rules_container .style .background_color =DARK_CONTAINER_COLOR 
-            rules_container .style .border_color =BORDER_COLOR 
-            rules_container .style .border_width =get_thin_border ()
-            rules_container .corner_radius =get_container_radius ()
-            components ['rules_container']=rules_container 
+            instruction_container_height =CoordinateSystem .scale_int (140 )
+            instruction_container =Container (get_left_margin (),current_y -instruction_container_height ,
+            viewport_width -get_left_margin ()-get_right_margin (),instruction_container_height )
+            instruction_container .style .background_color =DARK_CONTAINER_COLOR 
+            instruction_container .style .border_color =BORDER_COLOR 
+            instruction_container .style .border_width =get_thin_border ()
+            instruction_container .corner_radius =get_container_radius ()
+            components ['instruction_container']=instruction_container 
 
 
-            rules_current_y =current_y -get_container_internal_padding ()
+            current_instruction =getattr (context .scene ,'vibe4d_custom_instruction','')
 
 
-            if self .editing_rule_index >=0 :
-                instructions =getattr (context .scene ,'vibe4d_custom_instructions',[])
-                if self .editing_rule_index <len (instructions ):
-                    input_text =instructions [self .editing_rule_index ].text 
-                    placeholder ="Edit rule..."
-                else :
-                    input_text =""
-                    placeholder ="Edit rule..."
-            else :
-                input_text =self .new_rule_text 
-                placeholder ="Type new rule..."
+            instruction_current_y =current_y -get_container_internal_padding ()
+            instruction_input_height =instruction_container_height -(get_container_internal_padding ()*2 )
 
-            rule_input =TextInput (x =get_left_margin ()+get_container_internal_padding (),y =rules_current_y ,
-            width =viewport_width -get_left_margin ()-get_right_margin ()-CoordinateSystem .scale_int (60 )-(get_container_internal_padding ()*2 )-get_small_spacing (),
-            height =get_input_height (),placeholder =placeholder ,multiline =False ,auto_resize =False )
-            rule_input .set_text (input_text )
-            rule_input .on_submit =self ._handle_rule_input_enter 
-            rule_input .style =get_themed_style ("input")
-            rule_input .style .font_size =get_font_size ()
-
-            rule_input .style .background_color =Styles .Transparent 
-            rule_input .style .border_color =Styles .Transparent 
-            rule_input .style .border_width =0 
-            rule_input .style .focus_background_color =Styles .Transparent 
-            rule_input .style .focus_border_color =Styles .Transparent 
-            rule_input .style .focus_border_width =0 
-            rule_input .corner_radius =0 
-            components ['rule_input']=rule_input 
-
-
-            bottom_border =Container (
-            get_left_margin ()+get_container_internal_padding (),
-            rules_current_y ,
-            viewport_width -get_left_margin ()-get_right_margin ()-CoordinateSystem .scale_int (60 )-(get_container_internal_padding ()*2 )-get_small_spacing (),
-            1 
+            instruction_input =TextInput (
+            x =get_left_margin ()+get_container_internal_padding (),
+            y =instruction_current_y -instruction_input_height ,
+            width =viewport_width -get_left_margin ()-get_right_margin ()-(get_container_internal_padding ()*2 ),
+            height =instruction_input_height ,
+            placeholder ="Type your custom instructions here...",
+            multiline =True ,
+            auto_resize =False ,
             )
-            bottom_border .style .background_color =Styles .Border 
-            bottom_border .style .border_width =0 
-            components ['rule_input_border']=bottom_border 
+            instruction_input .set_text (current_instruction )
+            instruction_input .on_change =self ._handle_instruction_text_change 
+            instruction_input .style =get_themed_style ("input")
+            instruction_input .style .font_size =get_font_size ()
+            instruction_input .style .background_color =TRANSPARENT_COLOR 
+            instruction_input .style .border_color =TRANSPARENT_COLOR 
+            instruction_input .style .border_width =0 
+            instruction_input .style .focus_background_color =TRANSPARENT_COLOR 
+            instruction_input .style .focus_border_color =TRANSPARENT_COLOR 
+            instruction_input .style .focus_border_width =0 
+            instruction_input .corner_radius =0 
+            components ['instruction_input']=instruction_input 
 
-
-            done_button =Button ("Done"if self .editing_rule_index <0 else "Save",
-            viewport_width -CoordinateSystem .scale_int (60 )-get_right_margin (),rules_current_y ,CoordinateSystem .scale_int (60 ),get_input_height (),
-            corner_radius =0 ,on_click =self ._handle_add_rule )
-            done_button .style .background_color =Styles .Transparent 
-            done_button .style .hover_background_color =TRANSPARENT_COLOR 
-            done_button .style .focus_background_color =TRANSPARENT_COLOR 
-            done_button .style .pressed_background_color =TRANSPARENT_COLOR 
-            done_button .style .text_color =Styles .TextMuted 
-            done_button .style .focus_text_color =Styles .TextSelected 
-            done_button .style .font_size =get_font_size ()
-            done_button .style .border_width =0 
-            components ['done_button']=done_button 
-
-            if not input_text .strip ():
-                done_button .style .text_color =Styles .DisabledText 
-
-            rules_current_y =adjustCurrectY (rules_current_y ,get_input_height (),get_small_spacing ())
-
-
-            rules_scrollview =ScrollView (
-            get_left_margin ()+get_scrollview_internal_margin (),
-            rules_current_y -get_rules_scrollview_height (),
-            viewport_width -get_left_margin ()-get_right_margin ()-get_scrollview_content_padding (),
-            get_rules_scrollview_height (),
-            scroll_direction =ScrollDirection .VERTICAL ,
-            reverse_y_coordinate =True ,
-            show_scrollbars =True ,
-            scrollbar_width =get_scrollbar_width ()
-            )
-            rules_scrollview .style .background_color =TRANSPARENT_COLOR 
-            rules_scrollview .style .border_color =TRANSPARENT_COLOR 
-            rules_scrollview .style .border_width =get_no_border ()
-            components ['rules_scrollview']=rules_scrollview 
-
-
-            instructions =getattr (context .scene ,'vibe4d_custom_instructions',[])
-
-            rule_y =0 
-
-
-            for i in reversed (range (len (instructions ))):
-                instruction =instructions [i ]
-                if instruction .text :
-
-                    toggle_button =ToggleIconButton (
-                    enabled =instruction .enabled ,
-                    x =get_rule_toggle_x_offset (),y =rule_y +CoordinateSystem .scale_int (3 ),width =CoordinateSystem .scale_int (14 ),height =CoordinateSystem .scale_int (14 ),
-                    on_click =lambda idx =i :self ._handle_toggle_rule (idx )
-                    )
-                    rules_scrollview .add_child (toggle_button )
-
-
-
-                    rule_text =instruction .text [:MAX_RULE_TEXT_LENGTH ]+TRUNCATION_SUFFIX if len (instruction .text )>MAX_RULE_TEXT_LENGTH else instruction .text 
-                    rule_button =Button (rule_text ,get_rule_text_x_offset (),rule_y ,
-                    rules_scrollview .bounds .width -get_rule_text_x_offset ()-get_delete_button_width ()-CoordinateSystem .scale_int (6 ),get_small_button_height (),
-                    corner_radius =get_small_radius (),on_click =lambda idx =i :self ._handle_edit_rule (idx ))
-                    rule_button .style .background_color =TRANSPARENT_COLOR 
-                    rule_button .style .text_color =ENABLED_TEXT_COLOR if instruction .enabled else DISABLED_TEXT_COLOR 
-                    rule_button .style .font_size =get_font_size ()
-                    rule_button .style .hover_background_color =TRANSPARENT_COLOR 
-                    rule_button .style .focus_background_color =TRANSPARENT_COLOR 
-                    rule_button .style .pressed_background_color =TRANSPARENT_COLOR 
-                    rule_button .style .border_width =get_no_border ()
-                    rule_button .set_text_align ("left")
-
-
-                    if i ==self .editing_rule_index :
-                        rule_button .style .background_color =EDITING_HIGHLIGHT_COLOR 
-
-                    rules_scrollview .add_child (rule_button )
-
-
-
-                    delete_button =Button ("×",rules_scrollview .bounds .width -get_delete_button_width (),rule_y ,
-                    get_delete_button_width (),get_small_button_height (),
-                    corner_radius =get_small_radius (),on_click =lambda idx =i :self ._handle_delete_rule (idx ))
-                    delete_button .style .background_color =TRANSPARENT_COLOR 
-                    delete_button .style .text_color =WHITE_TEXT_COLOR 
-                    delete_button .style .hover_background_color =DELETE_BUTTON_HOVER_COLOR 
-                    delete_button .style .font_size =get_font_size ()
-                    delete_button .style .border_width =get_no_border ()
-                    rules_scrollview .add_child (delete_button )
-
-
-                    rule_y +=get_rule_spacing ()
-
-
-            if instructions :
-
-                spacer =Container (0 ,rule_y ,rules_scrollview .bounds .width ,get_bottom_padding ())
-                spacer .visible =False 
-                spacer .style .background_color =TRANSPARENT_COLOR 
-                rules_scrollview .add_child (spacer )
-
-
-            rules_scrollview ._update_content_bounds ()
-
-
-            rules_scrollview .scroll_to_top ()
-
-            current_y =adjustCurrectY (current_y ,get_rules_container_height (),get_big_spacing ())
+            current_y =adjustCurrectY (current_y ,instruction_container_height ,get_big_spacing ())
         else :
             auth_message =Label ("Please authenticate to access settings",get_left_margin (),current_y ,
             viewport_width -get_left_margin ()-get_right_margin (),get_label_height ())
@@ -845,9 +748,6 @@ class SettingsView (BaseView ):
 
     def update_layout (self ,viewport_width :int ,viewport_height :int ):
         """Update layout positions when viewport changes."""
-
-
-        self ._check_input_changes ()
 
 
         if 'go_back_button'in self .components :
@@ -910,43 +810,33 @@ class SettingsView (BaseView ):
         current_y =adjustCurrectY (current_y ,get_info_container_height ()+CoordinateSystem .scale_int (12 ),get_big_spacing ())
 
 
-        if 'rules_section_title'in self .components :
-            self .components ['rules_section_title'].set_position (get_left_margin (),current_y )
-            self .components ['rules_section_title'].set_size (get_plan_label_width (),get_label_height ())
+        if 'instruction_section_title'in self .components :
+            self .components ['instruction_section_title'].set_position (get_left_margin (),current_y )
+            self .components ['instruction_section_title'].set_size (get_plan_label_width (),get_label_height ())
 
         current_y =adjustCurrectY (current_y ,get_label_height ()-CoordinateSystem .scale_int (12 ),get_small_spacing ())
 
 
-        if 'rules_container'in self .components :
-            self .components ['rules_container'].set_position (get_left_margin (),current_y -get_rules_container_height ())
-            self .components ['rules_container'].set_size (viewport_width -get_left_margin ()-get_right_margin (),get_rules_container_height ())
+        instruction_container_height =CoordinateSystem .scale_int (140 )
+        if 'instruction_container'in self .components :
+            self .components ['instruction_container'].set_position (get_left_margin (),current_y -instruction_container_height )
+            self .components ['instruction_container'].set_size (viewport_width -get_left_margin ()-get_right_margin (),instruction_container_height )
 
 
-        rules_current_y =current_y -get_container_internal_padding ()-CoordinateSystem .scale_int (30 )
+        if 'instruction_input'in self .components :
+            instruction_current_y =current_y -get_container_internal_padding ()
+            instruction_input_height =instruction_container_height -(get_container_internal_padding ()*2 )
 
+            self .components ['instruction_input'].set_position (
+            get_left_margin ()+get_container_internal_padding (),
+            instruction_current_y -instruction_input_height 
+            )
+            self .components ['instruction_input'].set_size (
+            viewport_width -get_left_margin ()-get_right_margin ()-(get_container_internal_padding ()*2 ),
+            instruction_input_height 
+            )
 
-        if 'rule_input'in self .components :
-            self .components ['rule_input'].set_position (get_left_margin ()+get_container_internal_padding (),rules_current_y )
-            self .components ['rule_input'].set_size (viewport_width -get_left_margin ()-get_right_margin ()-CoordinateSystem .scale_int (60 )-get_small_spacing ()-get_container_internal_padding (),get_input_height ())
-
-        if 'rule_input_border'in self .components :
-            self .components ['rule_input_border'].set_position (get_left_margin ()+get_container_internal_padding (),rules_current_y )
-            self .components ['rule_input_border'].set_size (viewport_width -get_left_margin ()-get_right_margin ()-CoordinateSystem .scale_int (60 )-get_small_spacing ()-get_container_internal_padding (),1 )
-
-        if 'done_button'in self .components :
-            self .components ['done_button'].set_size (CoordinateSystem .scale_int (60 ),get_input_height ())
-            self .components ['done_button'].set_position (viewport_width -CoordinateSystem .scale_int (60 )-get_right_margin ()-get_container_internal_padding (),rules_current_y )
-
-        rules_current_y =adjustCurrectY (rules_current_y ,get_input_height (),get_small_spacing ())
-
-
-        if 'rules_scrollview'in self .components :
-            self .components ['rules_scrollview'].set_position (get_left_margin (),rules_current_y -get_rules_scrollview_height ()/1.5 )
-            self .components ['rules_scrollview'].set_size (viewport_width -get_left_margin ()-get_right_margin (),get_rules_scrollview_height ())
-
-            self .components ['rules_scrollview']._update_content_bounds ()
-
-        current_y =adjustCurrectY (current_y ,get_rules_container_height ()+CoordinateSystem .scale_int (12 ),get_big_spacing ())
+        current_y =adjustCurrectY (current_y ,instruction_container_height +CoordinateSystem .scale_int (12 ),get_big_spacing ())
 
 
         if 'links_section_title'in self .components :
@@ -989,358 +879,26 @@ class SettingsView (BaseView ):
         except Exception as e :
             logger .error (f"Error during logout: {e}")
 
-    def _handle_rule_input_enter (self ):
-        """Handle enter key in text input."""
-        if 'rule_input'in self .components :
-            text =self .components ['rule_input'].get_text ().strip ()
-            if text :
-                self ._handle_add_rule ()
-            else :
-
-                if self .editing_rule_index >=0 :
-                    self .editing_rule_index =-1 
-                    self ._update_ui_instantly ()
-
-    def _cancel_editing (self ):
-        """Cancel current editing mode."""
-        if self .editing_rule_index >=0 :
-            self .editing_rule_index =-1 
-            self .new_rule_text =""
-            if 'rule_input'in self .components :
-                self .components ['rule_input'].set_text ("")
-
-                self .last_input_text =""
-            self ._update_ui_instantly ()
-            logger .info ("Editing cancelled")
-
-    def _handle_add_rule (self ):
-        """Handle add/save rule button click."""
+    def _handle_instruction_text_change (self ,new_text ):
+        """Handle changes to the instruction text input."""
         try :
             context =bpy .context 
-            instructions =getattr (context .scene ,'vibe4d_custom_instructions',[])
-
-            if self .editing_rule_index >=0 :
-
-                if 'rule_input'in self .components :
-                    new_text =self .components ['rule_input'].get_text ().strip ()
-                    if new_text and self .editing_rule_index <len (instructions ):
-                        instructions [self .editing_rule_index ].text =new_text 
-                        logger .info (f"Updated rule {self.editing_rule_index}: {new_text}")
 
 
-                        from ....utils .instructions_manager import instructions_manager 
-                        instructions_manager .auto_save_instructions (context )
+            context .scene .vibe4d_custom_instruction =new_text 
 
 
-                        self .editing_rule_index =-1 
-                        self .new_rule_text =""
-                        if 'rule_input'in self .components :
-                            self .components ['rule_input'].set_text ("")
-
-                            self .last_input_text =""
-                        self ._update_ui_instantly ()
-
-            else :
-
-                if 'rule_input'in self .components :
-                    new_text =self .components ['rule_input'].get_text ().strip ()
-                else :
-                    new_text =self .new_rule_text .strip ()
-
-                if new_text :
-
-                    new_instruction =instructions .add ()
-                    new_instruction .text =new_text 
-                    new_instruction .enabled =True 
-
-                    logger .info (f"Added new rule: {new_text}")
-
-
-                    from ....utils .instructions_manager import instructions_manager 
-                    instructions_manager .auto_save_instructions (context )
-
-
-                    self .new_rule_text =""
-                    if 'rule_input'in self .components :
-                        self .components ['rule_input'].set_text ("")
-
-                        self .last_input_text =""
-
-                    self ._update_ui_instantly ()
-
-
-                    if 'rules_scrollview'in self .components :
-                        self .components ['rules_scrollview'].scroll_to_top ()
+            from ....utils .instructions_manager import instruction_manager 
+            instruction_manager .force_save_instruction (context )
 
         except Exception as e :
-            logger .error (f"Error adding/saving rule: {e}")
-
-    def _update_ui_instantly (self ):
-        """Update UI components instantly without full refresh."""
-        try :
-            context =bpy .context 
-            instructions =getattr (context .scene ,'vibe4d_custom_instructions',[])
-
-
-            if 'rule_input'in self .components :
-                if self .editing_rule_index >=0 :
-
-                    if self .editing_rule_index <len (instructions ):
-                        self .components ['rule_input'].set_text (instructions [self .editing_rule_index ].text )
-                        self .components ['rule_input'].placeholder ="Edit rule..."
-                    else :
-                        self .editing_rule_index =-1 
-                        self .components ['rule_input'].set_text ("")
-                        self .components ['rule_input'].placeholder ="Type new rule..."
-                else :
-
-                    self .components ['rule_input'].set_text (self .new_rule_text )
-                    self .components ['rule_input'].placeholder ="Type new rule..."
-
-
-            if 'done_button'in self .components :
-                button_text ="Save"if self .editing_rule_index >=0 else "Done"
-                self .components ['done_button'].text =button_text 
-
-
-                current_text =self ._get_current_rule_text ().strip ()
-                if current_text :
-                    self .components ['done_button'].style .text_color =Styles .TextMuted 
-                else :
-                    self .components ['done_button'].style .text_color =Styles .DisabledText 
-
-
-            if 'rules_scrollview'in self .components :
-                scrollview =self .components ['rules_scrollview']
-
-
-                current_scroll_y =scrollview .scroll_y 
-
-
-                scrollview .clear_children ()
-
-
-                comp_names_to_remove =[]
-                for comp_name in self .components :
-                    if (comp_name .startswith ('toggle_')or 
-                    comp_name .startswith ('rule_')or 
-                    comp_name .startswith ('delete_')):
-                        comp_names_to_remove .append (comp_name )
-
-                for comp_name in comp_names_to_remove :
-                    del self .components [comp_name ]
-
-
-                rule_y =0 
-
-
-                for i in reversed (range (len (instructions ))):
-                    instruction =instructions [i ]
-                    if instruction .text :
-
-                        toggle_button =ToggleIconButton (
-                        enabled =instruction .enabled ,
-                        x =get_rule_toggle_x_offset (),y =rule_y +CoordinateSystem .scale_int (3 ),width =CoordinateSystem .scale_int (14 ),height =CoordinateSystem .scale_int (14 ),
-                        on_click =lambda idx =i :self ._handle_toggle_rule (idx )
-                        )
-                        scrollview .add_child (toggle_button )
-
-
-
-                        rule_text =instruction .text [:MAX_RULE_TEXT_LENGTH ]+TRUNCATION_SUFFIX if len (instruction .text )>MAX_RULE_TEXT_LENGTH else instruction .text 
-                        rule_button =Button (rule_text ,get_rule_text_x_offset (),rule_y ,
-                        scrollview .bounds .width -get_rule_text_x_offset ()-get_delete_button_width ()-6 ,get_small_button_height (),
-                        corner_radius =get_small_radius (),on_click =lambda idx =i :self ._handle_edit_rule (idx ))
-                        rule_button .style .background_color =TRANSPARENT_COLOR 
-                        rule_button .style .text_color =ENABLED_TEXT_COLOR if instruction .enabled else DISABLED_TEXT_COLOR 
-                        rule_button .style .font_size =get_font_size ()
-                        rule_button .style .hover_background_color =TRANSPARENT_COLOR 
-                        rule_button .style .border_width =get_no_border ()
-                        rule_button .set_text_align ("left")
-
-
-                        if i ==self .editing_rule_index :
-                            rule_button .style .background_color =EDITING_HIGHLIGHT_COLOR 
-
-                        scrollview .add_child (rule_button )
-
-
-
-                        delete_button =Button ("×",scrollview .bounds .width -get_delete_button_width (),rule_y ,
-                        get_delete_button_width (),get_small_button_height (),
-                        corner_radius =get_small_radius (),on_click =lambda idx =i :self ._handle_delete_rule (idx ))
-                        delete_button .style .background_color =TRANSPARENT_COLOR 
-                        delete_button .style .text_color =WHITE_TEXT_COLOR 
-                        delete_button .style .hover_background_color =DELETE_BUTTON_HOVER_COLOR 
-                        delete_button .style .font_size =get_font_size ()
-                        delete_button .style .border_width =get_no_border ()
-                        scrollview .add_child (delete_button )
-
-
-                        rule_y +=get_rule_spacing ()
-
-
-                if instructions :
-
-                    spacer =Container (0 ,rule_y ,scrollview .bounds .width ,get_bottom_padding ())
-                    spacer .visible =False 
-                    spacer .style .background_color =TRANSPARENT_COLOR 
-                    scrollview .add_child (spacer )
-
-
-                scrollview ._update_content_bounds ()
-
-
-                scrollview .scroll_to_top ()
-
-
-            self ._notify_ui_system_of_changes ()
-
-
-            self ._force_redraw ()
-
-            logger .info (f"UI updated instantly with {len(instructions)} rules")
-
-        except Exception as e :
-            logger .error (f"Error updating UI instantly: {e}")
-
-    def _notify_ui_system_of_changes (self ):
-        """Notify the UI system that components have changed."""
-        try :
-
-            from ..components .component_registry import component_registry 
-            component_registry .process_updates ()
-
-
-            if self .refresh_callback :
-                self .refresh_callback ()
-                logger .debug ("Triggered view refresh via callback")
-                return 
-
-
-            from ..ui_factory import improved_ui_factory 
-            if improved_ui_factory and hasattr (improved_ui_factory ,'_refresh_current_view'):
-                improved_ui_factory ._refresh_current_view ()
-                logger .debug ("Triggered UI factory refresh")
-                return 
-
-
-            from ..manager import ui_manager 
-            if ui_manager and hasattr (ui_manager ,'state'):
-
-                for component in ui_manager .state .components :
-                    if hasattr (component ,'_render_dirty'):
-                        component ._render_dirty =True 
-
-                logger .debug ("Marked UI components as dirty")
-
-        except Exception as e :
-            logger .debug (f"Could not notify UI system: {e}")
-
-    def _force_redraw (self ):
-        """Force immediate redraw of the viewport."""
-        try :
-
-            for window in bpy .context .window_manager .windows :
-                for area in window .screen .areas :
-                    area .tag_redraw ()
-
-
-            if hasattr (bpy .context ,'area')and bpy .context .area :
-                bpy .context .area .tag_redraw ()
-
-
-            if hasattr (bpy .ops .wm ,'redraw_timer'):
-                bpy .ops .wm .redraw_timer (type ='DRAW_WIN_SWAP',iterations =1 )
-
-
-            try :
-                bpy .ops .wm .redraw_timer (type ='DRAW',iterations =1 )
-            except :
-                pass 
-
-        except Exception as e :
-            logger .debug (f"Could not force redraw: {e}")
-
-    def _handle_toggle_rule (self ,rule_index ):
-        """Handle rule checkbox toggle."""
-        try :
-            context =bpy .context 
-            instructions =getattr (context .scene ,'vibe4d_custom_instructions',[])
-
-            if rule_index <len (instructions ):
-                instructions [rule_index ].enabled =not instructions [rule_index ].enabled 
-                logger .info (f"Toggled rule {rule_index} to {'enabled' if instructions[rule_index].enabled else 'disabled'}")
-
-
-                from ....utils .instructions_manager import instructions_manager 
-                instructions_manager .auto_save_instructions (context )
-
-
-                self ._update_ui_instantly ()
-
-        except Exception as e :
-            logger .error (f"Error toggling rule: {e}")
-
-    def _handle_edit_rule (self ,rule_index ):
-        """Handle rule edit click."""
-        try :
-            context =bpy .context 
-            instructions =getattr (context .scene ,'vibe4d_custom_instructions',[])
-
-            if rule_index <len (instructions ):
-
-                self .editing_rule_index =rule_index 
-
-                logger .info (f"Editing rule {rule_index}")
-
-
-                self ._update_ui_instantly ()
-
-
-                if 'rule_input'in self .components :
-                    input_component =self .components ['rule_input']
-                    if hasattr (input_component ,'ui_state')and input_component .ui_state :
-                        input_component .ui_state .set_focus (input_component )
-
-        except Exception as e :
-            logger .error (f"Error editing rule: {e}")
-
-    def _handle_delete_rule (self ,rule_index ):
-        """Handle rule delete click."""
-        try :
-            context =bpy .context 
-            instructions =getattr (context .scene ,'vibe4d_custom_instructions',[])
-
-            if rule_index <len (instructions ):
-                rule_text =instructions [rule_index ].text 
-                instructions .remove (rule_index )
-
-                logger .info (f"Deleted rule {rule_index}: {rule_text}")
-
-
-                from ....utils .instructions_manager import instructions_manager 
-                instructions_manager .auto_save_instructions (context )
-
-
-                if self .editing_rule_index ==rule_index :
-                    self .editing_rule_index =-1 
-                    self .new_rule_text =""
-                elif self .editing_rule_index >rule_index :
-
-                    self .editing_rule_index -=1 
-
-
-                self ._update_ui_instantly ()
-
-        except Exception as e :
-            logger .error (f"Error deleting rule: {e}")
+            logger .error (f"Error handling instruction text change: {e}")
 
     def _handle_open_github (self ,segment ):
         """Handle GitHub link click."""
         try :
             import webbrowser 
-            webbrowser .open ("https://github.com/vibe4d")
+            webbrowser .open ("https://github.com/emalakai/vibe4d-blender")
         except Exception as e :
             logger .error (f"Error opening GitHub: {e}")
 
@@ -1362,7 +920,7 @@ class SettingsView (BaseView ):
         """Handle Twitter link click."""
         try :
             import webbrowser 
-            webbrowser .open ("https://twitter.com/vibe4d")
+            webbrowser .open ("https://x.com/thevibe4d")
         except Exception as e :
             logger .error (f"Error opening Twitter: {e}")
 
@@ -1382,31 +940,6 @@ class SettingsView (BaseView ):
         """Reset the usage data fetch state to allow re-fetching."""
         self .usage_data_fetched =False 
         self .is_fetching_usage =False 
-
-    def _get_current_rule_text (self ):
-        """Get current text from input field."""
-        if 'rule_input'in self .components :
-            return self .components ['rule_input'].get_text ()
-        return self .new_rule_text 
-
-    def _check_input_changes (self ):
-        """Check for text input changes and update button state."""
-        if 'rule_input'in self .components :
-            current_text =self .components ['rule_input'].get_text ().strip ()
-            if current_text !=self .last_input_text :
-                self .last_input_text =current_text 
-                self ._update_button_state_only ()
-
-    def _update_button_state_only (self ):
-        """Update only the add button state based on current text."""
-        if 'add_button'in self .components :
-            current_text =self ._get_current_rule_text ().strip ()
-            if current_text :
-                self .components ['add_button'].style .background_color =PRIMARY_BUTTON_COLOR 
-                self .components ['add_button'].style .text_color =WHITE_TEXT_COLOR 
-            else :
-                self .components ['add_button'].style .background_color =DISABLED_BUTTON_COLOR 
-                self .components ['add_button'].style .text_color =DISABLED_TEXT_COLOR 
 
     def _fetch_usage_data_async (self ):
         """Fetch usage data in a background thread."""
@@ -1525,3 +1058,61 @@ class SettingsView (BaseView ):
             logger .error (f"Error fetching usage data: {e}")
         finally :
             self .is_fetching_usage =False 
+
+    def _notify_ui_system_of_changes (self ):
+        """Notify the UI system that components have changed."""
+        try :
+
+            from ..components .component_registry import component_registry 
+            component_registry .process_updates ()
+
+
+            if self .refresh_callback :
+                self .refresh_callback ()
+                logger .debug ("Triggered view refresh via callback")
+                return 
+
+
+            from ..ui_factory import improved_ui_factory 
+            if improved_ui_factory and hasattr (improved_ui_factory ,'_refresh_current_view'):
+                improved_ui_factory ._refresh_current_view ()
+                logger .debug ("Triggered UI factory refresh")
+                return 
+
+
+            from ..manager import ui_manager 
+            if ui_manager and hasattr (ui_manager ,'state'):
+
+                for component in ui_manager .state .components :
+                    if hasattr (component ,'_render_dirty'):
+                        component ._render_dirty =True 
+
+                logger .debug ("Marked UI components as dirty")
+
+        except Exception as e :
+            logger .debug (f"Could not notify UI system: {e}")
+
+    def _force_redraw (self ):
+        """Force immediate redraw of the viewport."""
+        try :
+
+            for window in bpy .context .window_manager .windows :
+                for area in window .screen .areas :
+                    area .tag_redraw ()
+
+
+            if hasattr (bpy .context ,'area')and bpy .context .area :
+                bpy .context .area .tag_redraw ()
+
+
+            if hasattr (bpy .ops .wm ,'redraw_timer'):
+                bpy .ops .wm .redraw_timer (type ='DRAW_WIN_SWAP',iterations =1 )
+
+
+            try :
+                bpy .ops .wm .redraw_timer (type ='DRAW',iterations =1 )
+            except :
+                pass 
+
+        except Exception as e :
+            logger .debug (f"Could not force redraw: {e}")

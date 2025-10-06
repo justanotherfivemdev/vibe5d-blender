@@ -98,3 +98,15 @@ class UIState :
 
         for component in self .components :
             component .update_layout ()
+
+    def reset (self ):
+        """Reset the UI state to initial values."""
+        self .is_enabled =False 
+        self .target_area =None 
+        self .focused_component =None 
+        self .mouse_x =0 
+        self .mouse_y =0 
+        self .viewport_width =0 
+        self .viewport_height =0 
+        self .components .clear ()
+        self .event_listeners .clear ()

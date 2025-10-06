@@ -8,7 +8,7 @@ from .tools_api import (
 query ,execute ,scene_context ,get_query_formats ,table_counts ,
 viewport ,add_viewport_render ,see_viewport ,see_render ,
 render_async ,get_render_result ,cancel_render ,list_active_renders ,
-render_with_callback 
+render_with_callback ,analyse_mesh_image 
 )
 
 classes =[]
@@ -18,7 +18,7 @@ __all__ =[
 'table_counts','viewport','add_viewport_render','see_viewport','see_render',
 
 'render_async','get_render_result','cancel_render','list_active_renders',
-'render_with_callback'
+'render_with_callback','analyse_mesh_image'
 ]
 
 

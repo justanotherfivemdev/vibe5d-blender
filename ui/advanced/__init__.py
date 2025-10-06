@@ -22,10 +22,6 @@ from .views import *
 from .ui_state_manager import ui_state_manager ,UIStateManager 
 
 
-from .panels import VIBE4D_PT_AdvancedUI 
-from .ui import VIBE4D_PT_UITest 
-
-
 from .import panels 
 from .import ui 
 
@@ -60,17 +56,27 @@ __all__ =[
 'ui',
 ]
 
+import logging 
+
+logger =logging .getLogger (__name__ )
 
 def register ():
     """Register the advanced UI system."""
 
+
     panels .register ()
-
-
     ui .register ()
 
 
-    viewport_button .enable ()
+    def delayed_viewport_button_enable ():
+        try :
+            viewport_button .enable ()
+        except Exception as e :
+            logger .error (f"Failed to enable viewport button: {e}")
+        return None 
+
+    import bpy 
+    bpy .app .timers .register (delayed_viewport_button_enable ,first_interval =1.0 )
 
 
 def unregister ():
@@ -81,6 +87,13 @@ def unregister ():
 
     if ui_manager :
         ui_manager .cleanup ()
+
+
+    try :
+        from .components .url_image import cleanup_url_image_manager 
+        cleanup_url_image_manager ()
+    except Exception as e :
+        logger .debug (f"Could not cleanup URL image manager: {e}")
 
 
     ui .unregister ()

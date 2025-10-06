@@ -53,7 +53,7 @@ class BackButton (Button ):
 
 
         self .text_x =x +icon_size +icon_gap 
-        self .text_y =y +(content_height -self .style .font_size )//2 -CoordinateSystem .scale_int (20 )
+        self .text_y =y +(content_height -self .style .font_size )//2 -CoordinateSystem .scale_int (18 )
 
     def set_position (self ,x :int ,y :int ):
         """Override to update both button and icon positions."""

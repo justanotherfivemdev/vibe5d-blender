@@ -199,7 +199,6 @@ class APIClient :
 
         result =response .get ("result",{})
         if result .get ("type")==2 and result .get ("code")==0 :
-            logger .info ("User token is valid")
             return True ,""
         else :
 

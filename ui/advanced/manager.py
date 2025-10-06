@@ -210,7 +210,6 @@ class UIManager :
         self ._ui_recreation_in_progress =False 
         self ._ui_recreation_lock_start_time =None 
 
-        logger .info ("UIManager initialized with performance optimizations")
 
     def set_performance_level (self ,level :str ):
         """Set the performance optimization level."""
@@ -289,7 +288,6 @@ class UIManager :
             return 
 
         try :
-            logger .info (f"Initializing UI layout for viewport: {self.state.viewport_width}x{self.state.viewport_height}")
 
 
             self .ui_layout =self .factory .create_layout (
@@ -316,7 +314,6 @@ class UIManager :
             self .state .components .clear ()
             all_components =self .ui_layout .get ('all_components',[])
 
-            logger .info (f"Adding {len(all_components)} components to state")
             for component in all_components :
                 self .state .add_component (component )
 
@@ -340,8 +337,6 @@ class UIManager :
             if focused_component :
                 self .state .set_focus (focused_component )
                 logger .info (f"Set initial focus to: {type(focused_component).__name__}")
-
-            logger .info (f"✅ UI layout initialized successfully with {len(self.state.components)} components")
 
         except Exception as e :
             logger .error (f"Error initializing UI layout: {e}")
@@ -496,7 +491,7 @@ class UIManager :
                 return 
 
 
-            selected_model =getattr (context .scene ,'vibe4d_model','gpt-4.1-mini')
+            selected_model =getattr (context .scene ,'vibe4d_model','gpt-5-mini')
 
             logger .info (f"Using model: {selected_model}")
 
@@ -657,8 +652,6 @@ class UIManager :
                         self .components ,status_block ,is_ai_response =True 
                         )
                         self ._current_ai_component =status_component 
-                        logger .info (f"Added web search started status block: {status_block}")
-                        logger .info (f"✅ Tracked web search as tool call: {search_call_id}")
 
                     elif search_status =="completed"and search_query :
                         success =getattr (response ,'current_search_success',False )
@@ -695,7 +688,6 @@ class UIManager :
                         }
 
                         self ._track_tool_response (web_search_response_data )
-                        logger .info (f"✅ Tracked web search as tool response for history: {ui_message}")
 
 
                 if hasattr (response ,'response_events')and response .response_events :
@@ -869,6 +861,14 @@ class UIManager :
             try :
                 import bpy 
 
+
+                if hasattr (response ,'_completion_processed')and response ._completion_processed :
+                    logger .debug ("Completion already processed for this response, skipping duplicate")
+                    return None 
+
+
+                response ._completion_processed =True 
+
                 self ._is_generating =False 
                 self .factory ._set_send_button_mode (True )
 
@@ -883,12 +883,58 @@ class UIManager :
                     )
 
 
-                    if len (final_content )>self ._last_content_length :
+                    if self ._current_ai_component :
+
+                        current_content =""
+                        if hasattr (self ._current_ai_component ,'get_message'):
+                            current_content =self ._current_ai_component .get_message ()
+                        elif hasattr (self ._current_ai_component ,'markdown_text'):
+                            current_content =self ._current_ai_component .markdown_text 
+
+
+                        if current_content !=final_content :
+                            logger .info (f"Finalizing existing AI component with complete content: '{final_content[:50]}...'")
+                            if hasattr (self ._current_ai_component ,'set_markdown'):
+                                self ._current_ai_component .set_markdown (final_content )
+                            else :
+                                self ._current_ai_component .set_message (final_content )
+                        else :
+                            logger .info ("Existing AI component already has complete content, no update needed")
+
+
+                        if hasattr (self ._current_ai_component ,'auto_resize_to_content'):
+                            view =self .factory .views .get (self .factory .current_view )
+                            if view and hasattr (view ,'get_message_scrollview'):
+                                message_scrollview =view .get_message_scrollview ()
+                                if message_scrollview :
+
+                                    scaled_padding =CoordinateSystem .scale_int (40 )
+                                    max_width =message_scrollview .bounds .width -scaled_padding 
+                                    if message_scrollview .show_scrollbars :
+                                        max_width -=message_scrollview .scrollbar_width 
+
+
+                                    old_height =self ._current_ai_component .bounds .height 
+                                    self ._current_ai_component .auto_resize_to_content (max_width )
+                                    new_height =self ._current_ai_component .bounds .height 
+
+
+                                    if new_height !=old_height :
+                                        height_diff =new_height -old_height 
+                                        for child in message_scrollview .children :
+                                            if child !=self ._current_ai_component :
+                                                child .bounds .y +=height_diff 
+
+
+                                    message_scrollview ._update_content_bounds ()
+
+
+                    elif not self ._current_ai_component and len (final_content )>self ._last_content_length :
                         new_content =final_content [self ._last_content_length :].strip ()
                         if new_content :
-                            logger .info (f"Final completion has new content: '{new_content[:50]}...'")
+                            logger .info (f"No existing AI component, creating new message for final content: '{new_content[:50]}...'")
 
-                            if self ._content_after_tool_call or not self ._current_ai_component :
+                            if self ._content_after_tool_call :
 
                                 final_component =self .factory .add_markdown_message_to_scrollview (
                                 self .components ,new_content ,is_ai_response =True 
@@ -911,64 +957,9 @@ class UIManager :
 
                                 logger .info ("Added final message component")
                             else :
-
-                                current_content =""
-                                if hasattr (self ._current_ai_component ,'get_message'):
-                                    current_content =self ._current_ai_component .get_message ()
-                                elif hasattr (self ._current_ai_component ,'markdown_text'):
-                                    current_content =self ._current_ai_component .markdown_text 
-
-                                if not current_content .startswith ('['):
-
-                                    updated_content =current_content +new_content 
-                                    if hasattr (self ._current_ai_component ,'set_markdown'):
-                                        self ._current_ai_component .set_markdown (updated_content )
-                                    else :
-                                        self ._current_ai_component .set_message (updated_content )
-                                    logger .info ("Appended final content to existing message")
-                                else :
-
-                                    if new_content .strip ():
-
-                                        updated_content =final_content .strip ()
-                                        if hasattr (self ._current_ai_component ,'set_markdown'):
-                                            self ._current_ai_component .set_markdown (updated_content )
-                                        else :
-                                            self ._current_ai_component .set_message (updated_content )
-                                        logger .info ("Replaced status block with final content")
-                                    else :
-                                        logger .info ("Kept status block as final content is empty")
+                                logger .info ("No current AI component and not in post-tool-call mode, content may have been lost")
                         else :
                             logger .debug ("No new content in final completion")
-
-
-                        if self ._current_ai_component and len (final_content )<=self ._last_content_length :
-
-                            if hasattr (self ._current_ai_component ,'auto_resize_to_content'):
-                                view =self .factory .views .get (self .factory .current_view )
-                                if view and hasattr (view ,'get_message_scrollview'):
-                                    message_scrollview =view .get_message_scrollview ()
-                                    if message_scrollview :
-
-                                        scaled_padding =CoordinateSystem .scale_int (40 )
-                                        max_width =message_scrollview .bounds .width -scaled_padding 
-                                        if message_scrollview .show_scrollbars :
-                                            max_width -=message_scrollview .scrollbar_width 
-
-
-                                        old_height =self ._current_ai_component .bounds .height 
-                                        self ._current_ai_component .auto_resize_to_content (max_width )
-                                        new_height =self ._current_ai_component .bounds .height 
-
-
-                                        if new_height !=old_height :
-                                            height_diff =new_height -old_height 
-                                            for child in message_scrollview .children :
-                                                if child !=self ._current_ai_component :
-                                                    child .bounds .y +=height_diff 
-
-
-                                        message_scrollview ._update_content_bounds ()
                 else :
 
                     self ._track_assistant_message (
@@ -977,7 +968,11 @@ class UIManager :
                     )
 
 
-                self ._save_conversation_to_history ()
+
+                if not self ._conversation_tracking .get ('conversation_saved',False ):
+                    self ._save_conversation_to_history ()
+                else :
+                    logger .debug ("Conversation already saved to history, skipping duplicate save")
 
 
                 if hasattr (response ,'usage_info')and response .usage_info :
@@ -1050,7 +1045,6 @@ class UIManager :
                                 tool_call_id =tool_response .get ("call_id")
                                 )
                                 logger .debug (f"✓ Saved TOOL response on completion error for call_id: {tool_response.get('call_id')}")
-                        logger .info ("✅ Preserved conversation data before completion error reset")
                     except Exception as save_error :
                         logger .error (f"Failed to save conversation data on completion error: {str(save_error)}")
                 self ._reset_generation_state ()
@@ -1121,8 +1115,6 @@ class UIManager :
                                 tool_call_id =tool_response .get ("call_id")
                                 )
                                 logger .debug (f"✓ Saved TOOL response on error for call_id: {tool_response.get('call_id')}")
-
-                        logger .info ("✅ Preserved conversation data before error reset")
 
                     except Exception as save_error :
                         logger .error (f"Failed to save conversation data on error: {str(save_error)}")
@@ -1266,9 +1258,7 @@ class UIManager :
             if hasattr (self ,'_conversation_tracking')and self ._conversation_tracking :
                 if not self ._conversation_tracking .get ('conversation_saved',False ):
                     try :
-                        logger .info ("Saving conversation data before UI cleanup")
                         self ._save_conversation_to_history ()
-                        logger .info ("✅ Conversation data saved successfully before cleanup")
                     except Exception as save_error :
                         logger .error (f"Failed to save conversation data before cleanup: {str(save_error)}")
 
@@ -1445,7 +1435,7 @@ class UIManager :
 
                             if success :
 
-                                logger .info (f"✅ Image data saved to history (UI display disabled): {message_text}")
+                                pass 
                             else :
                                 logger .warning (f"Failed to create image message after tool response {call_id}")
 
@@ -1454,7 +1444,6 @@ class UIManager :
 
 
             msg_count =(1 if user_message else 0 )+(1 if final_content or tool_calls else 0 )+len (self ._conversation_tracking ['tool_responses'])
-            logger .info (f"✅ Complete conversation saved to history with {msg_count} messages in perfect order")
 
         except Exception as e :
             logger .error (f"❌ Failed to save conversation to history: {str(e)}")
@@ -1540,8 +1529,6 @@ class UIManager :
                 from ...utils .history_manager import history_manager 
                 new_chat_id =history_manager .create_new_chat (context )
 
-                logger .info (f"✅ Started new chat: {new_chat_id}")
-
             except Exception as e :
                 logger .error (f"Failed to start new chat: {str(e)}")
 
@@ -1561,8 +1548,6 @@ class UIManager :
 
             if self .state .target_area :
                 self .state .target_area .tag_redraw ()
-
-            logger .info ("✅ Ready for new chat session")
 
         except Exception as e :
             logger .error (f"Error in _handle_add: {e}")
@@ -1591,9 +1576,9 @@ class UIManager :
 
 
             model_mapping ={
-            "GPT 4.1":"gpt-4.1",
-            "GPT 4.1 Mini":"gpt-4.1-mini",
-            "GPT 4.1 Nano":"gpt-4.1-nano"
+            "Claude Sonnet 4.5":"claude-sonnet-4-5",
+            "GPT 5":"gpt-5",
+            "GPT 5 Mini":"gpt-5-mini"
             }
 
 
@@ -1665,7 +1650,6 @@ class UIManager :
             theme_manager .update_if_changed ()
 
 
-            logger .info ("Determining initial view based on connectivity and auth status")
             self .factory .switch_to_appropriate_view_on_startup ()
 
 
@@ -1702,7 +1686,7 @@ class UIManager :
 
                             success =self .force_ui_reinitialization ()
                             if success :
-                                logger .info ("✅ UI reinitialization successful")
+                                pass 
                             else :
                                 logger .error ("❌ UI reinitialization failed")
 
@@ -1722,7 +1706,7 @@ class UIManager :
 
                                 bpy .app .timers .register (retry_init ,first_interval =1.0 )
                         else :
-                            logger .info (f"✅ UI overlay enabled successfully with {len(self.state.components)} components")
+                            pass 
                     return None 
                 except Exception as e :
                     logger .error (f"Error in delayed init check: {e}")
@@ -1844,15 +1828,12 @@ class UIManager :
 
                 if is_initial_draw :
 
-                    logger .info (f"Initial viewport setup: {new_width}x{new_height}")
                     self .state .update_viewport_size (new_width ,new_height )
 
 
                     if self .ui_layout is None :
-                        logger .info ("Initializing UI layout")
                         self ._initialize_ui_layout ()
                     else :
-                        logger .info ("Updating UI layout")
                         self ._update_layout ()
 
                     viewport_changed =True 
@@ -3199,11 +3180,9 @@ class UIManager :
 
 
             if self .state .viewport_width >0 and self .state .viewport_height >0 :
-                logger .info ("Reinitializing UI layout with current dimensions")
                 self ._initialize_ui_layout ()
 
                 if self .ui_layout and self .state .components :
-                    logger .info (f"✅ UI reinitialization successful with {len(self.state.components)} components")
 
                     if self .state .target_area :
                         self .state .target_area .tag_redraw ()

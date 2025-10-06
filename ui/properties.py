@@ -70,34 +70,17 @@ class VIBE4D_ChatMessage (PropertyGroup ):
     )
 
 
-class VIBE4D_CustomInstruction (PropertyGroup ):
-    """A custom instruction item."""
-
-    text :StringProperty (
-    name ="Instruction",
-    description ="Custom instruction text",
-    default =""
-    )
-
-    enabled :BoolProperty (
-    name ="Enabled",
-    description ="Whether this instruction is active",
-    default =True 
-    )
-
-
 def register_properties ():
     """Register all Vibe4D properties."""
 
 
     bpy .utils .register_class (VIBE4D_ChatMessage )
-    bpy .utils .register_class (VIBE4D_CustomInstruction )
 
 
     Scene .vibe4d_model =StringProperty (
     name ="Model",
     description ="AI model to use for all interactions",
-    default ="gpt-4.1-mini"
+    default ="gpt-5-mini"
     )
 
     Scene .vibe4d_prompt =StringProperty (
@@ -177,17 +160,10 @@ def register_properties ():
     )
 
 
-    Scene .vibe4d_custom_instructions =CollectionProperty (
-    type =VIBE4D_CustomInstruction ,
-    name ="Custom Instructions",
-    description ="Collection of custom instructions"
-    )
-
-    Scene .vibe4d_custom_instructions_index =IntProperty (
-    name ="Custom Instructions Index",
-    description ="Current index in custom instructions collection",
-    default =0 ,
-    min =0 
+    Scene .vibe4d_custom_instruction =StringProperty (
+    name ="Custom Instruction",
+    description ="Single multiline custom instruction for AI behavior",
+    default =""
     )
 
 
@@ -359,7 +335,7 @@ def unregister_properties ():
     'vibe4d_is_generating','vibe4d_execution_pending',
     'vibe4d_chat_messages','vibe4d_chat_messages_index',
     'vibe4d_current_chat_id','vibe4d_current_text_input',
-    'vibe4d_custom_instructions','vibe4d_custom_instructions_index',
+    'vibe4d_custom_instruction',
     'vibe4d_ui_active','vibe4d_ui_viewport_config','vibe4d_ui_current_view',
     'vibe4d_ui_conversation_state','vibe4d_ui_layout_version','vibe4d_ui_area_markers',
     'vibe4d_generation_progress','vibe4d_generation_stage'
@@ -384,7 +360,6 @@ def unregister_properties ():
 
 
     try :
-        bpy .utils .unregister_class (VIBE4D_CustomInstruction )
         bpy .utils .unregister_class (VIBE4D_ChatMessage )
     except :
         pass 

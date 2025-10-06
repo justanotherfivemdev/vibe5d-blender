@@ -14,19 +14,114 @@ Implements backend tools that can be called by the AI assistant:
 import bpy 
 import gpu 
 from gpu .types import GPUTexture 
-import base64 
-import array 
-import tempfile 
-import os 
-import time 
-from typing import Dict ,Any ,List ,Optional ,Tuple 
 from mathutils import Vector ,Matrix ,Euler ,Quaternion ,Color 
 
+import base64 
+import tempfile 
+import os 
+import platform 
+import locale 
+from typing import Dict ,Any ,Optional ,Tuple 
+import math 
+
 from ..utils .logger import logger 
-from ..utils .json_utils import to_json_serializable 
 from .executor import code_executor 
 from .query import scene_query_engine 
 from .render_manager import render_manager 
+
+
+def _get_target_object (target :bpy .types .ID )->bpy .types .Object :
+    if isinstance (target ,bpy .types .Object ):
+        return target 
+
+    if isinstance (target ,bpy .types .Mesh ):
+        for ob in bpy .data .objects :
+            if ob .data is target :
+                return ob 
+        raise ValueError ("Mesh datablock is not used by any object in the scene")
+
+    raise TypeError (
+    f"Expected bpy.types.Object or bpy.types.Mesh, got {type(target).__name__}")
+
+
+def _frame_camera_corner (cam :bpy .types .Object ,obj :bpy .types .Object ,/,
+margin :float =1.05 )->None :
+    """Place *cam* on the (+X, –Y, +Z) diagonal so that *obj* fits entirely."""
+
+    depsgraph =bpy .context .evaluated_depsgraph_get ()
+    evaluated_obj =obj .evaluated_get (depsgraph )
+
+    bpy .context .view_layer .update ()
+    corners_world =[evaluated_obj .matrix_world @Vector (c )for c in evaluated_obj .bound_box ]
+    centre =sum (corners_world ,Vector ())/8.0 
+    radius =max ((c -centre ).length for c in corners_world )
+
+    direction =Vector ((1 ,-1 ,1 )).normalized ()
+    fov =max (cam .data .angle_x ,cam .data .angle_y )
+    distance =(radius *margin )/math .tan (fov *0.5 )
+
+    cam .location =centre +direction *distance 
+    cam .rotation_euler =(centre -cam .location ).to_track_quat ('-Z','Y').to_euler ()
+    cam .data .clip_start =distance /50 
+    cam .data .clip_end =distance *50 
+
+
+def _pick_resolution (o :bpy .types .Object )->tuple [int ,int ]:
+
+
+
+    deps =bpy .context .evaluated_depsgraph_get ()
+    eval_obj =o .evaluated_get (deps )
+    mesh =eval_obj .to_mesh ()
+    poly_cnt =len (mesh .polygons )
+    eval_obj .to_mesh_clear ()
+
+    base =(512 if poly_cnt <10_000 
+    else 768 if poly_cnt <50_000 
+    else 1024 )
+
+
+
+
+
+    world_bb =[eval_obj .matrix_world @Vector (c )for c in o .bound_box ]
+    xs ,ys ,zs =zip (*[(v .x ,v .y ,v .z )for v in world_bb ])
+
+    width_xy =max (max (xs )-min (xs ),max (ys )-min (ys ))
+    height_z =max (zs )-min (zs )
+    height_z =max (height_z ,0.0001 )
+
+    aspect =width_xy /height_z 
+
+
+
+
+    WIDE_LIMIT =1.10 
+    TALL_LIMIT =0.90 
+
+    if aspect >WIDE_LIMIT :
+        res_x =base 
+        res_y =int (base /aspect )
+    elif aspect <TALL_LIMIT :
+        res_y =base 
+        res_x =int (base *aspect )
+    else :
+        res_x =res_y =base 
+
+
+
+
+    res_x =max (128 ,min (res_x ,2048 ))
+    res_y =max (128 ,min (res_y ,2048 ))
+    return res_x ,res_y 
+
+
+def _img_to_uri (filepath ):
+    with open (filepath ,'rb')as f :
+        image_data =f .read ()
+
+    base64_data =base64 .b64encode (image_data ).decode ('utf-8')
+    return f"data:image/png;base64,{base64_data}"
 
 
 class ToolsManager :
@@ -44,7 +139,8 @@ class ToolsManager :
         'render_async':self ._render_async_tool ,
         'get_render_result':self ._get_render_result_tool ,
         'cancel_render':self ._cancel_render_tool ,
-        'list_active_renders':self ._list_active_renders_tool 
+        'list_active_renders':self ._list_active_renders_tool ,
+        'analyse_mesh_image':self ._analyse_mesh_image_tool ,
         }
 
 
@@ -53,20 +149,34 @@ class ToolsManager :
     def handle_tool_call (self ,tool_name :str ,arguments :Dict [str ,Any ],context )->Tuple [bool ,Any ]:
         """Handle a tool call."""
         if tool_name not in self .tools :
-            return False ,f"Unknown tool: {tool_name}"
+            return False ,{"status":"error","result":f"Unknown tool: {tool_name}"}
 
         try :
-            return self .tools [tool_name ](arguments ,context )
+            success ,result =self .tools [tool_name ](arguments ,context )
+            if success :
+
+                if isinstance (result ,dict ):
+                    result ["status"]="success"
+                    return True ,result 
+                else :
+                    return True ,{"status":"success","result":result }
+            else :
+
+                if isinstance (result ,dict ):
+                    result ["status"]="error"
+                    return False ,result 
+                else :
+                    return False ,{"status":"error","result":result }
         except Exception as e :
             logger .error (f"Error in tool '{tool_name}': {str(e)}")
-            return False ,str (e )
+            return False ,{"status":"error","result":str (e )}
 
     def _execute_tool (self ,arguments :Dict [str ,Any ],context )->Tuple [bool ,Any ]:
         """Execute Python code."""
         try :
             code =arguments .get ("code","")
             if not code :
-                return False ,"No code provided"
+                return False ,{"result":"No code provided"}
 
 
 
@@ -80,10 +190,11 @@ class ToolsManager :
             if success :
 
                 console_output =getattr (context .scene ,'vibe4d_console_output','')
-                if console_output :
-                    result =console_output 
+                if console_output and console_output .strip ():
+
+                    result =f"Code executed successfully.\n\nConsole output:\n{console_output.strip()}"
                 else :
-                    result ="Code executed successfully"
+                    result ="Code executed successfully. (No console output)"
 
                 return True ,{"result":result }
             else :
@@ -119,29 +230,42 @@ class ToolsManager :
         """Get scene context information."""
         try :
 
-            scene_info ={
+            selected_objects =[obj .name for obj in context .selected_objects ]
+            active_object =context .active_object .name if context .active_object else None 
+
+
+            current_file_path =bpy .data .filepath if bpy .data .filepath else None 
+
+
+            current_language =locale .getdefaultlocale ()[0 ]if locale .getdefaultlocale ()[0 ]else None 
+
+
+            info ={
             "scene_name":context .scene .name ,
             "frame_current":context .scene .frame_current ,
             "frame_start":context .scene .frame_start ,
             "frame_end":context .scene .frame_end ,
             "render_engine":context .scene .render .engine ,
-            "camera":context .scene .camera .name if context .scene .camera else None ,
-            "render_settings":{
-            "resolution_x":context .scene .render .resolution_x ,
-            "resolution_y":context .scene .render .resolution_y ,
-            "resolution_percentage":context .scene .render .resolution_percentage ,
-            "frame_rate":context .scene .render .fps 
-            }
+            "blender_version":bpy .app .version_string ,
+            "current_file_path":current_file_path ,
+            "user_os":platform .system (),
+            "window_resolution":{
+            "width":context .window .width ,
+            "height":context .window .height 
+            },
+            "dpi":context .preferences .system .dpi ,
+            "language":current_language ,
+            "selected_objects":selected_objects ,
+            "active_object":active_object ,
             }
 
-            return True ,{"result":scene_info }
+            return True ,{"result":info }
 
         except Exception as e :
             logger .error (f"Scene context tool error: {str(e)}")
             return False ,{"result":f"Scene context error: {str(e)}"}
 
     def _viewport_tool (self ,arguments :Dict [str ,Any ],context )->Tuple [bool ,Any ]:
-        """Capture viewport screenshot and return as base64 data URI."""
         try :
             logger .info (f"Starting viewport capture with arguments: {arguments}")
 
@@ -220,16 +344,6 @@ class ToolsManager :
                     image_data =f .read ()
 
 
-                width ,height =view3d_area .width ,view3d_area .height 
-                try :
-                    from PIL import Image 
-                    with Image .open (temp_filepath )as img :
-                        width ,height =img .size 
-                        logger .info (f"Screenshot dimensions: {width}x{height}")
-                except ImportError :
-                    logger .info (f"Estimated screenshot dimensions: {width}x{height}")
-
-
                 import base64 
                 base64_data =base64 .b64encode (image_data ).decode ('utf-8')
                 data_uri =f"data:image/png;base64,{base64_data}"
@@ -239,9 +353,9 @@ class ToolsManager :
 
                 return True ,{
                 "result":{
-                "data_uri":data_uri ,
-                "width":width ,
-                "height":height ,
+                "image_data":data_uri ,
+                "width":view3d_area .width ,
+                "height":view3d_area .height ,
                 "original_viewport_size":[view3d_area .width ,view3d_area .height ],
                 "size_bytes":file_size ,
                 "format":"PNG",
@@ -268,7 +382,6 @@ class ToolsManager :
             return False ,f"Viewport capture failed: {str(e)}"
 
     def _see_render_tool (self ,arguments :Dict [str ,Any ],context )->Tuple [bool ,Any ]:
-        """Render the current scene and return the final result when complete."""
         try :
             logger .info ("Starting synchronous render with user control")
 
@@ -276,12 +389,6 @@ class ToolsManager :
             scene_name =arguments .get ("scene_name",None )
             camera_name =arguments .get ("camera_name",None )
 
-
-            from ..ui .advanced .manager import ui_manager 
-
-
-            if hasattr (ui_manager ,'_send_render_status_block'):
-                ui_manager ._send_render_status_block ("[Checking for existing render...]")
 
 
             scene =bpy .data .scenes .get (scene_name )if scene_name else context .scene 
@@ -291,14 +398,7 @@ class ToolsManager :
 
             existing_result =render_manager ._get_existing_render_result (scene ,camera )
             if existing_result :
-                logger .info ("Found existing render result, returning it")
-                if hasattr (ui_manager ,'_send_render_status_block'):
-                    ui_manager ._send_render_status_block ("[Using existing render]")
                 return True ,{"result":existing_result }
-
-
-            if hasattr (ui_manager ,'_send_render_status_block'):
-                ui_manager ._send_render_status_block ("[Rendering scene]")
 
 
             result_data =render_manager .render_sync (
@@ -306,10 +406,6 @@ class ToolsManager :
             camera_name =camera_name ,
             output_path =None 
             )
-
-
-            if hasattr (ui_manager ,'_send_render_status_block'):
-                ui_manager ._send_render_status_block ("[Render captured]")
 
             logger .info (f"Synchronous render completed successfully")
 
@@ -320,14 +416,6 @@ class ToolsManager :
             logger .error (f"Synchronous render tool failed: {str(e)}")
             import traceback 
             logger .error (f"Full traceback: {traceback.format_exc()}")
-
-
-            try :
-                from ..ui .advanced .manager import ui_manager 
-                if hasattr (ui_manager ,'_send_render_status_block'):
-                    ui_manager ._send_render_status_block (f"[Render failed: {str(e)}]")
-            except :
-                pass 
 
             return False ,{"result":f"Render failed: {str(e)}"}
 
@@ -451,8 +539,167 @@ class ToolsManager :
             logger .error (f"List active renders tool error: {str(e)}")
             return False ,{"result":f"List active renders error: {str(e)}"}
 
+    def _analyse_mesh_image_tool (self ,arguments :Dict [str ,Any ],context )->Tuple [bool ,Any ]:
+        """Analyze a mesh image by rendering a specific object and sending it for AI analysis."""
+        try :
+            object_name =arguments .get ("object_name")
+            if not object_name :
+                return False ,{"result":"object_name is required"}
+
+
+            target_object =bpy .data .objects .get (object_name )
+            if not target_object :
+                return False ,{"result":f"Object '{object_name}' not found in scene"}
+
+
+            if target_object .type !='MESH':
+                return False ,{"result":f"Object '{object_name}' is not a mesh object (type: {target_object.type})"}
+
+
+            image_data =self ._render_object_for_analysis (target_object )
+            if not image_data :
+                return False ,{"result":f"Failed to render object '{object_name}'"}
+
+
+            return True ,{
+            "result":{
+            "image_data":image_data ,
+            },
+            }
+
+        except Exception as e :
+            logger .error (f"Analyse mesh image tool error: {str(e)}")
+            import traceback 
+            logger .error (f"Full traceback: {traceback.format_exc()}")
+
+            return False ,{"result":f"Analysis error: {str(e)}"}
+
+    def _render_object_for_analysis (self ,target )->Optional [str ]:
+        sun_energy =1.5 
+        sun_yaw_deg =35.0 
+        sun_pitch_deg =-15.0 
+        preserve_world_env =True 
+        tmp =tempfile .NamedTemporaryFile (suffix =".png",delete =False )
+        filepath =tmp .name 
+        tmp .close ()
+
+        obj =_get_target_object (target )
+
+
+
+
+        scn =bpy .context .scene 
+        win =bpy .context .window 
+
+        cache ={
+        "view_layer":win .view_layer ,
+        "camera":scn .camera ,
+        "engine":scn .render .engine ,
+        "filepath":scn .render .filepath ,
+        "film_transparent":scn .render .film_transparent ,
+        "res_x":scn .render .resolution_x ,
+        "res_y":scn .render .resolution_y ,
+        "world_use_nodes":scn .world .use_nodes if scn .world else None ,
+        "objects_hide_render":{o :o .hide_render for o in bpy .data .objects },
+        }
+
+
+
+
+        cam_data =bpy .data .cameras .new ("_TMP_CAM_DATA")
+        cam_obj =bpy .data .objects .new ("_TMP_CAM",cam_data )
+
+        sun_data =bpy .data .lights .new ("_TMP_SUN_DATA",type ='SUN')
+        sun_data .energy =sun_energy 
+        sun_obj =bpy .data .objects .new ("_TMP_SUN",sun_data )
+
+        iso_col =bpy .data .collections .new ("_TMP_COL")
+        scn .collection .children .link (iso_col )
+        for o in (obj ,cam_obj ,sun_obj ):
+            iso_col .objects .link (o )
+
+        iso_layer =scn .view_layers .new (name ="_TMP_LAYER")
+
+        def _recursive_exclude (lc :bpy .types .LayerCollection ,keep :bpy .types .Collection ):
+            lc .exclude =(lc .collection is not keep )
+            for child in lc .children :
+                _recursive_exclude (child ,keep )
+
+        _recursive_exclude (iso_layer .layer_collection ,iso_col )
+
+        res_x ,res_y =_pick_resolution (obj )
+
+
+
+
+        try :
+
+            scn .render .engine ='BLENDER_EEVEE_NEXT'
+            scn .render .film_transparent =True 
+            scn .render .filepath =filepath 
+            scn .render .resolution_x ,scn .render .resolution_y =res_x ,res_y 
+
+            _frame_camera_corner (cam_obj ,obj )
+
+
+            cam_quat =cam_obj .rotation_euler .to_quaternion ()
+            sun_orient =(
+            Quaternion ((0 ,0 ,1 ),math .radians (sun_yaw_deg ))@
+            Quaternion ((1 ,0 ,0 ),math .radians (sun_pitch_deg ))@
+            cam_quat 
+            )
+            sun_obj .location =cam_obj .location 
+            sun_obj .rotation_euler =sun_orient .to_euler ()
+
+            win .view_layer =iso_layer 
+            scn .camera =cam_obj 
+
+
+            for o in bpy .data .objects :
+                if o not in (obj ,cam_obj ,sun_obj ):
+                    o .hide_render =True 
+
+            if not preserve_world_env and scn .world :
+                scn .world .use_nodes =False 
+
+            bpy .ops .render .render (write_still =True ,use_viewport =False )
+
+            return _img_to_uri (filepath )
+
+        finally :
+
+
+
+            win .view_layer =cache ["view_layer"]
+            scn .camera =cache ["camera"]
+            scn .render .engine =cache ["engine"]
+            scn .render .filepath =cache ["filepath"]
+            scn .render .film_transparent =cache ["film_transparent"]
+            scn .render .resolution_x =cache ["res_x"]
+            scn .render .resolution_y =cache ["res_y"]
+            if scn .world and cache ["world_use_nodes"]is not None :
+                scn .world .use_nodes =cache ["world_use_nodes"]
+            for o ,hidden in cache ["objects_hide_render"].items ():
+                o .hide_render =hidden 
+
+
+
+
+            scn .view_layers .remove (iso_layer )
+            scn .collection .children .unlink (iso_col )
+            bpy .data .collections .remove (iso_col )
+
+            for ob in (cam_obj ,sun_obj ):
+                data =ob .data 
+                bpy .data .objects .remove (ob ,do_unlink =True )
+                if isinstance (data ,bpy .types .Camera ):
+                    bpy .data .cameras .remove (data ,do_unlink =True )
+                elif isinstance (data ,bpy .types .Light ):
+                    bpy .data .lights .remove (data ,do_unlink =True )
+
+            bpy .context .view_layer .update ()
+
     def cleanup (self ):
-        """Clean up resources."""
         render_manager .cleanup ()
 
 
