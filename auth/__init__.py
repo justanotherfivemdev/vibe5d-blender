@@ -1,20 +1,17 @@
+from .manager import auth_manager
+
+classes = []
+
+__all__ = ['classes', 'auth_manager']
 
 
-
-from .manager import auth_manager 
-
-classes =[]
-
-__all__ =['classes','auth_manager']
-
-
-def register ():
+def register():
     """Register auth module."""
 
-    pass 
+    pass
 
 
-def unregister ():
+def unregister():
     """Unregister auth module."""
 
-    pass 
+    pass

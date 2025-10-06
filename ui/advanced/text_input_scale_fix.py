@@ -31,100 +31,96 @@ Three-part fix:
 This patches multiple methods to ensure all calculations use current UI scale values.
 """
 
-from .coordinates import CoordinateSystem 
-from .unified_styles import UnifiedStyles 
-import logging 
-import math 
+import logging
+import math
 
-logger =logging .getLogger (__name__ )
+from .coordinates import CoordinateSystem
+from .unified_styles import UnifiedStyles
 
-def patch_text_input_for_scaling ():
+logger = logging.getLogger(__name__)
+
+
+def patch_text_input_for_scaling():
     """Patch TextInput component to handle UI scale changes properly."""
-    try :
-        from .components .text_input import TextInput 
-        import blf 
+    try:
+        from .components.text_input import TextInput
+        import blf
 
+        original_get_text_dimensions = TextInput.get_text_dimensions
+        original_get_line_height = TextInput._get_line_height
+        original_get_total_padding_vertical = TextInput._get_total_padding_vertical
+        original_get_total_padding_horizontal = TextInput._get_total_padding_horizontal
+        original_get_text_usable_width = TextInput._get_text_usable_width
 
-        original_get_text_dimensions =TextInput .get_text_dimensions 
-        original_get_line_height =TextInput ._get_line_height 
-        original_get_total_padding_vertical =TextInput ._get_total_padding_vertical 
-        original_get_total_padding_horizontal =TextInput ._get_total_padding_horizontal 
-        original_get_text_usable_width =TextInput ._get_text_usable_width 
-
-        def get_text_dimensions_with_scale (self ,text :str ,font_size :int =None ):
+        def get_text_dimensions_with_scale(self, text: str, font_size: int = None):
             """Enhanced version that includes UI scale in cache key."""
-            if font_size is None :
+            if font_size is None:
+                font_size = UnifiedStyles.get_font_size()
 
-                font_size =UnifiedStyles .get_font_size ()
+            current_ui_scale = CoordinateSystem.get_ui_scale()
+            cache_key = (text, font_size, current_ui_scale)
 
+            if cache_key not in self._dimension_cache:
 
-            current_ui_scale =CoordinateSystem .get_ui_scale ()
-            cache_key =(text ,font_size ,current_ui_scale )
+                try:
+                    blf.size(0, font_size)
+                except Exception as e:
+                    logger.warning(f"Failed to set font size: {e}")
+                    blf.size(0, font_size)
 
-            if cache_key not in self ._dimension_cache :
+                self._dimension_cache[cache_key] = blf.dimensions(0, text)
 
-                try :
-                    blf .size (0 ,font_size )
-                except Exception as e :
-                    logger .warning (f"Failed to set font size: {e}")
-                    blf .size (0 ,font_size )
+            return self._dimension_cache[cache_key]
 
-
-                self ._dimension_cache [cache_key ]=blf .dimensions (0 ,text )
-
-            return self ._dimension_cache [cache_key ]
-
-        def get_line_height_with_scale (self ):
+        def get_line_height_with_scale(self):
             """Get height of a single line using dynamic scaling."""
 
-            scaled_font_size =UnifiedStyles .get_font_size ()
-            LINE_HEIGHT_MULTIPLIER =1.21 
-            return math .ceil (scaled_font_size *LINE_HEIGHT_MULTIPLIER )
+            scaled_font_size = UnifiedStyles.get_font_size()
+            LINE_HEIGHT_MULTIPLIER = 1.21
+            return math.ceil(scaled_font_size * LINE_HEIGHT_MULTIPLIER)
 
-        def get_total_padding_vertical_with_scale (self ):
+        def get_total_padding_vertical_with_scale(self):
             """Get total vertical padding using dynamic scaling."""
 
-            scaled_padding =UnifiedStyles .get_text_input_padding ()
-            scaled_border_width =UnifiedStyles .get_text_input_border_width ()
+            scaled_padding = UnifiedStyles.get_text_input_padding()
+            scaled_border_width = UnifiedStyles.get_text_input_border_width()
 
-            return (scaled_padding *2 )+self .content_padding_top +self .content_padding_bottom +(scaled_border_width *2 )
+            return (scaled_padding * 2) + self.content_padding_top + self.content_padding_bottom + (
+                        scaled_border_width * 2)
 
-        def get_total_padding_horizontal_with_scale (self ):
+        def get_total_padding_horizontal_with_scale(self):
             """Get total horizontal padding using dynamic scaling."""
 
-            scaled_padding =UnifiedStyles .get_text_input_padding ()
-            scaled_border_width =UnifiedStyles .get_text_input_border_width ()
+            scaled_padding = UnifiedStyles.get_text_input_padding()
+            scaled_border_width = UnifiedStyles.get_text_input_border_width()
 
-            return (scaled_padding *2 )+self .content_padding_left +self .content_padding_right +(scaled_border_width *2 )
+            return (scaled_padding * 2) + self.content_padding_left + self.content_padding_right + (
+                        scaled_border_width * 2)
 
-        def get_text_usable_width_with_scale (self ):
+        def get_text_usable_width_with_scale(self):
             """Get the usable width for text rendering with dynamic scaling."""
-            usable_width =self .bounds .width -self ._get_total_padding_horizontal ()
+            usable_width = self.bounds.width - self._get_total_padding_horizontal()
+
+            current_ui_scale = CoordinateSystem.get_ui_scale()
+            MIN_SAFETY_MARGIN = int(4 * current_ui_scale)
+            MIN_USABLE_WIDTH = int(30 * current_ui_scale)
+            SAFETY_MARGIN_RATIO = 0.02
+
+            safety_margin = max(MIN_SAFETY_MARGIN, math.ceil(usable_width * SAFETY_MARGIN_RATIO))
+            usable_width -= safety_margin
+
+            return max(MIN_USABLE_WIDTH, usable_width)
+
+        TextInput.get_text_dimensions = get_text_dimensions_with_scale
+        TextInput._get_line_height = get_line_height_with_scale
+        TextInput._get_total_padding_vertical = get_total_padding_vertical_with_scale
+        TextInput._get_total_padding_horizontal = get_total_padding_horizontal_with_scale
+        TextInput._get_text_usable_width = get_text_usable_width_with_scale
+
+    except Exception as e:
+        logger.error(f"Failed to patch TextInput for UI scale support: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
 
 
-            current_ui_scale =CoordinateSystem .get_ui_scale ()
-            MIN_SAFETY_MARGIN =int (4 *current_ui_scale )
-            MIN_USABLE_WIDTH =int (30 *current_ui_scale )
-            SAFETY_MARGIN_RATIO =0.02 
-
-
-            safety_margin =max (MIN_SAFETY_MARGIN ,math .ceil (usable_width *SAFETY_MARGIN_RATIO ))
-            usable_width -=safety_margin 
-
-
-            return max (MIN_USABLE_WIDTH ,usable_width )
-
-
-        TextInput .get_text_dimensions =get_text_dimensions_with_scale 
-        TextInput ._get_line_height =get_line_height_with_scale 
-        TextInput ._get_total_padding_vertical =get_total_padding_vertical_with_scale 
-        TextInput ._get_total_padding_horizontal =get_total_padding_horizontal_with_scale 
-        TextInput ._get_text_usable_width =get_text_usable_width_with_scale 
-
-    except Exception as e :
-        logger .error (f"Failed to patch TextInput for UI scale support: {e}")
-        import traceback 
-        logger .error (f"Traceback: {traceback.format_exc()}")
-
-
-patch_text_input_for_scaling ()
+patch_text_input_for_scaling()

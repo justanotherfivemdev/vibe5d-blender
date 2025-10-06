@@ -1,19 +1,17 @@
+from .request_builder import LLMRequestBuilder
+
+classes = []
+
+__all__ = ['classes', 'LLMRequestBuilder']
 
 
-from .request_builder import LLMRequestBuilder 
-
-classes =[]
-
-__all__ =['classes','LLMRequestBuilder']
-
-
-def register ():
+def register():
     """Register llm module."""
 
-    pass 
+    pass
 
 
-def unregister ():
+def unregister():
     """Unregister llm module."""
 
-    pass 
+    pass

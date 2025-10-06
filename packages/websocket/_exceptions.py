@@ -18,77 +18,77 @@ limitations under the License.
 """
 
 
-class WebSocketException (Exception ):
+class WebSocketException(Exception):
     """
     WebSocket exception class.
     """
 
-    pass 
+    pass
 
 
-class WebSocketProtocolException (WebSocketException ):
+class WebSocketProtocolException(WebSocketException):
     """
     If the WebSocket protocol is invalid, this exception will be raised.
     """
 
-    pass 
+    pass
 
 
-class WebSocketPayloadException (WebSocketException ):
+class WebSocketPayloadException(WebSocketException):
     """
     If the WebSocket payload is invalid, this exception will be raised.
     """
 
-    pass 
+    pass
 
 
-class WebSocketConnectionClosedException (WebSocketException ):
+class WebSocketConnectionClosedException(WebSocketException):
     """
     If remote host closed the connection or some network error happened,
     this exception will be raised.
     """
 
-    pass 
+    pass
 
 
-class WebSocketTimeoutException (WebSocketException ):
+class WebSocketTimeoutException(WebSocketException):
     """
     WebSocketTimeoutException will be raised at socket timeout during read/write data.
     """
 
-    pass 
+    pass
 
 
-class WebSocketProxyException (WebSocketException ):
+class WebSocketProxyException(WebSocketException):
     """
     WebSocketProxyException will be raised when proxy error occurred.
     """
 
-    pass 
+    pass
 
 
-class WebSocketBadStatusException (WebSocketException ):
+class WebSocketBadStatusException(WebSocketException):
     """
     WebSocketBadStatusException will be raised when we get bad handshake status code.
     """
 
-    def __init__ (
-    self ,
-    message :str ,
-    status_code :int ,
-    status_message =None ,
-    resp_headers =None ,
-    resp_body =None ,
+    def __init__(
+            self,
+            message: str,
+            status_code: int,
+            status_message=None,
+            resp_headers=None,
+            resp_body=None,
     ):
-        super ().__init__ (message )
-        self .status_code =status_code 
-        self .resp_headers =resp_headers 
-        self .resp_body =resp_body 
+        super().__init__(message)
+        self.status_code = status_code
+        self.resp_headers = resp_headers
+        self.resp_body = resp_body
 
 
-class WebSocketAddressException (WebSocketException ):
+class WebSocketAddressException(WebSocketException):
     """
     If the websocket address info cannot be found, this exception will be raised.
     """
 
-    pass 
+    pass

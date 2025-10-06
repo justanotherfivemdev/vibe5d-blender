@@ -1,4 +1,4 @@
-import logging 
+import logging
 
 """
 _logging.py
@@ -19,38 +19,37 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-_logger =logging .getLogger ("websocket")
-try :
-    from logging import NullHandler 
-except ImportError :
+_logger = logging.getLogger("websocket")
+try:
+    from logging import NullHandler
+except ImportError:
 
-    class NullHandler (logging .Handler ):
-        def emit (self ,record )->None :
-            pass 
+    class NullHandler(logging.Handler):
+        def emit(self, record) -> None:
+            pass
 
+_logger.addHandler(NullHandler())
 
-_logger .addHandler (NullHandler ())
+_traceEnabled = False
 
-_traceEnabled =False 
-
-__all__ =[
-"enableTrace",
-"dump",
-"error",
-"warning",
-"debug",
-"trace",
-"isEnabledForError",
-"isEnabledForDebug",
-"isEnabledForTrace",
+__all__ = [
+    "enableTrace",
+    "dump",
+    "error",
+    "warning",
+    "debug",
+    "trace",
+    "isEnabledForError",
+    "isEnabledForDebug",
+    "isEnabledForTrace",
 ]
 
 
-def enableTrace (
-traceable :bool ,
-handler :logging .StreamHandler =logging .StreamHandler (),
-level :str ="DEBUG",
-)->None :
+def enableTrace(
+        traceable: bool,
+        handler: logging.StreamHandler = logging.StreamHandler(),
+        level: str = "DEBUG",
+) -> None:
     """
     Turn on/off the traceability.
 
@@ -59,48 +58,48 @@ level :str ="DEBUG",
     traceable: bool
         If set to True, traceability is enabled.
     """
-    global _traceEnabled 
-    _traceEnabled =traceable 
-    if traceable :
-        _logger .addHandler (handler )
-        _logger .setLevel (getattr (logging ,level ))
+    global _traceEnabled
+    _traceEnabled = traceable
+    if traceable:
+        _logger.addHandler(handler)
+        _logger.setLevel(getattr(logging, level))
 
 
-def dump (title :str ,message :str )->None :
-    if _traceEnabled :
-        _logger .debug (f"--- {title} ---")
-        _logger .debug (message )
-        _logger .debug ("-----------------------")
+def dump(title: str, message: str) -> None:
+    if _traceEnabled:
+        _logger.debug(f"--- {title} ---")
+        _logger.debug(message)
+        _logger.debug("-----------------------")
 
 
-def error (msg :str )->None :
-    _logger .error (msg )
+def error(msg: str) -> None:
+    _logger.error(msg)
 
 
-def warning (msg :str )->None :
-    _logger .warning (msg )
+def warning(msg: str) -> None:
+    _logger.warning(msg)
 
 
-def debug (msg :str )->None :
-    _logger .debug (msg )
+def debug(msg: str) -> None:
+    _logger.debug(msg)
 
 
-def info (msg :str )->None :
-    _logger .info (msg )
+def info(msg: str) -> None:
+    _logger.info(msg)
 
 
-def trace (msg :str )->None :
-    if _traceEnabled :
-        _logger .debug (msg )
+def trace(msg: str) -> None:
+    if _traceEnabled:
+        _logger.debug(msg)
 
 
-def isEnabledForError ()->bool :
-    return _logger .isEnabledFor (logging .ERROR )
+def isEnabledForError() -> bool:
+    return _logger.isEnabledFor(logging.ERROR)
 
 
-def isEnabledForDebug ()->bool :
-    return _logger .isEnabledFor (logging .DEBUG )
+def isEnabledForDebug() -> bool:
+    return _logger.isEnabledFor(logging.DEBUG)
 
 
-def isEnabledForTrace ()->bool :
-    return _traceEnabled 
+def isEnabledForTrace() -> bool:
+    return _traceEnabled

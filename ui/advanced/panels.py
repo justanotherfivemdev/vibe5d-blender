@@ -2,22 +2,20 @@
 Advanced UI Panels for Vibe4D Addon
 """
 
-import bpy 
-from bpy .types import Panel ,Operator 
+import bpy
+from bpy.types import Panel, Operator
 
-
-
-classes =[
+classes = [
 ]
 
 
-def register ():
+def register():
     """Register all panels."""
-    for cls in classes :
-        bpy .utils .register_class (cls )
+    for cls in classes:
+        bpy.utils.register_class(cls)
 
 
-def unregister ():
+def unregister():
     """Unregister all panels."""
-    for cls in reversed (classes ):
-        bpy .utils .unregister_class (cls )
+    for cls in reversed(classes):
+        bpy.utils.unregister_class(cls)

@@ -3,98 +3,89 @@ Advanced UI system for Vibe4D addon.
 Provides a next-level custom UI with components, views, and advanced rendering.
 """
 
-from .manager import UIManager ,ui_manager 
-from .state import UIState 
-from .renderer import UIRenderer 
-from .types import Bounds ,CursorType ,EventType ,UIEvent 
-from .theme import theme_manager ,get_themed_style 
-from .colors import Colors 
-from .blender_theme_integration import blender_theme ,get_theme_color 
-from .component_theming import component_themer ,get_component_color 
-from .ui_factory import ImprovedUIFactory ,ViewState 
-from .layout_manager import layout_manager 
-from .coordinates import CoordinateSystem 
-from .viewport_button import viewport_button 
-
-
+from . import panels
+from . import ui
+from .blender_theme_integration import blender_theme, get_theme_color
+from .colors import Colors
+from .component_theming import component_themer, get_component_color
 from .components import *
+from .coordinates import CoordinateSystem
+from .layout_manager import layout_manager
+from .manager import UIManager, ui_manager
+from .renderer import UIRenderer
+from .state import UIState
+from .theme import theme_manager, get_themed_style
+from .types import Bounds, CursorType, EventType, UIEvent
+from .ui_factory import ImprovedUIFactory, ViewState
+from .ui_state_manager import ui_state_manager, UIStateManager
+from .viewport_button import viewport_button
 from .views import *
-from .ui_state_manager import ui_state_manager ,UIStateManager 
 
+classes = []
 
-from .import panels 
-from .import ui 
-
-
-classes =[]
-
-__all__ =[
-'UIManager',
-'ui_manager',
-'UIState',
-'UIRenderer',
-'Bounds',
-'CursorType',
-'EventType',
-'UIEvent',
-'theme_manager',
-'get_themed_style',
-'Colors',
-'blender_theme',
-'get_theme_color',
-'component_themer',
-'get_component_color',
-'ImprovedUIFactory',
-'ViewState',
-'layout_manager',
-'CoordinateSystem',
-'ui_state_manager',
-'UIStateManager',
-'viewport_button',
-'classes',
-'panels',
-'ui',
+__all__ = [
+    'UIManager',
+    'ui_manager',
+    'UIState',
+    'UIRenderer',
+    'Bounds',
+    'CursorType',
+    'EventType',
+    'UIEvent',
+    'theme_manager',
+    'get_themed_style',
+    'Colors',
+    'blender_theme',
+    'get_theme_color',
+    'component_themer',
+    'get_component_color',
+    'ImprovedUIFactory',
+    'ViewState',
+    'layout_manager',
+    'CoordinateSystem',
+    'ui_state_manager',
+    'UIStateManager',
+    'viewport_button',
+    'classes',
+    'panels',
+    'ui',
 ]
 
-import logging 
+import logging
 
-logger =logging .getLogger (__name__ )
+logger = logging.getLogger(__name__)
 
-def register ():
+
+def register():
     """Register the advanced UI system."""
 
+    panels.register()
+    ui.register()
 
-    panels .register ()
-    ui .register ()
+    def delayed_viewport_button_enable():
+        try:
+            viewport_button.enable()
+        except Exception as e:
+            logger.error(f"Failed to enable viewport button: {e}")
+        return None
 
-
-    def delayed_viewport_button_enable ():
-        try :
-            viewport_button .enable ()
-        except Exception as e :
-            logger .error (f"Failed to enable viewport button: {e}")
-        return None 
-
-    import bpy 
-    bpy .app .timers .register (delayed_viewport_button_enable ,first_interval =1.0 )
+    import bpy
+    bpy.app.timers.register(delayed_viewport_button_enable, first_interval=1.0)
 
 
-def unregister ():
+def unregister():
     """Unregister the advanced UI system."""
 
-    viewport_button .disable ()
+    viewport_button.disable()
 
+    if ui_manager:
+        ui_manager.cleanup()
 
-    if ui_manager :
-        ui_manager .cleanup ()
+    try:
+        from .components.url_image import cleanup_url_image_manager
+        cleanup_url_image_manager()
+    except Exception as e:
+        logger.debug(f"Could not cleanup URL image manager: {e}")
 
-
-    try :
-        from .components .url_image import cleanup_url_image_manager 
-        cleanup_url_image_manager ()
-    except Exception as e :
-        logger .debug (f"Could not cleanup URL image manager: {e}")
-
-
-    ui .unregister ()
-    panels .unregister ()
+    ui.unregister()
+    panels.unregister()

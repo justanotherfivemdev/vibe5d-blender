@@ -11,128 +11,122 @@ Usage:
     border_color = Colors.Border
 """
 
-import json 
-import os 
-import logging 
-from typing import Dict ,Tuple ,Optional 
-from dataclasses import dataclass 
+import logging
+from typing import Dict, Tuple, Optional
 
-from .unified_styles import Styles as UnifiedStyles ,ColorInfo 
+from .unified_styles import Styles as UnifiedStyles, ColorInfo
 
-logger =logging .getLogger (__name__ )
+logger = logging.getLogger(__name__)
 
 
-class Colors :
+class Colors:
     """Centralized color system with easy access to themed colors."""
 
+    @property
+    def Primary(self) -> Tuple[float, float, float, float]:
+        return UnifiedStyles.Primary
 
-    @property 
-    def Primary (self )->Tuple [float ,float ,float ,float ]:
-        return UnifiedStyles .Primary 
+    @property
+    def Transparent(self) -> Tuple[float, float, float, float]:
+        return (0, 0, 0, 0)
 
-    @property 
-    def Transparent (self )->Tuple [float ,float ,float ,float ]:
-        return (0 ,0 ,0 ,0 )
+    @property
+    def Panel(self) -> Tuple[float, float, float, float]:
+        return UnifiedStyles.Panel
 
-    @property 
-    def Panel (self )->Tuple [float ,float ,float ,float ]:
-        return UnifiedStyles .Panel 
+    @property
+    def Selected(self) -> Tuple[float, float, float, float]:
+        return UnifiedStyles.Selected
 
-    @property 
-    def Selected (self )->Tuple [float ,float ,float ,float ]:
-        return UnifiedStyles .Selected 
+    @property
+    def Border(self) -> Tuple[float, float, float, float]:
+        return UnifiedStyles.Border
 
-    @property 
-    def Border (self )->Tuple [float ,float ,float ,float ]:
-        return UnifiedStyles .Border 
+    @property
+    def Text(self) -> Tuple[float, float, float, float]:
+        return UnifiedStyles.Text
 
-    @property 
-    def Text (self )->Tuple [float ,float ,float ,float ]:
-        return UnifiedStyles .Text 
+    @property
+    def TextSelected(self) -> Tuple[float, float, float, float]:
+        return UnifiedStyles.TextSelected
 
-    @property 
-    def TextSelected (self )->Tuple [float ,float ,float ,float ]:
-        return UnifiedStyles .TextSelected 
+    @property
+    def TextMuted(self) -> Tuple[float, float, float, float]:
+        return UnifiedStyles.TextMuted
 
-    @property 
-    def TextMuted (self )->Tuple [float ,float ,float ,float ]:
-        return UnifiedStyles .TextMuted 
+    @property
+    def MenuBg(self) -> Tuple[float, float, float, float]:
+        return UnifiedStyles.MenuBg
 
-    @property 
-    def MenuBg (self )->Tuple [float ,float ,float ,float ]:
-        return UnifiedStyles .MenuBg 
+    @property
+    def Button(self) -> Tuple[float, float, float, float]:
+        return UnifiedStyles.Button
 
-    @property 
-    def Button (self )->Tuple [float ,float ,float ,float ]:
-        return UnifiedStyles .Button 
+    @property
+    def Highlight(self) -> Tuple[float, float, float, float]:
+        return UnifiedStyles.Highlight
 
-    @property 
-    def Highlight (self )->Tuple [float ,float ,float ,float ]:
-        return UnifiedStyles .Highlight 
-
-    @classmethod 
-    def get_color (cls ,token :str )->Tuple [float ,float ,float ,float ]:
+    @classmethod
+    def get_color(cls, token: str) -> Tuple[float, float, float, float]:
         """Get color by token name."""
-        return UnifiedStyles .get_color (token )
+        return UnifiedStyles.get_color(token)
 
-    @classmethod 
-    def get_color_info (cls ,token :str )->Optional [ColorInfo ]:
+    @classmethod
+    def get_color_info(cls, token: str) -> Optional[ColorInfo]:
         """Get complete color information by token name."""
-        return UnifiedStyles .get_color_info (token )
+        return UnifiedStyles.get_color_info(token)
 
-    @classmethod 
-    def get_all_colors (cls )->Dict [str ,ColorInfo ]:
+    @classmethod
+    def get_all_colors(cls) -> Dict[str, ColorInfo]:
         """Get all color information."""
-        return UnifiedStyles .get_all_colors ()
+        return UnifiedStyles.get_all_colors()
 
-    @classmethod 
-    def reload (cls ):
+    @classmethod
+    def reload(cls):
         """Reload colors from the JSON file."""
-        UnifiedStyles ._loaded =False 
-        UnifiedStyles ._colors .clear ()
-        return UnifiedStyles .load_colors ()
+        UnifiedStyles._loaded = False
+        UnifiedStyles._colors.clear()
+        return UnifiedStyles.load_colors()
 
-    @classmethod 
-    def to_hex (cls ,rgba :Tuple [float ,float ,float ,float ])->str :
+    @classmethod
+    def to_hex(cls, rgba: Tuple[float, float, float, float]) -> str:
         """Convert RGBA tuple back to hex string."""
-        return UnifiedStyles .to_hex (rgba )
+        return UnifiedStyles.to_hex(rgba)
 
-    @staticmethod 
-    def lighten_color (rgba :Tuple [float ,float ,float ,float ],percent :float )->Tuple [float ,float ,float ,float ]:
+    @staticmethod
+    def lighten_color(rgba: Tuple[float, float, float, float], percent: float) -> Tuple[float, float, float, float]:
         """Return a lightened version of the color by the given percent (0-100)."""
-        return UnifiedStyles .lighten_color (rgba ,percent )
+        return UnifiedStyles.lighten_color(rgba, percent)
 
 
+Colors = Colors()
 
-Colors =Colors ()
 
-
-def get_color (token :str )->Tuple [float ,float ,float ,float ]:
+def get_color(token: str) -> Tuple[float, float, float, float]:
     """Get color by token name."""
-    return UnifiedStyles .get_color (token )
+    return UnifiedStyles.get_color(token)
 
 
-def get_color_hex (token :str )->str :
+def get_color_hex(token: str) -> str:
     """Get color by token name as hex string."""
-    rgba =UnifiedStyles .get_color (token )
-    return UnifiedStyles .to_hex (rgba )
+    rgba = UnifiedStyles.get_color(token)
+    return UnifiedStyles.to_hex(rgba)
 
 
-def lighten_color (rgba :Tuple [float ,float ,float ,float ],percent :float )->Tuple [float ,float ,float ,float ]:
+def lighten_color(rgba: Tuple[float, float, float, float], percent: float) -> Tuple[float, float, float, float]:
     """Return a lightened version of the color by the given percent (0-100)."""
-    return UnifiedStyles .lighten_color (rgba ,percent )
+    return UnifiedStyles.lighten_color(rgba, percent)
 
 
-
-PALETTE ={
-'primary':UnifiedStyles .Primary ,
-'panel':UnifiedStyles .Panel ,
-'selected':UnifiedStyles .Selected ,
-'border':UnifiedStyles .Border ,
-'text':UnifiedStyles .Text ,
-'text_selected':UnifiedStyles .TextSelected ,
-'text_muted':UnifiedStyles .TextMuted ,
-'menu_bg':UnifiedStyles .MenuBg ,
-'button':UnifiedStyles .Button ,
-'highlight':UnifiedStyles .Highlight ,
+PALETTE = {
+    'primary': UnifiedStyles.Primary,
+    'panel': UnifiedStyles.Panel,
+    'selected': UnifiedStyles.Selected,
+    'border': UnifiedStyles.Border,
+    'text': UnifiedStyles.Text,
+    'text_selected': UnifiedStyles.TextSelected,
+    'text_muted': UnifiedStyles.TextMuted,
+    'menu_bg': UnifiedStyles.MenuBg,
+    'button': UnifiedStyles.Button,
+    'highlight': UnifiedStyles.Highlight,
 }

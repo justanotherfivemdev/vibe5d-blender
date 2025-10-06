@@ -16,33 +16,37 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-__all__ =[
-"HAVE_SSL",
-"ssl",
-"SSLError",
-"SSLEOFError",
-"SSLWantReadError",
-"SSLWantWriteError",
+__all__ = [
+    "HAVE_SSL",
+    "ssl",
+    "SSLError",
+    "SSLEOFError",
+    "SSLWantReadError",
+    "SSLWantWriteError",
 ]
 
-try :
-    import ssl 
-    from ssl import SSLError ,SSLEOFError ,SSLWantReadError ,SSLWantWriteError 
+try:
+    import ssl
+    from ssl import SSLError, SSLEOFError, SSLWantReadError, SSLWantWriteError
 
-    HAVE_SSL =True 
-except ImportError :
+    HAVE_SSL = True
+except ImportError:
 
-    class SSLError (Exception ):
-        pass 
+    class SSLError(Exception):
+        pass
 
-    class SSLEOFError (Exception ):
-        pass 
 
-    class SSLWantReadError (Exception ):
-        pass 
+    class SSLEOFError(Exception):
+        pass
 
-    class SSLWantWriteError (Exception ):
-        pass 
 
-    ssl =None 
-    HAVE_SSL =False 
+    class SSLWantReadError(Exception):
+        pass
+
+
+    class SSLWantWriteError(Exception):
+        pass
+
+
+    ssl = None
+    HAVE_SSL = False
