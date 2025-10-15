@@ -1,7 +1,3 @@
-"""
-Viewport button operator for handling mouse events.
-"""
-
 import logging
 
 import bpy
@@ -11,14 +7,13 @@ logger = logging.getLogger(__name__)
 
 
 class VIBE4D_OT_viewport_button_handler(Operator):
-    """Modal operator for handling viewport button mouse events."""
     bl_idname = "vibe4d.viewport_button_handler"
     bl_label = "Viewport Button Handler"
     bl_description = "Handle mouse events for viewport button"
     bl_options = {'REGISTER'}
 
     def modal(self, context, event):
-        """Handle modal events."""
+
         try:
             from ..ui.advanced.viewport_button import viewport_button
 
@@ -41,7 +36,7 @@ class VIBE4D_OT_viewport_button_handler(Operator):
             return {'CANCELLED'}
 
     def execute(self, context):
-        """Execute the operator."""
+
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
 
@@ -52,13 +47,11 @@ classes = [
 
 
 def register():
-    """Register viewport button operators."""
     for cls in classes:
         bpy.utils.register_class(cls)
 
 
 def unregister():
-    """Unregister viewport button operators."""
     for cls in reversed(classes):
         try:
             bpy.utils.unregister_class(cls)

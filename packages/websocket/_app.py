@@ -1,4 +1,3 @@
-import inspect
 import selectors
 import socket
 import threading
@@ -16,25 +15,6 @@ from ._exceptions import (
 from ._ssl_compat import SSLEOFError
 from ._url import parse_url
 
-"""
-_app.py
-websocket - WebSocket client library for Python
-
-Copyright 2024 engn33r
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-"""
-
 __all__ = ["WebSocketApp"]
 
 RECONNECT = 0
@@ -46,9 +26,6 @@ def setReconnect(reconnectInterval: int) -> None:
 
 
 class DispatcherBase:
-    """
-    DispatcherBase
-    """
 
     def __init__(self, app: Any, ping_timeout: Union[float, int, None]) -> None:
         self.app = app
@@ -61,7 +38,7 @@ class DispatcherBase:
     def reconnect(self, seconds: int, reconnector: Callable) -> None:
         try:
             _logging.info(
-                f"reconnect() - retrying in {seconds} seconds [{len(inspect.stack())} frames in stack]"
+
             )
             time.sleep(seconds)
             reconnector(reconnecting=True)
@@ -71,9 +48,6 @@ class DispatcherBase:
 
 
 class Dispatcher(DispatcherBase):
-    """
-    Dispatcher
-    """
 
     def read(
             self,
@@ -94,9 +68,6 @@ class Dispatcher(DispatcherBase):
 
 
 class SSLDispatcher(DispatcherBase):
-    """
-    SSLDispatcher
-    """
 
     def read(
             self,
@@ -130,9 +101,6 @@ class SSLDispatcher(DispatcherBase):
 
 
 class WrappedDispatcher:
-    """
-    WrappedDispatcher
-    """
 
     def __init__(self, app, ping_timeout: Union[float, int, None], dispatcher) -> None:
         self.app = app
@@ -157,9 +125,6 @@ class WrappedDispatcher:
 
 
 class WebSocketApp:
-    """
-    Higher level of APIs are provided. The interface is like JavaScript WebSocket object.
-    """
 
     def __init__(
             self,
@@ -180,71 +145,7 @@ class WebSocketApp:
             on_data: Optional[Callable] = None,
             socket: Optional[socket.socket] = None,
     ) -> None:
-        """
-        WebSocketApp initialization
 
-        Parameters
-        ----------
-        url: str
-            Websocket url.
-        header: list or dict or Callable
-            Custom header for websocket handshake.
-            If the parameter is a callable object, it is called just before the connection attempt.
-            The returned dict or list is used as custom header value.
-            This could be useful in order to properly setup timestamp dependent headers.
-        on_open: function
-            Callback object which is called at opening websocket.
-            on_open has one argument.
-            The 1st argument is this class object.
-        on_reconnect: function
-            Callback object which is called at reconnecting websocket.
-            on_reconnect has one argument.
-            The 1st argument is this class object.
-        on_message: function
-            Callback object which is called when received data.
-            on_message has 2 arguments.
-            The 1st argument is this class object.
-            The 2nd argument is utf-8 data received from the server.
-        on_error: function
-            Callback object which is called when we get error.
-            on_error has 2 arguments.
-            The 1st argument is this class object.
-            The 2nd argument is exception object.
-        on_close: function
-            Callback object which is called when connection is closed.
-            on_close has 3 arguments.
-            The 1st argument is this class object.
-            The 2nd argument is close_status_code.
-            The 3rd argument is close_msg.
-        on_cont_message: function
-            Callback object which is called when a continuation
-            frame is received.
-            on_cont_message has 3 arguments.
-            The 1st argument is this class object.
-            The 2nd argument is utf-8 string which we get from the server.
-            The 3rd argument is continue flag. if 0, the data continue
-            to next frame data
-        on_data: function
-            Callback object which is called when a message received.
-            This is called before on_message or on_cont_message,
-            and then on_message or on_cont_message is called.
-            on_data has 4 argument.
-            The 1st argument is this class object.
-            The 2nd argument is utf-8 string which we get from the server.
-            The 3rd argument is data type. ABNF.OPCODE_TEXT or ABNF.OPCODE_BINARY will be came.
-            The 4th argument is continue flag. If 0, the data continue
-        keep_running: bool
-            This parameter is obsolete and ignored.
-        get_mask_key: function
-            A callable function to get new mask keys, see the
-            WebSocket.set_mask_key's docstring for more information.
-        cookie: str
-            Cookie value.
-        subprotocols: list
-            List of available sub protocols. Default is None.
-        socket: socket
-            Pre-initialized stream socket.
-        """
         self.url = url
         self.header = header if header is not None else []
         self.cookie = cookie
@@ -275,39 +176,22 @@ class WebSocketApp:
         self.has_done_teardown_lock = threading.Lock()
 
     def send(self, data: Union[bytes, str], opcode: int = ABNF.OPCODE_TEXT) -> None:
-        """
-        send message
-
-        Parameters
-        ----------
-        data: str
-            Message to send. If you set opcode to OPCODE_TEXT,
-            data must be utf-8 string or unicode.
-        opcode: int
-            Operation code of data. Default is OPCODE_TEXT.
-        """
 
         if not self.sock or self.sock.send(data, opcode) == 0:
             raise WebSocketConnectionClosedException("Connection is already closed.")
 
     def send_text(self, text_data: str) -> None:
-        """
-        Sends UTF-8 encoded text.
-        """
+
         if not self.sock or self.sock.send(text_data, ABNF.OPCODE_TEXT) == 0:
             raise WebSocketConnectionClosedException("Connection is already closed.")
 
     def send_bytes(self, data: Union[bytes, bytearray]) -> None:
-        """
-        Sends a sequence of bytes.
-        """
+
         if not self.sock or self.sock.send(data, ABNF.OPCODE_BINARY) == 0:
             raise WebSocketConnectionClosedException("Connection is already closed.")
 
     def close(self, **kwargs) -> None:
-        """
-        Close websocket connection.
-        """
+
         self.keep_running = False
         if self.sock:
             self.sock.close(**kwargs)
@@ -359,58 +243,6 @@ class WebSocketApp:
             proxy_type: str = None,
             reconnect: int = None,
     ) -> bool:
-        """
-        Run event loop for WebSocket framework.
-
-        This loop is an infinite loop and is alive while websocket is available.
-
-        Parameters
-        ----------
-        sockopt: tuple
-            Values for socket.setsockopt.
-            sockopt must be tuple
-            and each element is argument of sock.setsockopt.
-        sslopt: dict
-            Optional dict object for ssl socket option.
-        ping_interval: int or float
-            Automatically send "ping" command
-            every specified period (in seconds).
-            If set to 0, no ping is sent periodically.
-        ping_timeout: int or float
-            Timeout (in seconds) if the pong message is not received.
-        ping_payload: str
-            Payload message to send with each ping.
-        http_proxy_host: str
-            HTTP proxy host name.
-        http_proxy_port: int or str
-            HTTP proxy port. If not set, set to 80.
-        http_no_proxy: list
-            Whitelisted host names that don't use the proxy.
-        http_proxy_timeout: int or float
-            HTTP proxy timeout, default is 60 sec as per python-socks.
-        http_proxy_auth: tuple
-            HTTP proxy auth information. tuple of username and password. Default is None.
-        skip_utf8_validation: bool
-            skip utf8 validation.
-        host: str
-            update host header.
-        origin: str
-            update origin header.
-        dispatcher: Dispatcher object
-            customize reading data from socket.
-        suppress_origin: bool
-            suppress outputting origin header.
-        proxy_type: str
-            type of proxy from: http, socks4, socks4a, socks5, socks5h
-        reconnect: int
-            delay interval when reconnecting
-
-        Returns
-        -------
-        teardown: bool
-            False if the `WebSocketApp` is closed or caught KeyboardInterrupt,
-            True if any other exception was raised during a loop.
-        """
 
         if reconnect is None:
             reconnect = RECONNECT
@@ -435,15 +267,6 @@ class WebSocketApp:
         self.keep_running = True
 
         def teardown(close_frame: ABNF = None):
-            """
-            Tears down the connection.
-
-            Parameters
-            ----------
-            close_frame: ABNF frame
-                If close_frame is set, the on_close handler is invoked
-                with the statusCode and reason from the provided frame.
-            """
 
             with self.has_done_teardown_lock:
                 if self.has_done_teardown:
@@ -597,7 +420,7 @@ class WebSocketApp:
                 _logging.info(f"{e} - reconnect")
                 if custom_dispatcher:
                     _logging.debug(
-                        f"Calling custom dispatcher reconnect [{len(inspect.stack())} frames in stack]"
+
                     )
                     dispatcher.reconnect(reconnect, setSock)
             else:
@@ -614,7 +437,7 @@ class WebSocketApp:
             if not custom_dispatcher and reconnect:
                 while self.keep_running:
                     _logging.debug(
-                        f"Calling dispatcher reconnect [{len(inspect.stack())} frames in stack]"
+
                     )
                     dispatcher.reconnect(reconnect, setSock)
         except (KeyboardInterrupt, Exception) as e:
@@ -640,10 +463,6 @@ class WebSocketApp:
         return Dispatcher(self, timeout)
 
     def _get_close_args(self, close_frame: ABNF) -> list:
-        """
-        _get_close_args extracts the close code and reason from the close body
-        if it exists (RFC6455 says WebSocket Connection Close Code is optional)
-        """
 
         if not self.on_close or not close_frame:
             return [None, None]

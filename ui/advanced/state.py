@@ -1,8 +1,3 @@
-"""
-State management for the UI system.
-Handles component state, focus, events, and viewport management.
-"""
-
 import logging
 from typing import Dict, List, Optional, Any, Callable, TYPE_CHECKING
 
@@ -15,7 +10,6 @@ logger = logging.getLogger(__name__)
 
 
 class UIState:
-    """Central state management for the UI system."""
 
     def __init__(self):
         self.is_enabled: bool = False
@@ -29,18 +23,18 @@ class UIState:
         self.event_listeners: Dict[EventType, List[Callable]] = {}
 
     def add_event_listener(self, event_type: EventType, callback: Callable):
-        """Add an event listener."""
+
         if event_type not in self.event_listeners:
             self.event_listeners[event_type] = []
         self.event_listeners[event_type].append(callback)
 
     def remove_event_listener(self, event_type: EventType, callback: Callable):
-        """Remove an event listener."""
+
         if event_type in self.event_listeners:
             self.event_listeners[event_type].remove(callback)
 
     def emit_event(self, event: UIEvent):
-        """Emit an event to all listeners."""
+
         if event.event_type in self.event_listeners:
             for callback in self.event_listeners[event.event_type]:
                 try:
@@ -49,7 +43,6 @@ class UIState:
                     logger.error(f"Error in event callback: {e}")
 
     def set_focus(self, component: Optional['UIComponent']):
-        """Set focus to a component."""
 
         if self.focused_component == component:
             return
@@ -64,19 +57,18 @@ class UIState:
             self.emit_event(UIEvent(EventType.FOCUS_GAINED))
 
     def add_component(self, component: 'UIComponent'):
-        """Add a component to the UI."""
+
         self.components.append(component)
         component.set_ui_state(self)
 
     def remove_component(self, component: 'UIComponent'):
-        """Remove a component from the UI."""
+
         if component in self.components:
             self.components.remove(component)
             if self.focused_component == component:
                 self.set_focus(None)
 
     def get_component_at_point(self, x: int, y: int) -> Optional['UIComponent']:
-        """Get the topmost component at the given point."""
 
         for i, component in enumerate(reversed(self.components)):
             bounds = component.get_bounds()
@@ -88,7 +80,7 @@ class UIState:
         return None
 
     def update_viewport_size(self, width: int, height: int):
-        """Update viewport dimensions."""
+
         self.viewport_width = width
         self.viewport_height = height
 
@@ -96,7 +88,7 @@ class UIState:
             component.update_layout()
 
     def reset(self):
-        """Reset the UI state to initial values."""
+
         self.is_enabled = False
         self.target_area = None
         self.focused_component = None

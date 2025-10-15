@@ -1,14 +1,3 @@
-"""
-Tools API module for Vibe4D addon.
-
-Provides Python API functions that can be called directly from Blender's Python console
-or scripts. Allows calling tools like:
-- vibe4d.query("SELECT * FROM objects")
-- vibe4d.execute("bpy.ops.mesh.primitive_cube_add()")
-- vibe4d.scene_graph()
-- vibe4d.render_settings(["engine", "resolution_x"])
-"""
-
 from typing import Dict, Any, Optional
 
 import bpy
@@ -18,34 +7,17 @@ from ..utils.logger import logger
 
 
 def _get_context():
-    """Get current Blender context."""
     return bpy.context
 
 
 def query(expr: str, limit: int = 8192, format_type: str = "json") -> Dict[str, Any]:
-    """
-    Query scene data using SQL-like expressions.
-    
-    Args:
-        expr: SQL-like query expression
-        limit: Maximum number of results to return
-        format_type: Output format ("csv", "json", "table")
-        
-    Returns:
-        Dictionary containing query results
-        
-    Example:
-        >>> import vibe4d
-        >>> result = vibe4d.query("SELECT name, type FROM objects WHERE type = 'MESH'")
-        >>> print(result)
-    """
     try:
         context = _get_context()
         success, result = tools_manager.handle_tool_call("query", {
-            "expr": expr,
-            "limit": limit,
-            "format": format_type
-        }, context)
+        :expr,
+        : limit,
+        :format_type
+        }, context )
 
         if success:
             return result
@@ -58,25 +30,11 @@ def query(expr: str, limit: int = 8192, format_type: str = "json") -> Dict[str, 
 
 
 def execute(code: str) -> str:
-    """
-    Execute Python code in Blender.
-    
-    Args:
-        code: Python code to execute
-        
-    Returns:
-        Console output or success message
-        
-    Example:
-        >>> import vibe4d
-        >>> vibe4d.execute("bpy.ops.mesh.primitive_cube_add()")
-        >>> vibe4d.execute("print('Hello from Blender!')")
-    """
     try:
         context = _get_context()
         success, result = tools_manager.handle_tool_call("execute", {
-            "code": code
-        }, context)
+        :code
+        }, context )
 
         if success:
             return result["result"]
@@ -89,18 +47,6 @@ def execute(code: str) -> str:
 
 
 def scene_context() -> Dict[str, Any]:
-    """
-    Get current scene context information.
-    
-    Returns:
-        Dictionary containing scene information
-        
-    Example:
-        >>> import vibe4d
-        >>> context = vibe4d.scene_context()
-        >>> print(f"Scene: {context['scene_name']}")
-        >>> print(f"Objects: {len(context['objects'])}")
-    """
     try:
         context = _get_context()
         success, result = tools_manager.handle_tool_call("scene_context", {}, context)
@@ -116,497 +62,208 @@ def scene_context() -> Dict[str, Any]:
 
 
 def get_query_formats() -> Dict[str, str]:
-    """
-    Get available query output formats.
-    
-    Returns:
-        Dictionary of format names and descriptions
-    """
     return {
-        "csv": "Comma-separated values format",
-        "json": "JSON format with structured data",
-        "table": "Human-readable table format"
+    :"Comma-separated values format",
+    : "JSON format with structured data",
+    :"Human-readable table format"
     }
 
+    def table_counts() -> Dict[str, int]:
+        try:
+            context = _get_context()
+            from ..engine.query import scene_query_engine
+            result = scene_query_engine.get_all_table_counts(context)
 
-def table_counts() -> Dict[str, int]:
-    """
-    Get counts of available data tables for querying.
-    
-    Returns:
-        Dictionary of table names and their row counts
-    """
-    try:
-        context = _get_context()
-        from ..engine.query import scene_query_engine
-        result = scene_query_engine.get_all_table_counts(context)
-
-        if result.get("status") == "success":
-            return result["table_counts"]
-        else:
-            logger.error(f"Table counts error: {result.get('error', 'Unknown error')}")
+            if result.get("status") == "success":
+                return result["table_counts"]
+            else:
+                logger.error(f"Table counts error: {result.get('error', 'Unknown error')}")
+                return {}
+        except Exception as e:
+            logger.error(f"Table counts API error: {str(e)}")
             return {}
-    except Exception as e:
-        logger.error(f"Table counts API error: {str(e)}")
-        return {}
 
+    def viewport(shading_mode: str = None) -> Dict[str, Any]:
+        try:
+            context = _get_context()
+            arguments = {}
+            if shading_mode:
+                arguments["shading_mode"] = shading_mode
 
-def viewport(shading_mode: str = None) -> Dict[str, Any]:
-    """
-    Capture current viewport screenshot.
-    
-    Args:
-        shading_mode: Viewport shading mode ("WIREFRAME", "SOLID", "MATERIAL", "RENDERED")
-        
-    Returns:
-        Dictionary containing viewport capture data
-        
-    Example:
-        >>> import vibe4d
-        >>> result = vibe4d.viewport("RENDERED")
-        >>> print(f"Captured {result['width']}x{result['height']} viewport")
-    """
-    try:
-        context = _get_context()
-        arguments = {}
-        if shading_mode:
-            arguments["shading_mode"] = shading_mode
+            from ..engine.tools import tools_manager
+            success, result = tools_manager.handle_tool_call("viewport", arguments, context)
 
-        from ..engine.tools import tools_manager
-        success, result = tools_manager.handle_tool_call("viewport", arguments, context)
+            if success:
+                return result
+            else:
+                raise RuntimeError(f"Viewport capture failed: {result}")
 
-        if success:
-            return result
-        else:
-            raise RuntimeError(f"Viewport capture failed: {result}")
+        except Exception as e:
+            logger.error(f"Viewport API error: {str(e)}")
+            raise
 
-    except Exception as e:
-        logger.error(f"Viewport API error: {str(e)}")
-        raise
+    def add_viewport_render(shading_mode: str = None) -> Dict[str, Any]:
 
+        try:
+            context = _get_context()
+            arguments = {}
+            if shading_mode:
+                arguments["shading_mode"] = shading_mode
 
-def add_viewport_render(shading_mode: str = None) -> Dict[str, Any]:
-    """
-    Capture current viewport screenshot with specific shading mode and return as base64-encoded PNG image.
-    
-    This function captures the active 3D viewport with a specific shading mode, temporarily switching
-    the viewport to the requested shading before capturing.
-    
-    Args:
-        shading_mode: Viewport shading mode to use for capture:
-                     - "WIREFRAME": Wireframe display
-                     - "SOLID": Solid shading  
-                     - "MATERIAL": Material preview shading
-                     - "RENDERED": Rendered shading (uses render engine)
-                     If None, uses current viewport shading
-        
-    Returns:
-        Dictionary containing:
-        - data_uri: Base64-encoded PNG data URI
-        - width: Actual viewport width in pixels
-        - height: Actual viewport height in pixels
-        - original_viewport_size: [width, height] array
-        - size_bytes: Size of PNG data in bytes
-        - format: Image format ("PNG")
-        - shading_mode: The shading mode used for capture
-        
-    Example:
-        >>> import vibe4d
-        >>> # Capture in rendered mode
-        >>> result = vibe4d.add_viewport_render("RENDERED")
-        >>> print(f"Captured {result['width']}x{result['height']} viewport in {result['shading_mode']} mode")
-        >>> 
-        >>> # Capture in material preview mode
-        >>> result = vibe4d.add_viewport_render("MATERIAL")
-        >>> 
-        >>> # Use current shading mode
-        >>> result = vibe4d.add_viewport_render()
-    """
-    try:
-        context = _get_context()
-        arguments = {}
-        if shading_mode:
-            arguments["shading_mode"] = shading_mode
+            from ..engine.tools import tools_manager
+            success, result = tools_manager.handle_tool_call("add_viewport_render", arguments, context)
 
-        from ..engine.tools import tools_manager
-        success, result = tools_manager.handle_tool_call("add_viewport_render", arguments, context)
+            if success:
+                return result
+            else:
+                raise RuntimeError(f"Viewport render capture failed: {result}")
 
-        if success:
-            return result
-        else:
-            raise RuntimeError(f"Viewport render capture failed: {result}")
+        except Exception as e:
+            logger.error(f"Add viewport render API error: {str(e)}")
+            raise
 
-    except Exception as e:
-        logger.error(f"Add viewport render API error: {str(e)}")
-        raise
+    def see_viewport(shading_mode: str = None) -> Dict[str, Any]:
+        return add_viewport_render(shading_mode)
 
+    def see_render() -> Dict[str, Any]:
 
-def see_viewport(shading_mode: str = None) -> Dict[str, Any]:
-    """
-    Alias for add_viewport_render - captures viewport with optional shading mode.
-    
-    Args:
-        shading_mode: Viewport shading mode to use for capture
-        
-    Returns:
-        Dictionary containing viewport capture data
-    """
-    return add_viewport_render(shading_mode)
+        try:
+            context = _get_context()
+            from ..engine.tools import tools_manager
+            success, result = tools_manager.handle_tool_call("see_render", {}, context)
 
+            if success:
+                return result["result"]
+            else:
+                raise RuntimeError(f"Render failed: {result['result']}")
 
-def see_render() -> Dict[str, Any]:
-    """
-    Render the current scene with active camera and return the final result.
-    
-    This function performs a synchronous render operation that is visible to the user.
-    It waits for the render to complete and returns the final rendered image data.
-    The render progress is shown in the UI while the operation is in progress.
-    
-    Returns:
-        Dictionary containing the final render result:
-        - data_uri: Base64-encoded PNG data URI of the rendered image
-        - width: Image width in pixels
-        - height: Image height in pixels
-        - render_resolution: [width, height] array of render settings
-        - render_percentage: Render resolution percentage used
-        - size_bytes: Size of PNG data in bytes
-        - format: Image format ("PNG")
-        - render_engine: Render engine used (e.g., "CYCLES", "EEVEE")
-        - camera_name: Name of the camera used for rendering
-        - scene_name: Name of the scene that was rendered
-        - frame: Frame number that was rendered
-        - render_time: Time taken to render in seconds
-        
-    Example:
-        >>> import vibe4d
-        >>> result = vibe4d.see_render()
-        >>> print(f"Rendered {result['width']}x{result['height']} image")
-        >>> print(f"Render time: {result['render_time']:.2f}s")
-        >>> print(f"Camera: {result['camera_name']}")
-        
-    Note:
-        - This function blocks until rendering is complete
-        - The render is visible to the user during the process
-        - Progress is shown in the UI while rendering
-        - Returns the complete render result when finished
-        - Use render_async() if you need non-blocking render operations
-    """
-    try:
-        context = _get_context()
-        from ..engine.tools import tools_manager
-        success, result = tools_manager.handle_tool_call("see_render", {}, context)
+        except Exception as e:
+            logger.error(f"See render API error: {str(e)}")
+            raise
 
-        if success:
-            return result["result"]
-        else:
-            raise RuntimeError(f"Render failed: {result['result']}")
+    def render_async(
+            scene_name: Optional[str] = None,
+            camera_name: Optional[str] = None,
+            output_path: Optional[str] = None
+    ) -> Dict[str, Any]:
 
-    except Exception as e:
-        logger.error(f"See render API error: {str(e)}")
-        raise
+        try:
+            context = _get_context()
+            arguments = {}
+            if scene_name:
+                arguments["scene_name"] = scene_name
+            if camera_name:
+                arguments["camera_name"] = camera_name
+            if output_path:
+                arguments["output_path"] = output_path
 
+            from ..engine.tools import tools_manager
+            success, result = tools_manager.handle_tool_call("render_async", arguments, context)
 
-def render_async(
-        scene_name: Optional[str] = None,
-        camera_name: Optional[str] = None,
-        output_path: Optional[str] = None
-) -> Dict[str, Any]:
-    """
-    Start an asynchronous render operation that runs in the background.
-    
-    This function starts a render operation that runs asynchronously, allowing you to
-    continue working while the render completes. Use get_render_result() to check
-    completion status and retrieve the result.
-    
-    Args:
-        scene_name: Name of scene to render (None for current scene)
-        camera_name: Name of camera to use (None for scene's active camera)
-        output_path: Custom output path (None for temporary file)
-        
-    Returns:
-        Dictionary containing:
-        - render_id: Unique identifier for tracking this render
-        - status: "started" indicating render has begun
-        - message: Human-readable status message
-        - scene_name: Name of scene being rendered
-        - camera_name: Name of camera being used
-        
-    Example:
-        >>> import vibe4d
-        >>> # Start async render with default settings
-        >>> result = vibe4d.render_async()
-        >>> render_id = result['render_id']
-        >>> print(f"Started render: {render_id}")
-        >>> 
-        >>> # Start render with specific camera
-        >>> result = vibe4d.render_async(camera_name="Camera.001")
-        >>> 
-        >>> # Start render with custom output path
-        >>> result = vibe4d.render_async(output_path="/tmp/my_render.png")
-        
-    Note:
-        - Returns immediately without waiting for render completion
-        - Use get_render_result() to check status and get final result
-        - Use list_active_renders() to see all running renders
-        - Use cancel_render() to stop a render in progress
-    """
-    try:
-        context = _get_context()
-        arguments = {}
-        if scene_name:
-            arguments["scene_name"] = scene_name
-        if camera_name:
-            arguments["camera_name"] = camera_name
-        if output_path:
-            arguments["output_path"] = output_path
+            if success:
+                return result["result"]
+            else:
+                raise RuntimeError(f"Async render failed: {result['result']}")
 
-        from ..engine.tools import tools_manager
-        success, result = tools_manager.handle_tool_call("render_async", arguments, context)
+        except Exception as e:
+            logger.error(f"Async render API error: {str(e)}")
+            raise
 
-        if success:
-            return result["result"]
-        else:
-            raise RuntimeError(f"Async render failed: {result['result']}")
+    def get_render_result(render_id: str) -> Dict[str, Any]:
 
-    except Exception as e:
-        logger.error(f"Async render API error: {str(e)}")
-        raise
+        try:
+            context = _get_context()
+            from ..engine.tools import tools_manager
+            success, result = tools_manager.handle_tool_call("get_render_result", {
+            :render_id
+            }, context )
 
+            if success:
+                return result["result"]
+            else:
+                raise RuntimeError(f"Get render result failed: {result['result']}")
 
-def get_render_result(render_id: str) -> Dict[str, Any]:
-    """
-    Get the result of an asynchronous render operation.
-    
-    This function checks the status of an async render and returns the result
-    if completed, or status information if still in progress.
-    
-    Args:
-        render_id: Render ID returned from render_async()
-        
-    Returns:
-        Dictionary containing either:
-        - Complete render result (if finished): data_uri, width, height, etc.
-        - Status information (if still rendering): status, render_id
-        
-    Example:
-        >>> import vibe4d
-        >>> # Start async render
-        >>> result = vibe4d.render_async()
-        >>> render_id = result['render_id']
-        >>> 
-        >>> # Check result (may need to wait/retry)
-        >>> result = vibe4d.get_render_result(render_id)
-        >>> if result.get('status') == 'rendering':
-        >>>     print("Still rendering...")
-        >>> else:
-        >>>     print(f"Render complete: {result['width']}x{result['height']}")
-        
-    Note:
-        - Returns immediately with current status
-        - If render is complete, includes full result data like see_render()
-        - If still rendering, returns status information
-        - If render failed or doesn't exist, raises RuntimeError
-    """
-    try:
-        context = _get_context()
-        from ..engine.tools import tools_manager
-        success, result = tools_manager.handle_tool_call("get_render_result", {
-            "render_id": render_id
-        }, context)
+        except Exception as e:
+            logger.error(f"Get render result API error: {str(e)}")
+            raise
 
-        if success:
-            return result["result"]
-        else:
-            raise RuntimeError(f"Get render result failed: {result['result']}")
+    def cancel_render(render_id: str) -> str:
 
-    except Exception as e:
-        logger.error(f"Get render result API error: {str(e)}")
-        raise
+        try:
+            context = _get_context()
+            from ..engine.tools import tools_manager
+            success, result = tools_manager.handle_tool_call("cancel_render", {
+            :render_id
+            }, context )
 
+            if success:
+                return result["result"]
+            else:
+                raise RuntimeError(f"Cancel render failed: {result['result']}")
 
-def cancel_render(render_id: str) -> str:
-    """
-    Cancel an active asynchronous render operation.
-    
-    This function stops a render that is currently in progress and cleans up
-    any associated resources.
-    
-    Args:
-        render_id: Render ID returned from render_async()
-        
-    Returns:
-        Success message string
-        
-    Example:
-        >>> import vibe4d
-        >>> # Start async render
-        >>> result = vibe4d.render_async()
-        >>> render_id = result['render_id']
-        >>> 
-        >>> # Cancel the render
-        >>> message = vibe4d.cancel_render(render_id)
-        >>> print(message)  # "Render render_1_... cancelled successfully"
-        
-    Note:
-        - Stops the render process immediately
-        - Cleans up temporary files and resources
-        - Returns success message if cancellation worked
-        - Raises RuntimeError if render doesn't exist or can't be cancelled
-    """
-    try:
-        context = _get_context()
-        from ..engine.tools import tools_manager
-        success, result = tools_manager.handle_tool_call("cancel_render", {
-            "render_id": render_id
-        }, context)
+        except Exception as e:
+            logger.error(f"Cancel render API error: {str(e)}")
+            raise
 
-        if success:
-            return result["result"]
-        else:
-            raise RuntimeError(f"Cancel render failed: {result['result']}")
+    def list_active_renders() -> Dict[str, Any]:
 
-    except Exception as e:
-        logger.error(f"Cancel render API error: {str(e)}")
-        raise
+        try:
+            context = _get_context()
+            from ..engine.tools import tools_manager
+            success, result = tools_manager.handle_tool_call("list_active_renders", {}, context)
 
+            if success:
+                return result["result"]
+            else:
+                raise RuntimeError(f"List active renders failed: {result['result']}")
 
-def list_active_renders() -> Dict[str, Any]:
-    """
-    List all currently active asynchronous render operations.
-    
-    This function returns information about all renders that are currently
-    in progress or starting up.
-    
-    Returns:
-        Dictionary containing:
-        - active_renders: List of render IDs that are currently active
-        - count: Number of active renders
-        
-    Example:
-        >>> import vibe4d
-        >>> # Start a few renders
-        >>> render1 = vibe4d.render_async()
-        >>> render2 = vibe4d.render_async(camera_name="Camera.001")
-        >>> 
-        >>> # List active renders
-        >>> active = vibe4d.list_active_renders()
-        >>> print(f"Active renders: {active['count']}")
-        >>> for render_id in active['active_renders']:
-        >>>     print(f"  - {render_id}")
-        
-    Note:
-        - Only includes renders that are currently starting or rendering
-        - Completed, failed, or cancelled renders are not included
-        - Use get_render_result() to check status of specific renders
-    """
-    try:
-        context = _get_context()
-        from ..engine.tools import tools_manager
-        success, result = tools_manager.handle_tool_call("list_active_renders", {}, context)
+        except Exception as e:
+            logger.error(f"List active renders API error: {str(e)}")
+            raise
 
-        if success:
-            return result["result"]
-        else:
-            raise RuntimeError(f"List active renders failed: {result['result']}")
+    def render_with_callback(
+            on_complete: Optional[callable] = None,
+            on_error: Optional[callable] = None,
+            scene_name: Optional[str] = None,
+            camera_name: Optional[str] = None,
+            output_path: Optional[str] = None
+    ) -> str:
 
-    except Exception as e:
-        logger.error(f"List active renders API error: {str(e)}")
-        raise
+        try:
+            from ..engine.render_manager import render_manager
 
+            context = _get_context()
 
-def render_with_callback(
-        on_complete: Optional[callable] = None,
-        on_error: Optional[callable] = None,
-        scene_name: Optional[str] = None,
-        camera_name: Optional[str] = None,
-        output_path: Optional[str] = None
-) -> str:
-    """
-    Start an asynchronous render with custom callback functions.
-    
-    This is a lower-level function that allows you to specify custom callback
-    functions that will be called when the render completes or fails.
-    
-    Args:
-        on_complete: Function to call when render completes successfully
-                    Receives render result dictionary as argument
-        on_error: Function to call when render fails
-                 Receives error message string as argument
-        scene_name: Name of scene to render (None for current scene)
-        camera_name: Name of camera to use (None for scene's active camera)
-        output_path: Custom output path (None for temporary file)
-        
-    Returns:
-        Render ID string for tracking
-        
-    Example:
-        >>> import vibe4d
-        >>> 
-        >>> def on_render_done(result):
-        >>>     print(f"Render finished: {result['width']}x{result['height']}")
-        >>> 
-        >>> def on_render_error(error):
-        >>>     print(f"Render failed: {error}")
-        >>> 
-        >>> render_id = vibe4d.render_with_callback(
-        >>>     on_complete=on_render_done,
-        >>>     on_error=on_render_error
-        >>> )
-        
-    Note:
-        - This is a more advanced function for custom integration
-        - Callbacks are called from Blender's main thread
-        - Most users should use render_async() and get_render_result() instead
-    """
-    try:
-        from ..engine.render_manager import render_manager
+            render_id = render_manager.start_render_with_callback(
+                scene_name=scene_name,
+                camera_name=camera_name,
+                on_complete=on_complete,
+                on_error=on_error,
+                output_path=output_path
+            )
 
-        context = _get_context()
+            if not render_id:
+                raise RuntimeError("Failed to start render with callback")
 
-        render_id = render_manager.start_render_with_callback(
-            scene_name=scene_name,
-            camera_name=camera_name,
-            on_complete=on_complete,
-            on_error=on_error,
-            output_path=output_path
-        )
+            return render_id
 
-        if not render_id:
-            raise RuntimeError("Failed to start render with callback")
+        except Exception as e:
+            logger.error(f"Render with callback API error: {str(e)}")
+            raise
 
-        return render_id
+    def screenshot_object(object_name: str) -> str:
 
-    except Exception as e:
-        logger.error(f"Render with callback API error: {str(e)}")
-        raise
+        try:
+            context = _get_context()
+            success, result = tools_manager.handle_tool_call("screenshot_object", {
+            :object_name
+            }, context )
 
+            if success:
+                return result["result"]
+            else:
+                raise RuntimeError(f"Screenshot failed: {result['result']}")
 
-def analyse_mesh_image(object_name: str) -> str:
-    """
-    Analyze a mesh object by rendering it and sending it for AI analysis.
-    
-    Args:
-        object_name: Name of the Blender object to analyze
-        
-    Returns:
-        Analysis result from AI describing what the object represents
-        
-    Example:
-        >>> import vibe4d
-        >>> result = vibe4d.analyse_mesh_image("Cube")
-        >>> print(f"Analysis: {result}")
-    """
-    try:
-        context = _get_context()
-        success, result = tools_manager.handle_tool_call("analyse_mesh_image", {
-            "object_name": object_name
-        }, context)
-
-        if success:
-            return result["result"]
-        else:
-            raise RuntimeError(f"Analysis failed: {result['result']}")
-
-    except Exception as e:
-        logger.error(f"Analyse mesh image API error: {str(e)}")
-        raise
+        except Exception as e:
+            logger.error(f"Screenshot object API error: {str(e)}")
+            raise

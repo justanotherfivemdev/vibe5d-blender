@@ -1,8 +1,3 @@
-"""
-Message component for displaying user messages in chat-like interface.
-Features rounded background with border and proper text rendering.
-"""
-
 import logging
 from typing import TYPE_CHECKING, List
 
@@ -19,7 +14,6 @@ logger = logging.getLogger(__name__)
 
 
 def wrap_text_blf(text: str, max_width: int, font_size: int = 28) -> List[str]:
-    """Wrap text using BLF text measurements with correct font size, preserving indentation."""
     if not text:
         return [""]
 
@@ -105,7 +99,6 @@ def wrap_text_blf(text: str, max_width: int, font_size: int = 28) -> List[str]:
 
 
 def _break_long_word_blf(word: str, max_width: int, font_size: int) -> List[str]:
-    """Break a long word using BLF measurements."""
     if not word:
         return [""]
 
@@ -138,8 +131,6 @@ def _break_long_word_blf(word: str, max_width: int, font_size: int) -> List[str]
 
 
 def _fallback_wrap(text: str, max_width: int, font_size: int) -> List[str]:
-    """Fallback text wrapping when BLF is not available, preserving indentation."""
-
     chars_per_line = max(10, max_width // max(8, font_size // 4))
 
     lines = text.split('\n')
@@ -200,7 +191,6 @@ def _fallback_wrap(text: str, max_width: int, font_size: int) -> List[str]:
 
 
 class MessageComponent(UIComponent):
-    """Component for displaying user messages with styled background."""
 
     def __init__(self, message: str, x: int = 0, y: int = 0, width: int = 400, height: int = 20):
         super().__init__(x, y, width, height)
@@ -223,52 +213,50 @@ class MessageComponent(UIComponent):
         logger.debug(f"MessageComponent created with message: {message}")
 
     def apply_themed_style(self, style_type: str = "message"):
-        """Apply themed style to the message component using centralized colors."""
+
         try:
-            from ..colors import Colors
-            from ..theme import get_themed_style
+            from ..unified_styles import Styles
+            from ..component_theming import get_themed_component_style
 
-            self.style = get_themed_style("button")
+            self.style = get_themed_component_style("button")
 
-            self.style.background_color = Colors.Border
-            self.style.border_color = Colors.Primary
+            self.style.background_color = Styles.Border
+            self.style.border_color = Styles.Primary
             self.style.border_width = 1
-            self.style.text_color = Colors.Text
+            self.style.text_color = Styles.Text
             self.style.font_size = FontSizes.Default
 
         except Exception as e:
             logger.warning(f"Could not apply themed style: {e}")
 
-            from ..colors import Colors
-            self.style.background_color = Colors.Border
-            self.style.border_color = Colors.Primary
+            self.style.background_color = Styles.Border
+            self.style.border_color = Styles.Primary
             self.style.border_width = 1
-            self.style.text_color = Colors.Text
+            self.style.text_color = Styles.Text
             self.style.font_size = FontSizes.Default
 
     def set_message(self, message: str):
-        """Update the message text and invalidate cache."""
+
         if self.message != message:
             self.message = message
             self._invalidate_text_cache()
 
     def get_message(self) -> str:
-        """Get the current message text."""
+
         return self.message
 
     def _invalidate_text_cache(self):
-        """Invalidate the text wrapping cache."""
+
         self._cached_wrapped_lines = None
         self._cached_width = None
         self._cached_message = None
         self._cached_font_size = None
 
     def _get_line_height(self) -> int:
-        """Calculate line height using 140% of font size."""
+
         return int(self.style.font_size * self.line_height_multiplier)
 
     def _get_wrapped_lines(self, available_width: int) -> List[str]:
-        """Get wrapped lines with caching to avoid recalculating every frame."""
 
         if (self._cached_wrapped_lines is not None and
                 self._cached_width == available_width and
@@ -282,12 +270,12 @@ class MessageComponent(UIComponent):
         self._cached_font_size = self.style.font_size
 
         logger.debug(
-            f"Recalculated wrapped lines for message: '{self.message[:30]}...' -> {len(self._cached_wrapped_lines)} lines")
+        )
 
         return self._cached_wrapped_lines
 
     def calculate_required_size(self, max_width: int) -> tuple[int, int]:
-        """Calculate the width and height needed to display the message properly using BLF measurements."""
+
         if not self.message:
             return (100, 40)
 
@@ -318,16 +306,16 @@ class MessageComponent(UIComponent):
         return content_width, max(40, content_height)
 
     def _calculate_wrapped_lines(self, available_width: int) -> list[str]:
-        """Calculate how text should be wrapped using BLF measurements."""
+
         return self._get_wrapped_lines(available_width)
 
     def calculate_required_height(self, available_width: int) -> int:
-        """Calculate the height needed to display the message properly."""
+
         _, height = self.calculate_required_size(available_width)
         return height
 
     def set_size(self, width: int, height: int):
-        """Override set_size to invalidate cache when size changes."""
+
         old_width = self.bounds.width
         super().set_size(width, height)
 
@@ -335,7 +323,7 @@ class MessageComponent(UIComponent):
             self._invalidate_text_cache()
 
     def render(self, renderer: 'UIRenderer'):
-        """Render the message component with rounded background and border."""
+
         if not self.visible or not self.message:
             return
 
@@ -357,7 +345,7 @@ class MessageComponent(UIComponent):
             self._render_wrapped_text(renderer, text_x, text_y, text_width, text_height)
 
     def _render_wrapped_text(self, renderer: 'UIRenderer', x: int, y: int, width: int, height: int):
-        """Render text with word wrapping within the specified bounds using cached wrapped lines."""
+
         if not self.message:
             return
 
@@ -391,6 +379,6 @@ class MessageComponent(UIComponent):
             current_y -= line_height
 
     def auto_resize_to_content(self, max_width: int):
-        """Auto-resize the component to fit the message content."""
+
         required_width, required_height = self.calculate_required_size(max_width)
         self.set_size(required_width, required_height)

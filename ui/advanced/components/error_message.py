@@ -1,17 +1,12 @@
-"""
-Error message component for displaying error messages in chat interface.
-Features distinctive styling with error colors and icons.
-"""
-
 import logging
 from typing import TYPE_CHECKING
 
 import blf
 
 from .markdown_message import MarkdownMessageComponent
+from ..component_theming import get_themed_component_style
 from ..coordinates import CoordinateSystem
 from ..styles import FontSizes
-from ..theme import get_themed_style
 
 if TYPE_CHECKING:
     pass
@@ -20,7 +15,6 @@ logger = logging.getLogger(__name__)
 
 
 class ErrorMessageComponent(MarkdownMessageComponent):
-    """Component for displaying error messages with special styling."""
 
     def __init__(self, error_message: str, x: int = 0, y: int = 0, width: int = 400, height: int = 40):
 
@@ -31,9 +25,8 @@ class ErrorMessageComponent(MarkdownMessageComponent):
         logger.debug(f"ErrorMessageComponent created with message: {error_message}")
 
     def apply_error_styling(self):
-        """Apply error-specific styling to the message component."""
 
-        self.style = get_themed_style("button")
+        self.style = get_themed_component_style("button")
 
         self.style.background_color = (0.0, 0.0, 0.0, 0.0)
         self.style.border_color = (0.0, 0.0, 0.0, 0.0)
@@ -46,11 +39,11 @@ class ErrorMessageComponent(MarkdownMessageComponent):
         self.corner_radius = CoordinateSystem.scale_int(8)
 
     def apply_themed_style(self, style_type: str = "error"):
-        """Override to maintain error styling."""
+
         self.apply_error_styling()
 
     def auto_resize_to_content(self, max_width: int):
-        """Override auto-resize to ensure proper sizing for error messages."""
+
         try:
             from ..coordinates import CoordinateSystem
 
@@ -75,9 +68,9 @@ class ErrorMessageComponent(MarkdownMessageComponent):
             self.set_size(fallback_width, fallback_height)
 
     def set_error_message(self, error_message: str):
-        """Update the error message text."""
+
         self.set_markdown(error_message)
 
     def get_error_message(self) -> str:
-        """Get the current error message text."""
+
         return self.markdown_text

@@ -1,8 +1,3 @@
-"""
-Blender Theme Integration System
-Maps design tokens to Blender's theme API for automatic color synchronization.
-"""
-
 import hashlib
 import logging
 from dataclasses import dataclass
@@ -15,7 +10,6 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class ThemeToken:
-    """Represents a design token mapped to Blender theme path."""
     token: str
     blender_path: str
     description: str
@@ -23,60 +17,55 @@ class ThemeToken:
 
 
 class BlenderThemeIntegration:
-    """
-    Comprehensive Blender theme integration system.
-    Maps design tokens to Blender's theme API for automatic color synchronization.
-    """
-
     THEME_TOKENS = {
-        'bg_primary': ThemeToken(
-            token='bg_primary',
-            blender_path='user_interface.wcol_regular.inner',
-            description='Primary background color',
-            fallback_color=(0.33, 0.33, 0.33, 1.0)
-        ),
-        'bg_panel': ThemeToken(
-            token='bg_panel',
-            blender_path='user_interface.wcol_box.inner',
-            description='Panel background color',
-            fallback_color=(0.11, 0.11, 0.11, 1.0)
-        ),
-        'bg_selected': ThemeToken(
-            token='bg_selected',
-            blender_path='user_interface.wcol_menu.inner_sel',
-            description='Selected background color',
-            fallback_color=(0.28, 0.45, 0.70, 1.0)
-        ),
-        'border': ThemeToken(
-            token='border',
-            blender_path='user_interface.wcol_regular.outline',
-            description='Border color',
-            fallback_color=(0.24, 0.24, 0.24, 1.0)
-        ),
-        'text': ThemeToken(
-            token='text',
-            blender_path='user_interface.wcol_regular.text',
-            description='Primary text color',
-            fallback_color=(0.90, 0.90, 0.90, 1.0)
-        ),
-        'text_selected': ThemeToken(
-            token='text_selected',
-            blender_path='user_interface.wcol_regular.text_sel',
-            description='Selected text color',
-            fallback_color=(1.0, 1.0, 1.0, 1.0)
-        ),
-        'text_muted': ThemeToken(
-            token='text_muted',
-            blender_path='user_interface.wcol_menu_back.text',
-            description='Muted text color',
-            fallback_color=(0.60, 0.60, 0.60, 1.0)
-        ),
-        'bg_menu': ThemeToken(
-            token='bg_menu',
-            blender_path='user_interface.wcol_menu.inner',
-            description='Menu background color',
-            fallback_color=(0.16, 0.16, 0.16, 1.0)
-        ),
+    :ThemeToken(
+        token='bg_primary',
+        blender_path='user_interface.wcol_regular.inner',
+        description='Primary background color',
+        fallback_color=(0.33, 0.33, 0.33, 1.0)
+    ),
+    : ThemeToken(
+        token='bg_panel',
+        blender_path='user_interface.wcol_box.inner',
+        description='Panel background color',
+        fallback_color=(0.11, 0.11, 0.11, 1.0)
+    ),
+    :ThemeToken(
+        token='bg_selected',
+        blender_path='user_interface.wcol_menu.inner_sel',
+        description='Selected background color',
+        fallback_color=(0.28, 0.45, 0.70, 1.0)
+    ),
+    : ThemeToken(
+        token='border',
+        blender_path='user_interface.wcol_regular.outline',
+        description='Border color',
+        fallback_color=(0.24, 0.24, 0.24, 1.0)
+    ),
+    :ThemeToken(
+        token='text',
+        blender_path='user_interface.wcol_regular.text',
+        description='Primary text color',
+        fallback_color=(0.90, 0.90, 0.90, 1.0)
+    ),
+    : ThemeToken(
+        token='text_selected',
+        blender_path='user_interface.wcol_regular.text_sel',
+        description='Selected text color',
+        fallback_color=(1.0, 1.0, 1.0, 1.0)
+    ),
+    :ThemeToken(
+        token='text_muted',
+        blender_path='user_interface.wcol_menu_back.text',
+        description='Muted text color',
+        fallback_color=(0.60, 0.60, 0.60, 1.0)
+    ),
+    : ThemeToken(
+        token='bg_menu',
+        blender_path='user_interface.wcol_menu.inner',
+        description='Menu background color',
+        fallback_color=(0.16, 0.16, 0.16, 1.0)
+    ),
     }
 
     def __init__(self):
@@ -85,7 +74,7 @@ class BlenderThemeIntegration:
         self._update_colors()
 
     def _calculate_theme_hash(self) -> str:
-        """Calculate a hash of current Blender theme values to detect changes."""
+
         try:
             theme = bpy.context.preferences.themes[0]
 
@@ -112,7 +101,7 @@ class BlenderThemeIntegration:
             return "fallback"
 
     def _get_blender_color_by_path(self, theme: Any, path: str) -> Tuple[float, float, float, float]:
-        """Get a color from Blender theme using dot notation path."""
+
         try:
 
             obj = theme
@@ -135,7 +124,7 @@ class BlenderThemeIntegration:
             raise
 
     def _update_colors(self) -> bool:
-        """Update cached colors from Blender theme. Returns True if colors changed."""
+
         try:
             current_hash = self._calculate_theme_hash()
 
@@ -169,7 +158,6 @@ class BlenderThemeIntegration:
             return False
 
     def get_color(self, token: str) -> Tuple[float, float, float, float]:
-        """Get a theme color by token name."""
 
         self._update_colors()
 
@@ -183,30 +171,30 @@ class BlenderThemeIntegration:
             return (1.0, 1.0, 1.0, 1.0)
 
     def get_all_colors(self) -> Dict[str, Tuple[float, float, float, float]]:
-        """Get all theme colors as a dictionary."""
+
         self._update_colors()
         return self._cached_colors.copy()
 
     def check_for_changes(self) -> bool:
-        """Check if theme has changed. Returns True if changed."""
+
         return self._update_colors()
 
     def get_color_hex(self, token: str) -> str:
-        """Get a theme color as hex string."""
+
         rgba = self.get_color(token)
         r, g, b = rgba[:3]
         return f"#{int(r * 255):02X}{int(g * 255):02X}{int(b * 255):02X}"
 
     def get_token_info(self, token: str) -> Optional[ThemeToken]:
-        """Get information about a theme token."""
+
         return self.THEME_TOKENS.get(token)
 
     def get_all_tokens(self) -> Dict[str, ThemeToken]:
-        """Get all available theme tokens."""
+
         return self.THEME_TOKENS.copy()
 
     def print_debug_info(self):
-        """Print debug information about current theme colors."""
+
         self._update_colors()
 
         print("\n=== Blender Theme Integration Debug ===")
@@ -225,25 +213,20 @@ blender_theme = BlenderThemeIntegration()
 
 
 def get_theme_color(token: str) -> Tuple[float, float, float, float]:
-    """Get a theme color by token name."""
     return blender_theme.get_color(token)
 
 
 def get_theme_color_hex(token: str) -> str:
-    """Get a theme color as hex string."""
     return blender_theme.get_color_hex(token)
 
 
 def check_theme_changes() -> bool:
-    """Check if Blender theme has changed. Returns True if changed."""
     return blender_theme.check_for_changes()
 
 
 def get_all_theme_colors() -> Dict[str, Tuple[float, float, float, float]]:
-    """Get all theme colors as a dictionary."""
     return blender_theme.get_all_colors()
 
 
 def print_theme_debug():
-    """Print debug information about current theme colors."""
     blender_theme.print_debug_info()

@@ -1,16 +1,9 @@
-"""
-Essential properties for Vibe4D addon.
-Defines only the core properties needed for the advanced UI and addon functionality.
-"""
-
 import bpy
 from bpy.props import StringProperty, BoolProperty, IntProperty, EnumProperty, CollectionProperty, FloatProperty
 from bpy.types import Scene, PropertyGroup, WindowManager
 
 
 class VIBE4D_ChatMessage(PropertyGroup):
-    """Individual chat message for conversation history."""
-
     role: EnumProperty(
         name="Role",
         description="Who sent this message",
@@ -68,8 +61,6 @@ class VIBE4D_ChatMessage(PropertyGroup):
 
 
 def register_properties():
-    """Register all Vibe4D properties."""
-
     bpy.utils.register_class(VIBE4D_ChatMessage)
 
     Scene.vibe4d_model = StringProperty(
@@ -313,18 +304,16 @@ def register_properties():
 
 
 def unregister_properties():
-    """Unregister all Vibe4D properties."""
-
     properties_to_remove = [
-        'vibe4d_model', 'vibe4d_prompt', 'vibe4d_output_content', 'vibe4d_final_code',
-        'vibe4d_guide_content', 'vibe4d_last_error', 'vibe4d_console_output',
-        'vibe4d_is_generating', 'vibe4d_execution_pending',
-        'vibe4d_chat_messages', 'vibe4d_chat_messages_index',
-        'vibe4d_current_chat_id', 'vibe4d_current_text_input',
-        'vibe4d_custom_instruction',
-        'vibe4d_ui_active', 'vibe4d_ui_viewport_config', 'vibe4d_ui_current_view',
-        'vibe4d_ui_conversation_state', 'vibe4d_ui_layout_version', 'vibe4d_ui_area_markers',
-        'vibe4d_generation_progress', 'vibe4d_generation_stage'
+        , 'vibe4d_prompt', 'vibe4d_output_content', 'vibe4d_final_code',
+    , 'vibe4d_last_error', 'vibe4d_console_output',
+    , 'vibe4d_execution_pending',
+    , 'vibe4d_chat_messages_index',
+    , 'vibe4d_current_text_input',
+    ,
+    , 'vibe4d_ui_viewport_config', 'vibe4d_ui_current_view',
+    , 'vibe4d_ui_layout_version', 'vibe4d_ui_area_markers',
+    , 'vibe4d_generation_stage'
     ]
 
     for prop_name in properties_to_remove:
@@ -332,11 +321,11 @@ def unregister_properties():
             delattr(Scene, prop_name)
 
     wm_properties_to_remove = [
-        'vibe4d_authenticated', 'vibe4d_user_id', 'vibe4d_user_token', 'vibe4d_user_email',
-        'vibe4d_user_plan', 'vibe4d_status', 'vibe4d_network_error', 'vibe4d_current_usage',
-        'vibe4d_usage_limit', 'vibe4d_limit_type', 'vibe4d_plan_id', 'vibe4d_plan_name',
-        'vibe4d_allowed', 'vibe4d_usage_percentage', 'vibe4d_remaining_requests',
-        'vibe4d_remember_credentials', 'vibe4d_ui_was_active'
+        , 'vibe4d_user_id', 'vibe4d_user_token', 'vibe4d_user_email',
+    , 'vibe4d_status', 'vibe4d_network_error', 'vibe4d_current_usage',
+    , 'vibe4d_limit_type', 'vibe4d_plan_id', 'vibe4d_plan_name',
+    , 'vibe4d_usage_percentage', 'vibe4d_remaining_requests',
+    , 'vibe4d_ui_was_active'
     ]
 
     for prop_name in wm_properties_to_remove:

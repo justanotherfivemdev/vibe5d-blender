@@ -1,8 +1,3 @@
-"""
-Automated layout management system for UI components.
-Provides various layout strategies to automatically position components.
-"""
-
 import logging
 from dataclasses import dataclass
 from enum import Enum
@@ -15,7 +10,6 @@ logger = logging.getLogger(__name__)
 
 
 class LayoutStrategy(Enum):
-    """Layout positioning strategies."""
     MANUAL = "manual"
     FLEX_VERTICAL = "flex_vertical"
     FLEX_HORIZONTAL = "flex_horizontal"
@@ -26,7 +20,6 @@ class LayoutStrategy(Enum):
 
 
 class FlexDirection(Enum):
-    """Flex layout direction."""
     ROW = "row"
     COLUMN = "column"
     ROW_REVERSE = "row_reverse"
@@ -34,7 +27,6 @@ class FlexDirection(Enum):
 
 
 class JustifyContent(Enum):
-    """How to distribute space along main axis."""
     START = "start"
     CENTER = "center"
     END = "end"
@@ -44,7 +36,6 @@ class JustifyContent(Enum):
 
 
 class AlignItems(Enum):
-    """How to align items along cross axis."""
     START = "start"
     CENTER = "center"
     END = "end"
@@ -54,8 +45,6 @@ class AlignItems(Enum):
 
 @dataclass
 class LayoutConstraints:
-    """Layout constraints for component positioning."""
-
     flex_grow: float = 0.0
     flex_shrink: float = 1.0
     flex_basis: Optional[int] = None
@@ -85,7 +74,6 @@ class LayoutConstraints:
 
 @dataclass
 class LayoutConfig:
-    """Configuration for a layout container."""
     strategy: LayoutStrategy = LayoutStrategy.FLEX_VERTICAL
 
     direction: FlexDirection = FlexDirection.COLUMN
@@ -104,7 +92,6 @@ class LayoutConfig:
 
 
 class AutoResizeManager:
-    """Manages automatic resizing of layouts when viewport changes."""
 
     def __init__(self, layout_manager):
         self.layout_manager = layout_manager
@@ -112,16 +99,16 @@ class AutoResizeManager:
         self.current_viewport = (0, 0)
 
     def register_viewport_callback(self, callback: Callable[[int, int], None]):
-        """Register a callback for viewport changes."""
+
         self.viewport_callbacks.append(callback)
 
     def unregister_viewport_callback(self, callback: Callable[[int, int], None]):
-        """Unregister a viewport callback."""
+
         if callback in self.viewport_callbacks:
             self.viewport_callbacks.remove(callback)
 
     def handle_viewport_change(self, width: int, height: int):
-        """Handle viewport size change and trigger layout updates."""
+
         if (width, height) == self.current_viewport:
             return
 
@@ -138,7 +125,6 @@ class AutoResizeManager:
 
 
 class LayoutManager:
-    """Manages automated layout for UI components."""
 
     def __init__(self):
         self.layouts: Dict[str, LayoutConfig] = {}
@@ -149,14 +135,14 @@ class LayoutManager:
         self.auto_resize = AutoResizeManager(self)
 
     def create_layout(self, name: str, config: LayoutConfig) -> str:
-        """Create a new layout configuration."""
+
         self.layouts[name] = config
         self.containers[name] = []
         return name
 
     def add_component(self, layout_name: str, component: UIComponent,
                       constraints: Optional[LayoutConstraints] = None):
-        """Add a component to a layout."""
+
         if layout_name not in self.containers:
             raise ValueError(f"Layout '{layout_name}' does not exist")
 
@@ -165,14 +151,14 @@ class LayoutManager:
             self.constraints[component] = constraints
 
     def remove_component(self, layout_name: str, component: UIComponent):
-        """Remove a component from a layout."""
+
         if layout_name in self.containers and component in self.containers[layout_name]:
             self.containers[layout_name].remove(component)
             if component in self.constraints:
                 del self.constraints[component]
 
     def update_layout(self, layout_name: str, container_bounds: Bounds):
-        """Update positions of all components in a layout."""
+
         if layout_name not in self.layouts:
             return
 
@@ -198,7 +184,7 @@ class LayoutManager:
             self._apply_anchor_layout(components, container_bounds, config)
 
     def update_all_layouts(self, viewport_width: int, viewport_height: int):
-        """Update all layouts when viewport changes."""
+
         for layout_name, bounds in self.container_bounds.items():
 
             if bounds.width >= viewport_width * 0.9 and bounds.height >= viewport_height * 0.9:
@@ -209,16 +195,16 @@ class LayoutManager:
                 self.update_layout(layout_name, bounds)
 
     def register_auto_resize_callback(self, callback: Callable[[int, int], None]):
-        """Register callback for automatic viewport change handling."""
+
         self.auto_resize.register_viewport_callback(callback)
 
     def handle_viewport_change(self, width: int, height: int):
-        """Handle viewport change automatically."""
+
         self.auto_resize.handle_viewport_change(width, height)
 
     def _apply_flex_layout(self, components: List[UIComponent], container_bounds: Bounds,
                            config: LayoutConfig, direction: FlexDirection):
-        """Apply flex layout positioning."""
+
         if not components:
             return
 
@@ -251,12 +237,12 @@ class LayoutManager:
                 main_size_comp = preferred_main
 
             component_info.append({
-                'component': comp,
-                'constraints': constraints,
-                'preferred_main': preferred_main,
-                'preferred_cross': preferred_cross,
-                'main_size': main_size_comp,
-                'cross_size': preferred_cross
+            : comp,
+            :constraints,
+            : preferred_main,
+            :preferred_cross,
+            : main_size_comp,
+            :preferred_cross
             })
 
             total_flex_grow += constraints.flex_grow
@@ -334,7 +320,7 @@ class LayoutManager:
 
     def _apply_stack_layout(self, components: List[UIComponent], container_bounds: Bounds,
                             config: LayoutConfig):
-        """Apply simple stack layout (vertical by default)."""
+
         current_y = container_bounds.y + config.padding_bottom
 
         for comp in components:
@@ -362,7 +348,7 @@ class LayoutManager:
 
     def _apply_grid_layout(self, components: List[UIComponent], container_bounds: Bounds,
                            config: LayoutConfig):
-        """Apply grid layout positioning."""
+
         if not components:
             return
 
@@ -406,7 +392,7 @@ class LayoutManager:
 
     def _apply_absolute_layout(self, components: List[UIComponent], container_bounds: Bounds,
                                config: LayoutConfig):
-        """Apply absolute positioning based on constraints."""
+
         for comp in components:
             constraints = self.constraints.get(comp, LayoutConstraints())
 
@@ -442,17 +428,14 @@ class LayoutManager:
 
     def _apply_anchor_layout(self, components: List[UIComponent], container_bounds: Bounds,
                              config: LayoutConfig):
-        """Apply anchor-based positioning (similar to CSS positioning)."""
 
         self._apply_absolute_layout(components, container_bounds, config)
 
 
 class LayoutPresets:
-    """Common layout presets for quick setup."""
 
     @staticmethod
     def vertical_stack(gap: int = 5, padding: int = 10) -> LayoutConfig:
-        """Vertical stack layout."""
         return LayoutConfig(
             strategy=LayoutStrategy.FLEX_VERTICAL,
             direction=FlexDirection.COLUMN,
@@ -467,7 +450,6 @@ class LayoutPresets:
 
     @staticmethod
     def horizontal_stack(gap: int = 5, padding: int = 10) -> LayoutConfig:
-        """Horizontal stack layout."""
         return LayoutConfig(
             strategy=LayoutStrategy.FLEX_HORIZONTAL,
             direction=FlexDirection.ROW,
@@ -482,7 +464,6 @@ class LayoutPresets:
 
     @staticmethod
     def centered_content(padding: int = 10) -> LayoutConfig:
-        """Centered content layout."""
         return LayoutConfig(
             strategy=LayoutStrategy.FLEX_VERTICAL,
             direction=FlexDirection.COLUMN,
@@ -497,7 +478,6 @@ class LayoutPresets:
 
     @staticmethod
     def toolbar(gap: int = 5, padding: int = 5) -> LayoutConfig:
-        """Toolbar layout with right alignment."""
         return LayoutConfig(
             strategy=LayoutStrategy.FLEX_HORIZONTAL,
             direction=FlexDirection.ROW,
@@ -512,7 +492,6 @@ class LayoutPresets:
 
     @staticmethod
     def grid(columns: int = 2, gap: int = 5, padding: int = 10) -> LayoutConfig:
-        """Grid layout."""
         return LayoutConfig(
             strategy=LayoutStrategy.GRID,
             grid_columns=columns,

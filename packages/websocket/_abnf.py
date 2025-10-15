@@ -8,25 +8,6 @@ from typing import Callable, Optional, Union
 from ._exceptions import WebSocketPayloadException, WebSocketProtocolException
 from ._utils import validate_utf8
 
-"""
-_abnf.py
-websocket - WebSocket client library for Python
-
-Copyright 2024 engn33r
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-"""
-
 try:
 
     from wsaccel.xormask import XorMaskerSimple
@@ -50,23 +31,24 @@ except ImportError:
         return (int_data_value ^ int_mask_value).to_bytes(datalen, native_byteorder)
 
 __all__ = [
-    "ABNF",
-    "continuous_frame",
-    "frame_buffer",
-    "STATUS_NORMAL",
-    "STATUS_GOING_AWAY",
-    "STATUS_PROTOCOL_ERROR",
-    "STATUS_UNSUPPORTED_DATA_TYPE",
-    "STATUS_STATUS_NOT_AVAILABLE",
-    "STATUS_ABNORMAL_CLOSED",
-    "STATUS_INVALID_PAYLOAD",
-    "STATUS_POLICY_VIOLATION",
-    "STATUS_MESSAGE_TOO_BIG",
-    "STATUS_INVALID_EXTENSION",
-    "STATUS_UNEXPECTED_CONDITION",
-    "STATUS_BAD_GATEWAY",
-    "STATUS_TLS_HANDSHAKE_ERROR",
+    ,
+,
+,
+,
+,
+,
+,
+,
+,
+,
+,
+,
+,
+,
+,
+,
 ]
+
 
 STATUS_NORMAL = 1000
 STATUS_GOING_AWAY = 1001
@@ -101,12 +83,6 @@ VALID_CLOSE_STATUS = (
 
 
 class ABNF:
-    """
-    ABNF frame class.
-    See http://tools.ietf.org/html/rfc5234
-    and http://tools.ietf.org/html/rfc6455#section-5.2
-    """
-
     OPCODE_CONT = 0x0
     OPCODE_TEXT = 0x1
     OPCODE_BINARY = 0x2
@@ -146,9 +122,7 @@ class ABNF:
             mask_value: int = 1,
             data: Union[str, bytes, None] = "",
     ) -> None:
-        """
-        Constructor for ABNF. Please check RFC for arguments.
-        """
+
         self.fin = fin
         self.rsv1 = rsv1
         self.rsv2 = rsv2
@@ -161,13 +135,7 @@ class ABNF:
         self.get_mask_key = os.urandom
 
     def validate(self, skip_utf8_validation: bool = False) -> None:
-        """
-        Validate the ABNF frame.
 
-        Parameters
-        ----------
-        skip_utf8_validation: skip utf8 validation.
-        """
         if self.rsv1 or self.rsv2 or self.rsv3:
             raise WebSocketProtocolException("rsv is not implemented, yet")
 
@@ -199,29 +167,14 @@ class ABNF:
 
     @staticmethod
     def create_frame(data: Union[bytes, str], opcode: int, fin: int = 1) -> "ABNF":
-        """
-        Create frame to send text, binary and other data.
 
-        Parameters
-        ----------
-        data: str
-            data to send. This is string value(byte array).
-            If opcode is OPCODE_TEXT and this value is unicode,
-            data value is converted into unicode string, automatically.
-        opcode: int
-            operation code. please see OPCODE_MAP.
-        fin: int
-            fin flag. if set to 0, create continue fragmentation.
-        """
         if opcode == ABNF.OPCODE_TEXT and isinstance(data, str):
             data = data.encode("utf-8")
 
         return ABNF(fin, 0, 0, 0, opcode, 1, data)
 
     def format(self) -> bytes:
-        """
-        Format this object to string(byte array) to send data to server.
-        """
+
         if any(x not in (0, 1) for x in [self.fin, self.rsv1, self.rsv2, self.rsv3]):
             raise ValueError("not 0 or 1")
         if self.opcode not in ABNF.OPCODES:
@@ -263,16 +216,7 @@ class ABNF:
 
     @staticmethod
     def mask(mask_key: Union[str, bytes], data: Union[str, bytes]) -> bytes:
-        """
-        Mask or unmask data. Just do xor for each byte
 
-        Parameters
-        ----------
-        mask_key: bytes or str
-            4 byte mask.
-        data: bytes or str
-            data to mask/unmask.
-        """
         if data is None:
             data = ""
 

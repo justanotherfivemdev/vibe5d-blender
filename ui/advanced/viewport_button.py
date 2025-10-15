@@ -1,8 +1,3 @@
-"""
-Viewport button for opening/closing the custom UI.
-Draws a simple button on all 3D viewports except the one used for custom UI.
-"""
-
 import logging
 import math
 import time
@@ -21,7 +16,6 @@ logger = logging.getLogger(__name__)
 
 
 class ViewportButton:
-    """Simple button that appears in all 3D viewports to open/close custom UI."""
 
     def __init__(self):
         self.draw_handler = None
@@ -39,14 +33,14 @@ class ViewportButton:
         self._update_scaled_values()
 
     def _update_scaled_values(self):
-        """Update all scaled values based on current UI scale."""
+
         self.button_size = CoordinateSystem.scale_int(40)
         self.button_margin = CoordinateSystem.scale_int(10)
 
         self._current_ui_scale = CoordinateSystem.get_ui_scale()
 
     def _check_ui_scale_changes(self) -> bool:
-        """Check if UI scale has changed and update scaled values if needed."""
+
         current_time = time.time()
 
         if current_time - self._last_scale_check_time < self._scale_check_interval:
@@ -75,7 +69,7 @@ class ViewportButton:
             return False
 
     def _force_viewport_redraw(self):
-        """Force a redraw of all 3D viewports to update the button immediately."""
+
         try:
 
             for area in bpy.context.screen.areas:
@@ -85,7 +79,7 @@ class ViewportButton:
             logger.error(f"Error forcing viewport redraw: {e}")
 
     def _load_logo_texture(self):
-        """Load the logo texture from the icons directory."""
+
         if self.logo_load_attempted:
             return
 
@@ -128,14 +122,14 @@ class ViewportButton:
             logger.error(f"Error loading logo texture: {e}")
 
     def enable(self):
-        """Enable the viewport button by adding draw handler."""
+
         if self.draw_handler is None:
             self.draw_handler = bpy.types.SpaceView3D.draw_handler_add(
                 self._draw_callback, (), 'WINDOW', 'POST_PIXEL'
             )
 
     def disable(self):
-        """Disable the viewport button by removing draw handler."""
+
         if self.draw_handler:
             bpy.types.SpaceView3D.draw_handler_remove(self.draw_handler, 'WINDOW')
             self.draw_handler = None
@@ -146,7 +140,7 @@ class ViewportButton:
         self._last_scale_check_time = 0
 
     def refresh(self):
-        """Manually refresh the button (useful for external scale change notifications)."""
+
         try:
 
             self._last_scale_check_time = 0
@@ -156,13 +150,13 @@ class ViewportButton:
             logger.error(f"Error refreshing viewport button: {e}")
 
     def _cleanup_texture(self):
-        """Clean up texture resources."""
+
         try:
             if self.logo_texture:
                 self.logo_texture = None
 
             if self.logo_image and hasattr(bpy, 'data') and hasattr(bpy.data,
-                                                                    'images') and self.logo_image.name in bpy.data.images:
+                                                                    ) and self.logo_image.name in bpy.data.images:
                 bpy.data.images.remove(self.logo_image)
         except Exception as e:
             logger.debug(f"Error cleaning up logo texture: {e}")
@@ -173,7 +167,7 @@ class ViewportButton:
             self.logo_load_attempted = False
 
     def _should_draw_in_area(self, area) -> bool:
-        """Check if button should be drawn in this area."""
+
         if area.type != 'VIEW_3D':
             return False
 
@@ -183,7 +177,6 @@ class ViewportButton:
         return True
 
     def _get_button_bounds(self, area) -> Tuple[int, int, int, int]:
-        """Get button bounds (x, y, width, height) for the given area."""
 
         x = self.button_margin
         y = self.button_margin
@@ -192,7 +185,7 @@ class ViewportButton:
         return x, y, width, height
 
     def _draw_callback(self):
-        """Draw callback for the viewport button."""
+
         try:
             context = bpy.context
             if not context.area or not self._should_draw_in_area(context.area):
@@ -244,7 +237,7 @@ class ViewportButton:
 
     def _draw_rounded_rect(self, x: int, y: int, width: int, height: int, color: Tuple[float, float, float, float],
                            corner_radius: int):
-        """Draw a rounded rectangle."""
+
         try:
 
             corner_radius = min(corner_radius, min(width, height) // 2)
@@ -384,7 +377,7 @@ class ViewportButton:
                 logger.error(f"Error drawing fallback rectangle: {e2}")
 
     def _draw_logo(self, x: int, y: int, width: int, height: int):
-        """Draw the logo texture."""
+
         if not self.logo_loaded or not self.logo_texture:
             return
 
@@ -422,7 +415,7 @@ class ViewportButton:
             self._draw_text("AI", text_x, text_y, font_size, (1, 1, 1, 1))
 
     def _draw_text(self, text: str, x: int, y: int, size: int, color: Tuple[float, float, float, float]):
-        """Draw text."""
+
         try:
             font_id = 0
             blf.size(font_id, size)
@@ -433,7 +426,7 @@ class ViewportButton:
             logger.error(f"Error drawing text: {e}")
 
     def handle_mouse_event(self, event) -> bool:
-        """Handle mouse events for the button."""
+
         try:
             context = bpy.context
             if not context.area or not self._should_draw_in_area(context.area):
@@ -464,7 +457,7 @@ class ViewportButton:
             return False
 
     def _screen_to_region_coords(self, event, area):
-        """Convert screen coordinates to region coordinates."""
+
         try:
 
             for region in area.regions:
@@ -488,7 +481,7 @@ class ViewportButton:
             return None, None
 
     def _handle_button_click(self):
-        """Handle button click to toggle UI."""
+
         try:
 
             bpy.ops.vibe4d.show_advanced_ui()

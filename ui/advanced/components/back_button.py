@@ -1,15 +1,10 @@
-"""
-Back button component for navigation with icon and text.
-Styled according to Figma design with text_muted/text_selected colors.
-"""
-
 import logging
 from typing import Optional, Callable
 
 from .button import Button
 from .image import ImageComponent, ImageFit, ImagePosition
+from ..component_theming import get_themed_component_style
 from ..coordinates import CoordinateSystem
-from ..theme import get_themed_style
 from ..types import UIEvent
 from ..unified_styles import Styles
 
@@ -17,7 +12,6 @@ logger = logging.getLogger(__name__)
 
 
 class BackButton(Button):
-    """Back button component with icon and text styling."""
 
     def __init__(self, x: int = 0, y: int = 0, on_click: Optional[Callable] = None):
 
@@ -29,7 +23,7 @@ class BackButton(Button):
 
         super().__init__("Back", x, y, content_width, content_height, corner_radius=0, on_click=on_click)
 
-        self.style = get_themed_style("default")
+        self.style = get_themed_component_style("default")
         self.style.background_color = Styles.Transparent
         self.style.border_color = Styles.Transparent
         self.style.border_width = 0
@@ -52,7 +46,7 @@ class BackButton(Button):
         self.text_y = y + (content_height - self.style.font_size) // 2 - CoordinateSystem.scale_int(18)
 
     def set_position(self, x: int, y: int):
-        """Override to update both button and icon positions."""
+
         super().set_position(x, y)
 
         icon_size = Styles.get_go_back_button_icon_size()
@@ -67,7 +61,7 @@ class BackButton(Button):
         self.text_y = y + (content_height - self.style.font_size) // 2
 
     def set_size(self, width: int, height: int):
-        """Override to update component sizing."""
+
         super().set_size(width, height)
 
         icon_size = Styles.get_go_back_button_icon_size()
@@ -81,7 +75,7 @@ class BackButton(Button):
         )
 
     def render(self, renderer):
-        """Render the back button with icon and text."""
+
         if not self.visible:
             return
 
@@ -104,7 +98,6 @@ class BackButton(Button):
         renderer.draw_text(self.text, self.text_x, self.text_y, self.style.font_size, text_color)
 
     def _get_current_colors(self):
-        """Override to return transparent colors for background/border."""
 
         bg_color = Styles.Transparent
         border_color = Styles.Transparent
@@ -117,18 +110,18 @@ class BackButton(Button):
         return bg_color, border_color, text_color
 
     def _on_mouse_enter(self, event: UIEvent) -> bool:
-        """Handle mouse enter event with debug logging."""
+
         result = super()._on_mouse_enter(event)
         logger.debug(f"BackButton '{self.text}' HOVERED - is_hovered={self.is_hovered}")
         return result
 
     def _on_mouse_leave(self, event: UIEvent) -> bool:
-        """Handle mouse leave event with debug logging."""
+
         result = super()._on_mouse_leave(event)
         logger.debug(f"BackButton '{self.text}' UNHOVERED - is_hovered={self.is_hovered}")
         return result
 
     def cleanup(self):
-        """Clean up resources when button is destroyed."""
+
         if self.icon_component:
             self.icon_component.cleanup()

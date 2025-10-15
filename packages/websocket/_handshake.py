@@ -1,21 +1,3 @@
-"""
-_handshake.py
-websocket - WebSocket client library for Python
-
-Copyright 2024 engn33r
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-"""
 import hashlib
 import hmac
 import os
@@ -143,55 +125,52 @@ def _get_resp_headers(sock, success_statuses: tuple = SUCCESS_STATUSES) -> tuple
         else:
             response_body = None
         raise WebSocketBadStatusException(
-            f"Handshake status {status} {status_message} -+-+- {resp_headers} -+-+- {response_body}",
-            status,
-            status_message,
-            resp_headers,
-            response_body,
+        ,
+        status,
+        status_message,
+        resp_headers,
+        response_body,
         )
-    return status, resp_headers
+        return status, resp_headers
 
+    _HEADERS_TO_CHECK = {
+    :"websocket",
+    : "upgrade",
+    }
 
-_HEADERS_TO_CHECK = {
-    "upgrade": "websocket",
-    "connection": "upgrade",
-}
+    def _validate(headers, key: str, subprotocols) -> tuple:
+        subproto = None
+        for k, v in _HEADERS_TO_CHECK.items():
+            r = headers.get(k, None)
+            if not r:
+                return False, None
+            r = [x.strip().lower() for x in r.split(",")]
+            if v not in r:
+                return False, None
 
+        if subprotocols:
+            subproto = headers.get("sec-websocket-protocol", None)
+            if not subproto or subproto.lower() not in [s.lower() for s in subprotocols]:
+                error(f"Invalid subprotocol: {subprotocols}")
+                return False, None
+            subproto = subproto.lower()
 
-def _validate(headers, key: str, subprotocols) -> tuple:
-    subproto = None
-    for k, v in _HEADERS_TO_CHECK.items():
-        r = headers.get(k, None)
-        if not r:
+        result = headers.get("sec-websocket-accept", None)
+        if not result:
             return False, None
-        r = [x.strip().lower() for x in r.split(",")]
-        if v not in r:
+        result = result.lower()
+
+        if isinstance(result, str):
+            result = result.encode("utf-8")
+
+        value = f"{key}258EAFA5-E914-47DA-95CA-C5AB0DC85B11".encode("utf-8")
+        hashed = base64encode(hashlib.sha1(value).digest()).strip().lower()
+
+        if hmac.compare_digest(hashed, result):
+            return True, subproto
+        else:
             return False, None
 
-    if subprotocols:
-        subproto = headers.get("sec-websocket-protocol", None)
-        if not subproto or subproto.lower() not in [s.lower() for s in subprotocols]:
-            error(f"Invalid subprotocol: {subprotocols}")
-            return False, None
-        subproto = subproto.lower()
-
-    result = headers.get("sec-websocket-accept", None)
-    if not result:
-        return False, None
-    result = result.lower()
-
-    if isinstance(result, str):
-        result = result.encode("utf-8")
-
-    value = f"{key}258EAFA5-E914-47DA-95CA-C5AB0DC85B11".encode("utf-8")
-    hashed = base64encode(hashlib.sha1(value).digest()).strip().lower()
-
-    if hmac.compare_digest(hashed, result):
-        return True, subproto
-    else:
-        return False, None
-
-
-def _create_sec_websocket_key() -> str:
-    randomness = os.urandom(16)
-    return base64encode(randomness).decode("utf-8").strip()
+    def _create_sec_websocket_key() -> str:
+        randomness = os.urandom(16)
+        return base64encode(randomness).decode("utf-8").strip()

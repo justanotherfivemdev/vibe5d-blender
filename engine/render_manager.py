@@ -1,10 +1,3 @@
-"""
-Render result manager for Vibe4D addon.
-
-Provides comprehensive render result access using Blender 4.4 API methods.
-Handles both synchronous and asynchronous render operations with proper callbacks.
-"""
-
 import base64
 import os
 import tempfile
@@ -50,20 +43,7 @@ class RenderResultManager:
             output_path: Optional[str] = None,
             use_temp_file: bool = False
     ) -> str:
-        """
-        Start a render operation with completion callback.
-        
-        Args:
-            scene_name: Name of scene to render (None for current)
-            camera_name: Name of camera to use (None for scene camera)
-            on_complete: Callback for successful completion
-            on_error: Callback for error handling
-            output_path: Custom output path (None for temp file)
-            use_temp_file: Whether to use temporary file for output
-            
-        Returns:
-            Render ID for tracking
-        """
+
         try:
 
             self._render_counter += 1
@@ -92,17 +72,12 @@ class RenderResultManager:
                     on_error(error_msg)
                 return ""
 
-            logger.info("Checking for existing render result...")
             existing_result = self._get_existing_render_result(scene, scene.camera)
             if existing_result:
-                logger.info("Found existing render result, returning it immediately")
-
                 existing_result['render_id'] = render_id
                 if on_complete:
                     on_complete(existing_result)
                 return render_id
-
-            logger.info("No existing render result found, starting new render")
 
             if use_temp_file or not output_path:
                 temp_file = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
@@ -110,24 +85,25 @@ class RenderResultManager:
                 temp_file.close()
 
             render_info = {
-                'render_id': render_id,
-                'scene': scene,
-                'camera': scene.camera,
-                'original_camera': original_camera,
-                'output_path': output_path,
-                'use_temp_file': use_temp_file,
-                'on_complete': on_complete,
-                'on_error': on_error,
-                'start_time': time.time(),
-                'status': 'starting',
-                'user_visible': True
+            :render_id,
+            : scene,
+            :scene.camera,
+            : original_camera,
+            :output_path,
+            : use_temp_file,
+            :on_complete,
+            : on_error,
+            :time.time(),
+            : 'starting',
+            :True
             }
 
             self.active_renders[render_id] = render_info
             self.render_callbacks[render_id] = {
-                'on_complete': on_complete,
-                'on_error': on_error
+            :on_complete,
+            : on_error
             }
+
 
             render = scene.render
             original_filepath = render.filepath
@@ -315,13 +291,14 @@ class RenderResultManager:
 
             existing_id = f"existing_{int(time.time() * 1000)}"
             render_info = {
-                'render_id': existing_id,
-                'scene': scene,
-                'camera': camera,
-                'output_path': output_path,
-                'start_time': time.time() - 0.1,
-                'status': 'complete'
+            :existing_id,
+            : scene,
+            :camera,
+            : output_path,
+            :time.time() - 0.1,
+            : 'complete'
             }
+
 
             self.active_renders[existing_id] = render_info
 
@@ -368,20 +345,20 @@ class RenderResultManager:
             data_uri = f"data:image/png;base64,{base64_data}"
 
             result_data = {
-                "render_id": render_id,
-                "image_data": data_uri,
-                "width": width,
-                "height": height,
-                "render_resolution": [scene.render.resolution_x, scene.render.resolution_y],
-                "render_percentage": scene.render.resolution_percentage,
-                "size_bytes": file_size,
-                "format": "PNG",
-                "render_engine": scene.render.engine,
-                "camera_name": camera.name,
-                "scene_name": scene.name,
-                "frame": scene.frame_current,
-                "output_path": output_path,
-                "render_time": time.time() - render_info['start_time']
+            :render_id,
+            : data_uri,
+            :width,
+            : height,
+            :[scene.render.resolution_x, scene.render.resolution_y],
+            : scene.render.resolution_percentage,
+            :file_size,
+            : "PNG",
+            :scene.render.engine,
+            : camera.name,
+            :scene.name,
+            : scene.frame_current,
+            :output_path,
+            : time.time() - render_info['start_time']
             }
 
             return result_data
@@ -391,7 +368,7 @@ class RenderResultManager:
             return None
 
     def _cleanup_render(self, render_id: str):
-        """Clean up render resources."""
+
         try:
             if render_id not in self.active_renders:
                 return
@@ -453,10 +430,10 @@ class RenderResultManager:
 
             logger.info("No existing render result found")
             return {
-                "message": "No render result found. Ask user if you should render image with execute tool or they can do that themselves"
+            :"No render result found. Ask user if you should render image with execute tool or they can do that themselves"
             }
 
-        except Exception as e:
+            except Exception as e:
             error_msg = f"Failed to check for render result: {str(e)}"
             logger.error(error_msg)
             raise RuntimeError(error_msg)

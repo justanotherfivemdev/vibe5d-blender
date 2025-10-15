@@ -1,8 +1,3 @@
-"""
-Navigator component for tabbed navigation.
-Provides tab-based navigation with multiple pages/views and customizable tab styles.
-"""
-
 import logging
 from dataclasses import dataclass
 from enum import Enum
@@ -18,7 +13,6 @@ logger = logging.getLogger(__name__)
 
 
 class TabPosition(Enum):
-    """Position of tabs relative to content."""
     TOP = "top"
     BOTTOM = "bottom"
     LEFT = "left"
@@ -26,7 +20,6 @@ class TabPosition(Enum):
 
 
 class TabStyle(Enum):
-    """Style of tab appearance."""
     STANDARD = "standard"
     ROUNDED = "rounded"
     PILL = "pill"
@@ -35,7 +28,6 @@ class TabStyle(Enum):
 
 @dataclass
 class NavigatorTab:
-    """Represents a tab in the navigator."""
     id: str
     title: str
     content: UIComponent
@@ -53,7 +45,6 @@ class NavigatorTab:
 
 
 class Navigator(UIComponent):
-    """Tabbed navigation component with multiple pages."""
 
     def __init__(self, x: int = 0, y: int = 0, width: int = 400, height: int = 300,
                  tab_position: TabPosition = TabPosition.TOP,
@@ -104,25 +95,23 @@ class Navigator(UIComponent):
         self._update_layout()
 
     def apply_themed_style(self):
-        """Apply themed style to the navigator."""
-        try:
-            from ..colors import Colors
-            from ..theme import get_themed_style
 
-            self.style = get_themed_style("panel")
-            self.style.background_color = Colors.Panel
-            self.style.border_color = Colors.Border
-            self.style.text_color = Colors.Text
+        try:
+            from ..unified_styles import Styles
+            from ..component_theming import get_themed_component_style
+
+            self.style = get_themed_component_style("panel")
+            self.style.background_color = Styles.Panel
+            self.style.border_color = Styles.Border
+            self.style.text_color = Styles.Text
 
         except ImportError:
 
-            from ..colors import Colors
-            self.style.background_color = Colors.Panel
-            self.style.border_color = Colors.Border
-            self.style.text_color = Colors.Text
+            self.style.background_color = Styles.Panel
+            self.style.border_color = Styles.Border
+            self.style.text_color = Styles.Text
 
     def add_tab(self, tab_id: str, title: str, content: UIComponent, **kwargs) -> NavigatorTab:
-        """Add a new tab to the navigator."""
 
         if any(tab.id == tab_id for tab in self.tabs):
             logger.warning(f"Tab with ID '{tab_id}' already exists")
@@ -149,7 +138,7 @@ class Navigator(UIComponent):
         return tab
 
     def remove_tab(self, tab_id: str) -> bool:
-        """Remove a tab from the navigator."""
+
         tab = self.get_tab(tab_id)
         if not tab:
             return False
@@ -181,11 +170,11 @@ class Navigator(UIComponent):
         return True
 
     def get_tab(self, tab_id: str) -> Optional[NavigatorTab]:
-        """Get a tab by ID."""
+
         return next((tab for tab in self.tabs if tab.id == tab_id), None)
 
     def set_active_tab(self, tab_id: str) -> bool:
-        """Set the active tab."""
+
         tab = self.get_tab(tab_id)
         if not tab or not tab.enabled:
             return False
@@ -211,25 +200,25 @@ class Navigator(UIComponent):
         return True
 
     def get_active_tab(self) -> Optional[NavigatorTab]:
-        """Get the currently active tab."""
+
         return self.get_tab(self.active_tab_id) if self.active_tab_id else None
 
     def set_tab_title(self, tab_id: str, title: str):
-        """Set the title of a tab."""
+
         tab = self.get_tab(tab_id)
         if tab:
             tab.title = title
             self._update_layout()
 
     def set_tab_badge(self, tab_id: str, badge_text: Optional[str], badge_color: tuple = (1.0, 0.0, 0.0, 1.0)):
-        """Set or clear a badge on a tab."""
+
         tab = self.get_tab(tab_id)
         if tab:
             tab.badge_text = badge_text
             tab.badge_color = badge_color
 
     def set_tab_enabled(self, tab_id: str, enabled: bool):
-        """Enable or disable a tab."""
+
         tab = self.get_tab(tab_id)
         if tab:
             tab.enabled = enabled
@@ -241,7 +230,6 @@ class Navigator(UIComponent):
                         break
 
     def _update_layout(self):
-        """Update navigator layout and tab positioning."""
 
         if self.tab_position == TabPosition.TOP:
             self.tab_bar_bounds = Bounds(
@@ -292,7 +280,7 @@ class Navigator(UIComponent):
                 active_tab.content.set_size(self.content_bounds.width, self.content_bounds.height)
 
     def _update_tab_bounds(self):
-        """Update individual tab bounds."""
+
         if not self.tabs:
             return
 
@@ -366,7 +354,6 @@ class Navigator(UIComponent):
                 current_y -= tab_height
 
     def _on_mouse_click(self, event: UIEvent) -> bool:
-        """Handle mouse click events."""
 
         if (self.show_add_button and
                 self.add_button_bounds.contains_point(event.mouse_x, event.mouse_y)):
@@ -399,7 +386,6 @@ class Navigator(UIComponent):
         return False
 
     def _on_mouse_move(self, event: UIEvent) -> bool:
-        """Handle mouse move events for hover effects."""
 
         self.hovered_tab_id = None
         self.hovered_close_button = None
@@ -433,14 +419,14 @@ class Navigator(UIComponent):
         return False
 
     def _on_mouse_leave(self, event: UIEvent) -> bool:
-        """Handle mouse leave events."""
+
         self.hovered_tab_id = None
         self.hovered_close_button = None
         self.cursor_type = CursorType.DEFAULT
         return False
 
     def _on_mouse_wheel(self, event: UIEvent) -> bool:
-        """Handle mouse wheel for tab scrolling."""
+
         if not self.scrollable_tabs or self.max_tab_scroll == 0:
             return False
 
@@ -469,7 +455,7 @@ class Navigator(UIComponent):
         return False
 
     def render(self, renderer: 'UIRenderer'):
-        """Render the navigator and its contents."""
+
         if not self.visible:
             return
 
@@ -511,7 +497,7 @@ class Navigator(UIComponent):
                     renderer.pop_clip_rect()
 
     def _render_tab(self, renderer: 'UIRenderer', tab: NavigatorTab):
-        """Render an individual tab."""
+
         tab_bounds = self.tab_bounds_cache.get(tab.id)
         if not tab_bounds:
             return
@@ -607,7 +593,7 @@ class Navigator(UIComponent):
                 renderer.draw_line(center_x - size, center_y + size, center_x + size, center_y - size, close_color)
 
     def _render_add_button(self, renderer: 'UIRenderer'):
-        """Render the add button."""
+
         if not self.show_add_button:
             return
 
@@ -623,7 +609,6 @@ class Navigator(UIComponent):
         renderer.draw_line(center_x, center_y - size, center_x, center_y + size, self.style.text_color)
 
     def handle_event(self, event: UIEvent) -> bool:
-        """Handle events for the navigator and its contents."""
 
         handled = super().handle_event(event)
         if handled:
@@ -637,7 +622,7 @@ class Navigator(UIComponent):
         return False
 
     def update_layout(self):
-        """Update layout when viewport changes."""
+
         self._update_layout()
 
         if self.active_tab_id:

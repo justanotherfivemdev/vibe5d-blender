@@ -1957,7 +1957,7 @@ class TextInput(UIComponent):
                                  min(end_display_row + 1, last_visible_line + 1)):
 
             selection_y = content_y_sel + content_height_sel - line_height - (
-                        display_row * line_height) + self.scroll_offset_y
+                    display_row * line_height) + self.scroll_offset_y
 
             if (selection_y + line_height < content_y_sel or
                     selection_y > content_y_sel + content_height_sel):

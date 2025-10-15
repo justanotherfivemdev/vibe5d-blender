@@ -1,8 +1,3 @@
-"""
-Button component for clickable UI elements.
-Supports hover states, click handling, and theming.
-"""
-
 import logging
 import time
 from typing import TYPE_CHECKING, Optional, Callable
@@ -17,7 +12,6 @@ logger = logging.getLogger(__name__)
 
 
 class Button(UIComponent):
-    """Button component for user interactions."""
 
     def __init__(self, text: str = "Button", x: int = 0, y: int = 0, width: int = 120, height: int = 40,
                  corner_radius: int = 6, on_click: Optional[Callable] = None):
@@ -47,20 +41,20 @@ class Button(UIComponent):
         self.add_event_handler(EventType.MOUSE_LEAVE, self._on_mouse_leave)
 
     def apply_themed_style(self, style_type: str = "button"):
-        """Apply a themed style to this button using centralized colors."""
+
         try:
-            from ..colors import Colors
-            from ..theme import get_themed_style
+            from ..unified_styles import Styles
+            from ..component_theming import get_themed_component_style
 
-            self.style = get_themed_style("button")
+            self.style = get_themed_component_style("button")
 
-            self.style.background_color = Colors.Primary
-            self.style.border_color = Colors.Border
-            self.style.focus_background_color = tuple(min(c * 1.3, 1.0) for c in Colors.Primary[:3]) + (1.0,)
-            self.style.focus_border_color = Colors.Border
-            self.style.pressed_background_color = tuple(c * 0.8 for c in Colors.Primary[:3]) + (1.0,)
-            self.style.pressed_border_color = Colors.Border
-            self.style.text_color = Colors.Text
+            self.style.background_color = Styles.Primary
+            self.style.border_color = Styles.Border
+            self.style.focus_background_color = tuple(min(c * 1.3, 1.0) for c in Styles.Primary[:3]) + (1.0,)
+            self.style.focus_border_color = Styles.Border
+            self.style.pressed_background_color = tuple(c * 0.8 for c in Styles.Primary[:3]) + (1.0,)
+            self.style.pressed_border_color = Styles.Border
+            self.style.text_color = Styles.Text
 
         except ImportError:
 
@@ -71,45 +65,45 @@ class Button(UIComponent):
             self.style.text_color = (1.0, 1.0, 1.0, 1.0)
 
     def set_text(self, text: str):
-        """Set the button text."""
+
         self.text = text
 
     def get_text(self) -> str:
-        """Get the button text."""
+
         return self.text
 
     def set_enabled(self, enabled: bool):
-        """Enable or disable the button."""
+
         self.is_enabled = enabled
         if not enabled:
             self.is_hovered = False
             self.is_pressed = False
 
     def is_button_enabled(self) -> bool:
-        """Check if button is enabled."""
+
         return self.is_enabled
 
     def set_on_click(self, callback: Callable):
-        """Set the click callback function."""
+
         self.on_click = callback
 
     def set_text_align(self, align: str):
-        """Set text alignment ('left', 'center', 'right')."""
+
         if align in ["left", "center", "right"]:
             self.text_align = align
 
     def _on_mouse_enter(self, event: UIEvent) -> bool:
-        """Handle mouse enter event."""
+
         was_hovered = self.is_hovered
 
         if self.is_enabled:
             self.is_hovered = True
             logger.debug(
-                f"Button '{self.text}' hovered at ({event.mouse_x}, {event.mouse_y}) - was_hovered: {was_hovered}")
+            )
         return True
 
     def _on_mouse_leave(self, event: UIEvent) -> bool:
-        """Handle mouse leave event."""
+
         was_hovered = self.is_hovered
         was_pressed = self.is_pressed
 
@@ -117,11 +111,11 @@ class Button(UIComponent):
         self.is_pressed = False
 
         logger.debug(
-            f"Button '{self.text}' unhovered at ({event.mouse_x}, {event.mouse_y}) - was_hovered: {was_hovered}, was_pressed: {was_pressed}")
+        )
         return True
 
     def _on_mouse_press(self, event: UIEvent) -> bool:
-        """Handle mouse press event."""
+
         if self.is_enabled and self.bounds.contains_point(event.mouse_x, event.mouse_y):
             self.is_pressed = True
             self._press_start_time = time.time()
@@ -129,7 +123,7 @@ class Button(UIComponent):
         return False
 
     def _on_mouse_release(self, event: UIEvent) -> bool:
-        """Handle mouse release event."""
+
         if self.is_pressed and self.is_enabled:
             self.is_pressed = False
 
@@ -139,13 +133,13 @@ class Button(UIComponent):
         return False
 
     def _on_mouse_click(self, event: UIEvent) -> bool:
-        """Handle mouse click event."""
+
         if self.is_enabled and self.bounds.contains_point(event.mouse_x, event.mouse_y):
             return True
         return False
 
     def _trigger_click(self):
-        """Trigger the button click action."""
+
         if self.on_click and self.is_enabled:
             try:
                 self.on_click()
@@ -153,7 +147,7 @@ class Button(UIComponent):
                 logger.error(f"Error executing button click callback: {e}")
 
     def _get_current_colors(self):
-        """Get colors based on current button state."""
+
         if not self.is_enabled:
 
             bg_color = tuple(c * 0.5 for c in self.style.background_color[:3]) + (0.5,)
@@ -178,14 +172,14 @@ class Button(UIComponent):
         return bg_color, border_color, text_color
 
     def _update_pressed_state(self):
-        """Update pressed state based on timing."""
+
         if self.is_pressed and self._press_start_time > 0:
             elapsed = time.time() - self._press_start_time
             if elapsed > self._press_duration:
                 pass
 
     def render(self, renderer: 'UIRenderer'):
-        """Render the button."""
+
         if not self.visible:
             return
 
@@ -197,7 +191,7 @@ class Button(UIComponent):
             current_state = (self.is_hovered, self.is_pressed, self.is_enabled)
             if current_state != self._last_render_state:
                 logger.debug(
-                    f"Button '{self.text}' state changed: hovered={self.is_hovered}, pressed={self.is_pressed}, enabled={self.is_enabled}")
+                )
                 logger.debug(f"Colors: bg={bg_color}, border={border_color}, text={text_color}")
                 self._last_render_state = current_state
         else:
@@ -231,7 +225,7 @@ class Button(UIComponent):
             renderer.draw_text(self.text, text_x, text_y, self.style.font_size, text_color)
 
     def get_preferred_size(self) -> tuple[int, int]:
-        """Get the preferred size based on text content."""
+
         if not self.text:
             return (self.bounds.width, self.bounds.height)
 
@@ -251,6 +245,6 @@ class Button(UIComponent):
             return (self.bounds.width, self.bounds.height)
 
     def auto_size(self):
-        """Automatically size the button based on text content."""
+
         preferred_width, preferred_height = self.get_preferred_size()
         self.set_size(preferred_width, preferred_height)

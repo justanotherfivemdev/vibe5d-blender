@@ -6,12 +6,8 @@ __all__ = ['classes', 'auth_manager']
 
 
 def register():
-    """Register auth module."""
-
     pass
 
 
 def unregister():
-    """Unregister auth module."""
-
     pass

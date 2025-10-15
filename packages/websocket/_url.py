@@ -6,38 +6,10 @@ from urllib.parse import unquote, urlparse
 
 from ._exceptions import WebSocketProxyException
 
-"""
-_url.py
-websocket - WebSocket client library for Python
-
-Copyright 2024 engn33r
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-"""
-
 __all__ = ["parse_url", "get_proxy_info"]
 
 
 def parse_url(url: str) -> tuple:
-    """
-    parse url and the result is tuple of
-    (hostname, port, resource path and the flag of secure mode)
-
-    Parameters
-    ----------
-    url: str
-        url string.
-    """
     if ":" not in url:
         raise ValueError("url is invalid")
 
@@ -106,7 +78,7 @@ def _is_address_in_network(ip: str, net: str) -> bool:
 def _is_no_proxy_host(hostname: str, no_proxy: Optional[list]) -> bool:
     if not no_proxy:
         if v := os.environ.get("no_proxy", os.environ.get("NO_PROXY", "")).replace(
-                " ", ""
+        , ""
         ):
             no_proxy = v.split(",")
     if not no_proxy:
@@ -139,32 +111,6 @@ def get_proxy_info(
         no_proxy: Optional[list] = None,
         proxy_type: str = "http",
 ) -> tuple:
-    """
-    Try to retrieve proxy host and port from environment
-    if not provided in options.
-    Result is (proxy_host, proxy_port, proxy_auth).
-    proxy_auth is tuple of username and password
-    of proxy authentication information.
-
-    Parameters
-    ----------
-    hostname: str
-        Websocket server name.
-    is_secure: bool
-        Is the connection secure? (wss) looks for "https_proxy" in env
-        instead of "http_proxy"
-    proxy_host: str
-        http proxy host name.
-    proxy_port: str or int
-        http proxy port.
-    no_proxy: list
-        Whitelisted host names that don't use the proxy.
-    proxy_auth: tuple
-        HTTP proxy auth information. Tuple of username and password. Default is None.
-    proxy_type: str
-        Specify the proxy protocol (http, socks4, socks4a, socks5, socks5h). Default is "http".
-        Use socks4a or socks5h if you want to send DNS requests through the proxy.
-    """
     if _is_no_proxy_host(hostname, no_proxy):
         return None, 0, None
 
@@ -177,7 +123,7 @@ def get_proxy_info(
 
     env_key = "https_proxy" if is_secure else "http_proxy"
     value = os.environ.get(env_key, os.environ.get(env_key.upper(), "")).replace(
-        " ", ""
+    , ""
     )
     if value:
         proxy = urlparse(value)

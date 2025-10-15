@@ -1,8 +1,3 @@
-"""
-Code Block component for displaying syntax-highlighted code with special UI.
-Features header with language name, line numbers, and scrollable content.
-"""
-
 import logging
 from typing import TYPE_CHECKING
 
@@ -23,32 +18,26 @@ logger = logging.getLogger(__name__)
 
 
 def get_code_block_max_height():
-    """Get maximum height for code blocks (scaled)."""
     return CoordinateSystem.scale_int(1800)
 
 
 def get_code_block_header_height():
-    """Get header height for code blocks (scaled)."""
     return CoordinateSystem.scale_int(32)
 
 
 def get_code_block_line_number_width():
-    """Get line number area width (scaled)."""
     return CoordinateSystem.scale_int(40)
 
 
 def get_code_block_padding():
-    """Get padding for code blocks (scaled)."""
     return CoordinateSystem.scale_int(8)
 
 
 def get_code_block_corner_radius():
-    """Get corner radius for code blocks (scaled)."""
     return CoordinateSystem.scale_int(6)
 
 
 class CodeBlockComponent(UIComponent):
-    """Component for displaying code blocks with special UI features."""
 
     def __init__(self, code: str, language: str = "", x: int = 0, y: int = 0, width: int = 600):
 
@@ -57,7 +46,7 @@ class CodeBlockComponent(UIComponent):
         self.lines = code.split('\n') if code else [""]
 
         logger.info(
-            f"CodeBlock: Creating component - language='{self.language}', lines={len(self.lines)}, width={width}")
+        )
 
         self.corner_radius = get_code_block_corner_radius()
         self.header_height = get_code_block_header_height()
@@ -85,19 +74,19 @@ class CodeBlockComponent(UIComponent):
         logger.debug(f"CodeBlockComponent created: {len(self.lines)} lines, language='{self.language}'")
 
     def apply_themed_style(self, style_type: str = "code_block"):
-        """Apply themed style to the code block component."""
-        try:
-            from ..colors import Colors
-            from ..theme import get_themed_style
 
-            self.style = get_themed_style("panel")
-            self.background_color = Colors.lighten_color(Colors.Panel, -10)
-            self.header_background_color = Colors.lighten_color(Colors.Panel, 5)
-            self.border_color = Colors.Border
+        try:
+            from ..unified_styles import Styles
+            from ..component_theming import get_themed_component_style
+
+            self.style = get_themed_component_style("panel")
+            self.background_color = Styles.lighten_color(Styles.Panel, -10)
+            self.header_background_color = Styles.lighten_color(Styles.Panel, 5)
+            self.border_color = Styles.Border
             self.border_width = 1
-            self.text_color = Colors.Text
-            self.line_number_color = Colors.TextMuted
-            self.language_color = Colors.Text
+            self.text_color = Styles.Text
+            self.line_number_color = Styles.TextMuted
+            self.language_color = Styles.Text
 
         except Exception as e:
             logger.warning(f"Could not apply themed style: {e}")
@@ -111,7 +100,7 @@ class CodeBlockComponent(UIComponent):
             self.language_color = (0.9, 0.9, 0.9, 1.0)
 
     def _calculate_required_height(self, code: str, width: int) -> int:
-        """Calculate the required height for the code block."""
+
         lines = code.split('\n') if code else [""]
 
         content_height = len(lines) * self.line_height + (self.padding * 2)
@@ -123,13 +112,13 @@ class CodeBlockComponent(UIComponent):
         return min(total_height, max_allowed)
 
     def _update_height(self):
-        """Update component height based on content."""
+
         new_height = self._calculate_required_height(self.code, self.bounds.width)
         if new_height != self.bounds.height:
             self.set_size(self.bounds.width, new_height)
 
     def _on_mouse_wheel(self, event: UIEvent) -> bool:
-        """Handle mouse wheel scrolling."""
+
         logger.info(f"CodeBlock: Mouse wheel event received - max_scroll_y={self.max_scroll_y}")
 
         if not self.bounds.contains_point(event.mouse_x, event.mouse_y):
@@ -163,7 +152,7 @@ class CodeBlockComponent(UIComponent):
         return old_scroll_y != self.scroll_y
 
     def set_code(self, code: str, language: str = ""):
-        """Update the code content and language."""
+
         self.code = code
         self.language = language if language else "text"
         self.lines = code.split('\n') if code else [""]
@@ -177,7 +166,7 @@ class CodeBlockComponent(UIComponent):
         self.scroll_y = max(0, min(self.scroll_y, self.max_scroll_y))
 
     def set_size(self, width: int, height: int):
-        """Override set_size to update scroll limits when size changes."""
+
         super().set_size(width, height)
 
         content_height = self.bounds.height - self.header_height
@@ -187,11 +176,10 @@ class CodeBlockComponent(UIComponent):
         self.scroll_y = max(0, min(self.scroll_y, self.max_scroll_y))
 
     def handle_event(self, event) -> bool:
-        """Handle UI events."""
 
         if not self.bounds.contains_point(event.mouse_x, event.mouse_y):
             logger.info(
-                f"CodeBlock: Event outside bounds - mouse({event.mouse_x}, {event.mouse_y}) not in {self.bounds}")
+            )
             return False
 
         if hasattr(event, 'event_type') and event.event_type == EventType.MOUSE_WHEEL:
@@ -204,7 +192,7 @@ class CodeBlockComponent(UIComponent):
         return super().handle_event(event)
 
     def render(self, renderer: 'UIRenderer'):
-        """Render the code block component."""
+
         if not self.visible:
             return
 
@@ -223,7 +211,6 @@ class CodeBlockComponent(UIComponent):
         self._render_code_content(renderer)
 
     def _render_header(self, renderer: 'UIRenderer'):
-        """Render the header with language name."""
 
         header_bounds = Bounds(
             self.bounds.x,
@@ -256,7 +243,6 @@ class CodeBlockComponent(UIComponent):
         )
 
     def _render_code_content(self, renderer: 'UIRenderer'):
-        """Render the code content with line numbers and manual scrolling."""
 
         content_bounds = Bounds(
             self.bounds.x,
@@ -342,7 +328,7 @@ class CodeBlockComponent(UIComponent):
             renderer.pop_clip_rect()
 
     def _render_scrollbar(self, renderer: 'UIRenderer', content_bounds: Bounds):
-        """Render a simple scrollbar."""
+
         scrollbar_width = CoordinateSystem.scale_int(8)
 
         scrollbar_bounds = Bounds(
@@ -372,5 +358,5 @@ class CodeBlockComponent(UIComponent):
         renderer.draw_rect(thumb_bounds, thumb_color)
 
     def cleanup(self):
-        """Clean up resources."""
+
         super().cleanup()

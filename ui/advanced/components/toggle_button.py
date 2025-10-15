@@ -1,22 +1,15 @@
-"""
-Toggle button component for the bottom left corner of the viewport.
-40x40 rounded rectangle with 20x20 icon, bg_panel background, 1px border.
-"""
-
 import logging
 from typing import Callable
 
 from .button import Button
 from .image import ImageComponent, ImageFit, ImagePosition
-from ..colors import Colors
-from ..theme import get_themed_style
+from ..component_theming import get_themed_component_style
 from ..unified_styles import Styles
 
 logger = logging.getLogger(__name__)
 
 
 class ToggleButton(Button):
-    """Toggle button component for the bottom left corner of the viewport."""
 
     def __init__(self, icon_name: str, x: int = 0, y: int = 0, on_click: Callable = None):
 
@@ -25,9 +18,9 @@ class ToggleButton(Button):
         self.icon_name = icon_name
         self.is_toggled = False
 
-        self.style = get_themed_style("button")
-        self.style.background_color = Colors.Panel
-        self.style.border_color = Colors.Border
+        self.style = get_themed_component_style("button")
+        self.style.background_color = Styles.Panel
+        self.style.border_color = Styles.Border
         self.style.border_width = 1
         self.style.focus_background_color = Styles.lighten_color(self.style.background_color, 10)
         self.style.pressed_background_color = Styles.darken_color(self.style.background_color, 10)
@@ -46,7 +39,7 @@ class ToggleButton(Button):
         )
 
     def set_position(self, x: int, y: int):
-        """Override to update icon position as well."""
+
         super().set_position(x, y)
         icon_size = 20
         icon_padding = (40 - icon_size) // 2
@@ -56,7 +49,7 @@ class ToggleButton(Button):
         )
 
     def set_size(self, width: int, height: int):
-        """Override to update icon size as well."""
+
         super().set_size(width, height)
         icon_size = 20
         icon_padding = (width - icon_size) // 2
@@ -69,20 +62,20 @@ class ToggleButton(Button):
         )
 
     def toggle(self):
-        """Toggle the button state."""
+
         self.is_toggled = not self.is_toggled
         logger.debug(f"Toggle button '{self.icon_name}' toggled to: {self.is_toggled}")
 
     def set_toggled(self, toggled: bool):
-        """Set the toggle state."""
+
         self.is_toggled = toggled
 
     def is_button_toggled(self) -> bool:
-        """Get the current toggle state."""
+
         return self.is_toggled
 
     def _trigger_click(self):
-        """Override to handle toggle functionality."""
+
         if self.on_click and self.is_enabled:
             try:
 
@@ -92,7 +85,7 @@ class ToggleButton(Button):
                 logger.error(f"Error executing toggle button click callback: {e}")
 
     def render(self, renderer):
-        """Render the toggle button."""
+
         if not self.visible:
             return
 
@@ -122,7 +115,7 @@ class ToggleButton(Button):
             renderer.draw_text(fallback_text, text_x, text_y, 16, text_color)
 
     def _get_current_colors(self):
-        """Get colors for current state."""
+
         if not self.is_enabled:
 
             bg_color = tuple(c * 0.5 for c in self.style.background_color[:3]) + (0.5,)
@@ -152,6 +145,6 @@ class ToggleButton(Button):
         return bg_color, border_color, text_color
 
     def cleanup(self):
-        """Clean up resources when button is destroyed."""
+
         if self.icon_component:
             self.icon_component.cleanup()

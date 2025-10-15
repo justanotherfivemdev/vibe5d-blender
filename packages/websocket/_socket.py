@@ -10,25 +10,6 @@ from ._exceptions import (
 from ._ssl_compat import SSLError, SSLWantReadError, SSLWantWriteError
 from ._utils import extract_error_code, extract_err_message
 
-"""
-_socket.py
-websocket - WebSocket client library for Python
-
-Copyright 2024 engn33r
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-"""
-
 DEFAULT_SOCKET_OPTION = [(socket.SOL_TCP, socket.TCP_NODELAY, 1)]
 if hasattr(socket, "SO_KEEPALIVE"):
     DEFAULT_SOCKET_OPTION.append((socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1))
@@ -42,15 +23,14 @@ if hasattr(socket, "TCP_KEEPCNT"):
 _default_timeout = None
 
 __all__ = [
-    "DEFAULT_SOCKET_OPTION",
-    "sock_opt",
-    "setdefaulttimeout",
-    "getdefaulttimeout",
-    "recv",
-    "recv_line",
-    "send",
+    ,
+,
+,
+,
+,
+,
+,
 ]
-
 
 class sock_opt:
     def __init__(self, sockopt: list, sslopt: dict) -> None:
@@ -64,27 +44,11 @@ class sock_opt:
 
 
 def setdefaulttimeout(timeout: Union[int, float, None]) -> None:
-    """
-    Set the global timeout setting to connect.
-
-    Parameters
-    ----------
-    timeout: int or float
-        default socket timeout time (in seconds)
-    """
     global _default_timeout
     _default_timeout = timeout
 
 
 def getdefaulttimeout() -> Union[int, float, None]:
-    """
-    Get default timeout
-
-    Returns
-    ----------
-    _default_timeout: int or float
-        Return the global timeout setting (in seconds) to connect.
-    """
     return _default_timeout
 
 

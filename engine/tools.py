@@ -1,28 +1,14 @@
-"""
-Tools module for Vibe4D addon.
-
-Implements backend tools that can be called by the AI assistant:
-- execute: Code execution (existing)
-- query: Scene data querying with SQL-like syntax
-- custom_props: Custom properties access
-- render_settings: Render configuration retrieval
-- scene_graph: Scene hierarchy analysis  
-- nodes_graph: Node tree information
-- render_async: Asynchronous render with callback support
-"""
-
 import base64
 import locale
 import math
 import os
 import platform
 import tempfile
+import traceback
 from typing import Dict, Any, Optional, Tuple
 
 import bpy
-import gpu
-from gpu.types import GPUTexture
-from mathutils import Vector, Matrix, Euler, Quaternion, Color
+from mathutils import Vector, Quaternion
 
 from .executor import code_executor
 from .query import scene_query_engine
@@ -41,13 +27,11 @@ def _get_target_object(target: bpy.types.ID) -> bpy.types.Object:
         raise ValueError("Mesh datablock is not used by any object in the scene")
 
     raise TypeError(
-        f"Expected bpy.types.Object or bpy.types.Mesh, got {type(target).__name__}")
+    )
 
 
 def _frame_camera_corner(cam: bpy.types.Object, obj: bpy.types.Object, /,
                          margin: float = 1.05) -> None:
-    """Place *cam* on the (+X, –Y, +Z) diagonal so that *obj* fits entirely."""
-
     depsgraph = bpy.context.evaluated_depsgraph_get()
     evaluated_obj = obj.evaluated_get(depsgraph)
 
@@ -66,6 +50,28 @@ def _frame_camera_corner(cam: bpy.types.Object, obj: bpy.types.Object, /,
     cam.data.clip_end = distance * 50
 
 
+POLY_COUNT_THRESHOLD_LOW = 10_000
+POLY_COUNT_THRESHOLD_HIGH = 50_000
+BASE_RESOLUTION_LOW = 512
+BASE_RESOLUTION_MID = 768
+BASE_RESOLUTION_HIGH = 1024
+ASPECT_RATIO_WIDE_THRESHOLD = 1.10
+ASPECT_RATIO_TALL_THRESHOLD = 0.90
+MIN_RESOLUTION = 128
+MAX_RESOLUTION = 2048
+MIN_HEIGHT_EPSILON = 0.0001
+VALID_SHADING_MODES = ['WIREFRAME', 'SOLID', 'MATERIAL', 'RENDERED']
+ANALYSIS_SUN_ENERGY = 1.5
+ANALYSIS_SUN_YAW_DEG = 35.0
+ANALYSIS_SUN_PITCH_DEG = -15.0
+TEMP_CAMERA_DATA_NAME = "_TMP_CAM_DATA"
+TEMP_CAMERA_OBJECT_NAME = "_TMP_CAM"
+TEMP_SUN_DATA_NAME = "_TMP_SUN_DATA"
+TEMP_SUN_OBJECT_NAME = "_TMP_SUN"
+TEMP_COLLECTION_NAME = "_TMP_COL"
+TEMP_LAYER_NAME = "_TMP_LAYER"
+
+
 def _pick_resolution(o: bpy.types.Object) -> tuple[int, int]:
     deps = bpy.context.evaluated_depsgraph_get()
     eval_obj = o.evaluated_get(deps)
@@ -73,33 +79,31 @@ def _pick_resolution(o: bpy.types.Object) -> tuple[int, int]:
     poly_cnt = len(mesh.polygons)
     eval_obj.to_mesh_clear()
 
-    base = (512 if poly_cnt < 10_000
-            else 768 if poly_cnt < 50_000
-    else 1024)
+    if poly_cnt < POLY_COUNT_THRESHOLD_LOW:
+        base = BASE_RESOLUTION_LOW
+    elif poly_cnt < POLY_COUNT_THRESHOLD_HIGH:
+        base = BASE_RESOLUTION_MID
+    else:
+        base = BASE_RESOLUTION_HIGH
 
     world_bb = [eval_obj.matrix_world @ Vector(c) for c in o.bound_box]
     xs, ys, zs = zip(*[(v.x, v.y, v.z) for v in world_bb])
 
     width_xy = max(max(xs) - min(xs), max(ys) - min(ys))
-    height_z = max(zs) - min(zs)
-    height_z = max(height_z, 0.0001)
-
+    height_z = max(max(zs) - min(zs), MIN_HEIGHT_EPSILON)
     aspect = width_xy / height_z
 
-    WIDE_LIMIT = 1.10
-    TALL_LIMIT = 0.90
-
-    if aspect > WIDE_LIMIT:
+    if aspect > ASPECT_RATIO_WIDE_THRESHOLD:
         res_x = base
         res_y = int(base / aspect)
-    elif aspect < TALL_LIMIT:
+    elif aspect < ASPECT_RATIO_TALL_THRESHOLD:
         res_y = base
         res_x = int(base * aspect)
     else:
         res_x = res_y = base
 
-    res_x = max(128, min(res_x, 2048))
-    res_y = max(128, min(res_y, 2048))
+    res_x = max(MIN_RESOLUTION, min(res_x, MAX_RESOLUTION))
+    res_y = max(MIN_RESOLUTION, min(res_y, MAX_RESOLUTION))
     return res_x, res_y
 
 
@@ -111,54 +115,84 @@ def _img_to_uri(filepath):
     return f"data:image/png;base64,{base64_data}"
 
 
+def _upload_image_to_server(image_data_bytes: bytes, source_type: str, context) -> Optional[str]:
+    try:
+        from ..api.client import api_client
+        from ..auth.manager import auth_manager
+
+        if not auth_manager.is_authenticated(context):
+            logger.warning("Not authenticated, cannot upload image")
+            return None
+
+        user_id = getattr(context.window_manager, 'vibe4d_user_id', '')
+        token = getattr(context.window_manager, 'vibe4d_user_token', '')
+
+        from ..utils.history_manager import history_manager
+        chat_id = history_manager.get_current_chat_id(context)
+
+        if not chat_id:
+            logger.warning("No active chat session, cannot upload image")
+            return None
+
+        success, image_id = api_client.upload_image(chat_id, image_data_bytes, source_type, user_id, token)
+
+        if success and image_id:
+            logger.info(f"Successfully uploaded {source_type} image: {image_id}")
+            return image_id
+        else:
+            logger.warning(f"Failed to upload {source_type} image")
+            return None
+
+    except Exception as e:
+        logger.error(f"Error uploading image: {str(e)}")
+        return None
+
+
 class ToolsManager:
-    """Manages and dispatches tool calls."""
 
     def __init__(self):
         self.tools = {
-            'execute': self._execute_tool,
-            'query': self._query_tool,
-            'scene_context': self._scene_context_tool,
-            'viewport': self._viewport_tool,
-            'add_viewport_render': self._viewport_tool,
-            'see_viewport': self._viewport_tool,
-            'see_render': self._see_render_tool,
-            'render_async': self._render_async_tool,
-            'get_render_result': self._get_render_result_tool,
-            'cancel_render': self._cancel_render_tool,
-            'list_active_renders': self._list_active_renders_tool,
-            'analyse_mesh_image': self._analyse_mesh_image_tool,
+        :self._execute_tool,
+        : self._execute_tool,
+        :self._query_tool,
+        : self._query_tool,
+        :self._scene_context_tool,
+        : self._viewport_tool,
+        :self._viewport_tool,
+        : self._viewport_tool,
+        :self._viewport_tool,
+        : self._screenshot_camera_view_tool,
+        :self._screenshot_tool,
+        : self._see_render_tool,
+        :self._see_render_tool,
+        : self._render_async_tool,
+        :self._get_render_result_tool,
+        : self._cancel_render_tool,
+        :self._list_active_renders_tool,
+        : self._screenshot_object_tool,
+        :self._import_image_tool,
         }
 
         render_manager.register_handlers()
 
     def handle_tool_call(self, tool_name: str, arguments: Dict[str, Any], context) -> Tuple[bool, Any]:
-        """Handle a tool call."""
         if tool_name not in self.tools:
             return False, {"status": "error", "result": f"Unknown tool: {tool_name}"}
 
         try:
             success, result = self.tools[tool_name](arguments, context)
-            if success:
+            status = "success" if success else "error"
 
-                if isinstance(result, dict):
-                    result["status"] = "success"
-                    return True, result
-                else:
-                    return True, {"status": "success", "result": result}
-            else:
+            if isinstance(result, dict):
+                result["status"] = status
+                return success, result
 
-                if isinstance(result, dict):
-                    result["status"] = "error"
-                    return False, result
-                else:
-                    return False, {"status": "error", "result": result}
+            return success, {"status": status, "result": result}
         except Exception as e:
             logger.error(f"Error in tool '{tool_name}': {str(e)}")
             return False, {"status": "error", "result": str(e)}
 
     def _execute_tool(self, arguments: Dict[str, Any], context) -> Tuple[bool, Any]:
-        """Execute Python code."""
         try:
             code = arguments.get("code", "")
             if not code:
@@ -171,32 +205,23 @@ class ToolsManager:
             success, error = code_executor.execute_code(context)
 
             if success:
-
                 console_output = getattr(context.scene, 'vibe4d_console_output', '')
-                if console_output and console_output.strip():
+                return True, {"result": "Success", "console_output": console_output}
 
-                    result = f"Code executed successfully.\n\nConsole output:\n{console_output.strip()}"
-                else:
-                    result = "Code executed successfully. (No console output)"
-
-                return True, {"result": result}
-            else:
-                return False, {"result": error or "Code execution failed"}
+            return False, {"result": error or "Code execution failed"}
 
         except Exception as e:
             logger.error(f"Execute tool error: {str(e)}")
             return False, {"result": f"Execution error: {str(e)}"}
 
     def _query_tool(self, arguments: Dict[str, Any], context) -> Tuple[bool, Any]:
-        """Query scene data."""
         try:
-            query = arguments.get("expr", "")
+            query = arguments.get("sql", arguments.get("expr", ""))
             if not query:
                 return False, {"result": "No query provided"}
 
-            limit = arguments.get("limit", 8192)
-            format_type = arguments.get("format", "json")
-
+            limit = arguments.get("limit", 100)
+            format_type = arguments.get("format", "csv")
             result = scene_query_engine.execute_query(query, limit, context, format_type)
 
             return True, {"result": result}
@@ -206,33 +231,29 @@ class ToolsManager:
             return False, {"result": f"Query error: {str(e)}"}
 
     def _scene_context_tool(self, arguments: Dict[str, Any], context) -> Tuple[bool, Any]:
-        """Get scene context information."""
         try:
-
             selected_objects = [obj.name for obj in context.selected_objects]
             active_object = context.active_object.name if context.active_object else None
-
             current_file_path = bpy.data.filepath if bpy.data.filepath else None
-
             current_language = locale.getdefaultlocale()[0] if locale.getdefaultlocale()[0] else None
 
             info = {
-                "scene_name": context.scene.name,
-                "frame_current": context.scene.frame_current,
-                "frame_start": context.scene.frame_start,
-                "frame_end": context.scene.frame_end,
-                "render_engine": context.scene.render.engine,
-                "blender_version": bpy.app.version_string,
-                "current_file_path": current_file_path,
-                "user_os": platform.system(),
-                "window_resolution": {
-                    "width": context.window.width,
-                    "height": context.window.height
-                },
-                "dpi": context.preferences.system.dpi,
-                "language": current_language,
-                "selected_objects": selected_objects,
-                "active_object": active_object,
+            :context.scene.name,
+            : context.scene.frame_current,
+            :context.scene.frame_start,
+            : context.scene.frame_end,
+            :context.scene.render.engine,
+            : bpy.app.version_string,
+            :current_file_path,
+            : platform.system(),
+            :{
+            : context.window.width,
+            :context.window.height
+            },
+            :context.preferences.system.dpi,
+            : current_language,
+            :selected_objects,
+            : active_object,
             }
 
             return True, {"result": info}
@@ -243,108 +264,254 @@ class ToolsManager:
 
     def _viewport_tool(self, arguments: Dict[str, Any], context) -> Tuple[bool, Any]:
         try:
-            logger.info(f"Starting viewport capture with arguments: {arguments}")
-
             shading_mode = arguments.get("shading_mode", None)
-            logger.info(f"Shading mode requested: {shading_mode}")
 
-            view3d_area = None
-            available_areas = []
-            for area in context.screen.areas:
-                available_areas.append(area.type)
-                if area.type == 'VIEW_3D':
-                    view3d_area = area
-                    break
+            if not hasattr(context, 'screen') or not context.screen:
+                return False, {"result": "No screen context available"}
 
-            logger.info(f"Available areas: {available_areas}")
-
+            view3d_area = next((area for area in context.screen.areas if area.type == 'VIEW_3D'), None)
             if not view3d_area:
-                error_msg = f"No active 3D viewport found. Available areas: {available_areas}"
-                logger.error(error_msg)
-                return False, error_msg
+                return False, {"result": "No active 3D viewport found"}
 
-            logger.info(f"Found 3D viewport area: {view3d_area}")
-
-            space_3d = None
-            available_spaces = []
-            for space in view3d_area.spaces:
-                available_spaces.append(space.type)
-                if space.type == 'VIEW_3D':
-                    space_3d = space
-                    break
-
-            logger.info(f"Available spaces in 3D area: {available_spaces}")
-
+            space_3d = next((space for space in view3d_area.spaces if space.type == 'VIEW_3D'), None)
             if not space_3d:
-                error_msg = f"No 3D viewport space found. Available spaces: {available_spaces}"
-                logger.error(error_msg)
-                return False, error_msg
+                return False, {"result": "No 3D viewport space found"}
 
-            original_shading_type = space_3d.shading.type
-
-            if shading_mode and shading_mode in ['WIREFRAME', 'SOLID', 'MATERIAL', 'RENDERED']:
-                space_3d.shading.type = shading_mode
-                logger.info(f"Changed shading mode to: {shading_mode}")
-
-            view3d_area.tag_redraw()
-            bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1)
+            scene = context.scene
+            original_filepath = scene.render.filepath
+            original_res_x = scene.render.resolution_x
+            original_res_y = scene.render.resolution_y
+            original_res_percentage = scene.render.resolution_percentage
+            original_file_format = scene.render.image_settings.file_format
+            original_engine = scene.render.engine
 
             temp_file = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
             temp_filepath = temp_file.name
             temp_file.close()
 
             try:
+                scene.render.filepath = temp_filepath
+                scene.render.image_settings.file_format = 'PNG'
 
-                bpy.ops.screen.screenshot(filepath=temp_filepath)
+                if shading_mode == 'WIREFRAME':
+                    scene.render.engine = 'BLENDER_WORKBENCH'
+                    scene.display.shading.light = 'FLAT'
+                    scene.display.shading.color_type = 'SINGLE'
+                    scene.display.shading.wireframe_color_type = 'OBJECT'
+                elif shading_mode == 'SOLID':
+                    scene.render.engine = 'BLENDER_WORKBENCH'
+                    scene.display.shading.light = 'STUDIO'
+                    scene.display.shading.color_type = 'MATERIAL'
+                elif shading_mode == 'MATERIAL' or shading_mode == 'RENDERED':
+                    if scene.render.engine == 'BLENDER_WORKBENCH':
+                        scene.render.engine = 'BLENDER_EEVEE_NEXT'
+
+                bpy.ops.render.opengl(write_still=True)
 
                 if not os.path.exists(temp_filepath):
-                    return False, "Screenshot was not created"
+                    return False, {"result": "Viewport render was not created"}
 
                 file_size = os.path.getsize(temp_filepath)
-                logger.info(f"Screenshot captured, file size: {file_size} bytes")
 
                 with open(temp_filepath, 'rb') as f:
                     image_data = f.read()
 
-                import base64
                 base64_data = base64.b64encode(image_data).decode('utf-8')
                 data_uri = f"data:image/png;base64,{base64_data}"
 
-                logger.info(f"Successfully encoded {len(base64_data)} characters of base64 data")
+                image_id = _upload_image_to_server(image_data, "viewport", context)
 
-                return True, {
-                    "result": {
-                        "image_data": data_uri,
-                        "width": view3d_area.width,
-                        "height": view3d_area.height,
-                        "original_viewport_size": [view3d_area.width, view3d_area.height],
-                        "size_bytes": file_size,
-                        "format": "PNG",
-                        "shading_mode": shading_mode or original_shading_type
-                    }
+                result_data = {
+                :data_uri,
+                : original_res_x,
+                :original_res_y,
+                : file_size,
+                :"PNG",
+                : shading_mode
                 }
 
-            finally:
-
-                if shading_mode and shading_mode in ['WIREFRAME', 'SOLID', 'MATERIAL', 'RENDERED']:
-                    space_3d.shading.type = original_shading_type
-                    logger.info(f"Restored shading mode to: {original_shading_type}")
+                if image_id:
+                    result_data["image_id"] = image_id
 
                 try:
                     os.unlink(temp_filepath)
                 except Exception as cleanup_error:
                     logger.warning(f"Failed to clean up temporary file: {cleanup_error}")
 
+                return True, {"result": result_data}
+
+            finally:
+                scene.render.filepath = original_filepath
+                scene.render.resolution_x = original_res_x
+                scene.render.resolution_y = original_res_y
+                scene.render.resolution_percentage = original_res_percentage
+                scene.render.image_settings.file_format = original_file_format
+                scene.render.engine = original_engine
+
         except Exception as e:
-            logger.error(f"Viewport capture failed with exception: {str(e)}")
-            import traceback
-            logger.error(f"Full traceback: {traceback.format_exc()}")
-            return False, f"Viewport capture failed: {str(e)}"
+            logger.error(f"Viewport capture failed: {str(e)}")
+            logger.error(traceback.format_exc())
+            return False, {"result": f"Viewport capture failed: {str(e)}"}
+
+    def _screenshot_camera_view_tool(self, arguments: Dict[str, Any], context) -> Tuple[bool, Any]:
+        try:
+            camera_name = arguments.get("camera_name", None)
+            frame = arguments.get("frame", None)
+            shading_mode = arguments.get("shading_mode", None)
+
+            scene = context.scene
+            camera = scene.camera
+
+            if camera_name:
+                camera = bpy.data.objects.get(camera_name)
+                if not camera:
+                    return False, {"result": f"Camera '{camera_name}' not found"}
+                if camera.type != 'CAMERA':
+                    return False, {"result": f"Object '{camera_name}' is not a camera (type: {camera.type})"}
+            elif not camera:
+                return False, {"result": "No active camera in scene and no camera_name provided"}
+
+            original_camera = scene.camera
+            original_frame = scene.frame_current
+            original_filepath = scene.render.filepath
+            original_res_x = scene.render.resolution_x
+            original_res_y = scene.render.resolution_y
+            original_res_percentage = scene.render.resolution_percentage
+            original_file_format = scene.render.image_settings.file_format
+
+            temp_file = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
+            temp_filepath = temp_file.name
+            temp_file.close()
+
+            try:
+                scene.camera = camera
+
+                if frame is not None:
+                    scene.frame_set(frame)
+
+                scene.render.filepath = temp_filepath
+                scene.render.image_settings.file_format = 'PNG'
+
+                if shading_mode == 'WIREFRAME':
+                    scene.render.engine = 'BLENDER_WORKBENCH'
+                    scene.display.shading.light = 'FLAT'
+                    scene.display.shading.color_type = 'SINGLE'
+                    scene.display.shading.wireframe_color_type = 'OBJECT'
+                elif shading_mode == 'SOLID':
+                    scene.render.engine = 'BLENDER_WORKBENCH'
+                    scene.display.shading.light = 'STUDIO'
+                    scene.display.shading.color_type = 'MATERIAL'
+                elif shading_mode == 'MATERIAL' or shading_mode == 'RENDERED':
+                    if scene.render.engine == 'BLENDER_WORKBENCH':
+                        scene.render.engine = 'BLENDER_EEVEE_NEXT'
+
+                bpy.ops.render.opengl(write_still=True)
+
+                if not os.path.exists(temp_filepath):
+                    return False, {"result": "Render was not created"}
+
+                file_size = os.path.getsize(temp_filepath)
+
+                with open(temp_filepath, 'rb') as f:
+                    image_data = f.read()
+
+                base64_data = base64.b64encode(image_data).decode('utf-8')
+                data_uri = f"data:image/png;base64,{base64_data}"
+
+                image_id = _upload_image_to_server(image_data, "camera_view", context)
+
+                result_data = {
+                :data_uri,
+                : original_res_x,
+                :original_res_y,
+                : camera.name,
+                :frame if frame is not None else original_frame,
+                : file_size,
+                :"PNG",
+                : shading_mode
+                }
+
+                if image_id:
+                    result_data["image_id"] = image_id
+
+                try:
+                    os.unlink(temp_filepath)
+                except Exception as cleanup_error:
+                    logger.warning(f"Failed to clean up temporary file: {cleanup_error}")
+
+                return True, {"result": result_data}
+
+            finally:
+                scene.camera = original_camera
+                scene.render.filepath = original_filepath
+                scene.render.resolution_x = original_res_x
+                scene.render.resolution_y = original_res_y
+                scene.render.resolution_percentage = original_res_percentage
+                scene.render.image_settings.file_format = original_file_format
+                if frame is not None:
+                    scene.frame_set(original_frame)
+
+        except Exception as e:
+            logger.error(f"Camera view screenshot failed: {str(e)}")
+            logger.error(traceback.format_exc())
+            return False, {"result": f"Camera view screenshot failed: {str(e)}"}
+
+    def _screenshot_tool(self, arguments: Dict[str, Any], context) -> Tuple[bool, Any]:
+        try:
+            temp_file = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
+            temp_filepath = temp_file.name
+            temp_file.close()
+
+            try:
+                bpy.ops.screen.screenshot(filepath=temp_filepath)
+
+                if not os.path.exists(temp_filepath):
+                    return False, {"result": "Screenshot was not created"}
+
+                file_size = os.path.getsize(temp_filepath)
+
+                with open(temp_filepath, 'rb') as f:
+                    image_data = f.read()
+
+                base64_data = base64.b64encode(image_data).decode('utf-8')
+                data_uri = f"data:image/png;base64,{base64_data}"
+
+                image_id = _upload_image_to_server(image_data, "screenshot", context)
+
+                result_data = {
+                :data_uri,
+                : file_size,
+                :"PNG"
+                }
+
+                if context.window:
+                    result_data["window_width"] = context.window.width
+                    result_data["window_height"] = context.window.height
+
+                if image_id:
+                    result_data["image_id"] = image_id
+
+                try:
+                    os.unlink(temp_filepath)
+                except Exception as cleanup_error:
+                    logger.warning(f"Failed to clean up temporary file: {cleanup_error}")
+
+                return True, {"result": result_data}
+
+            except Exception as screenshot_error:
+                try:
+                    os.unlink(temp_filepath)
+                except:
+                    pass
+                raise screenshot_error
+
+        except Exception as e:
+            logger.error(f"Screenshot failed: {str(e)}")
+            logger.error(traceback.format_exc())
+            return False, {"result": f"Screenshot failed: {str(e)}"}
 
     def _see_render_tool(self, arguments: Dict[str, Any], context) -> Tuple[bool, Any]:
         try:
-            logger.info("Starting synchronous render with user control")
-
             scene_name = arguments.get("scene_name", None)
             camera_name = arguments.get("camera_name", None)
 
@@ -355,7 +522,8 @@ class ToolsManager:
 
             existing_result = render_manager._get_existing_render_result(scene, camera)
             if existing_result:
-                return True, {"result": existing_result}
+                result_with_upload = self._add_image_id_to_render_result(existing_result, context)
+                return True, {"result": result_with_upload}
 
             result_data = render_manager.render_sync(
                 scene_name=scene_name,
@@ -363,19 +531,15 @@ class ToolsManager:
                 output_path=None
             )
 
-            logger.info(f"Synchronous render completed successfully")
-
-            return True, {"result": result_data}
+            result_with_upload = self._add_image_id_to_render_result(result_data, context)
+            return True, {"result": result_with_upload}
 
         except Exception as e:
-            logger.error(f"Synchronous render tool failed: {str(e)}")
-            import traceback
-            logger.error(f"Full traceback: {traceback.format_exc()}")
-
+            logger.error(f"Synchronous render failed: {str(e)}")
+            logger.error(traceback.format_exc())
             return False, {"result": f"Render failed: {str(e)}"}
 
     def _render_async_tool(self, arguments: Dict[str, Any], context) -> Tuple[bool, Any]:
-        """Start an asynchronous render operation with callback support."""
         try:
             scene_name = arguments.get("scene_name", None)
             camera_name = arguments.get("camera_name", None)
@@ -385,16 +549,12 @@ class ToolsManager:
             error_data = {}
 
             def on_complete(result_data):
-                """Callback for render completion."""
                 completion_data['result'] = result_data
                 completion_data['completed'] = True
-                logger.info(f"Async render completed: {result_data.get('render_id', 'unknown')}")
 
             def on_error(error_msg):
-                """Callback for render error."""
                 error_data['error'] = error_msg
                 error_data['failed'] = True
-                logger.error(f"Async render failed: {error_msg}")
 
             render_id = render_manager.start_render_with_callback(
                 scene_name=scene_name,
@@ -410,31 +570,30 @@ class ToolsManager:
             if completion_data.get('completed'):
                 result_data = completion_data['result']
                 return True, {
-                    "result": {
-                        **result_data,
-                        "status": "completed",
-                        "message": f"Used existing render result with ID: {render_id}",
-                        "used_existing": True
-                    }
+                :{
+                    **result_data,
+                : "completed",
+                :f"Used existing render result with ID: {render_id}",
+                : True
+                }
                 }
 
-            result_data = {
-                "render_id": render_id,
-                "status": "started",
-                "message": f"Async render started with ID: {render_id}",
-                "scene_name": scene_name or context.scene.name,
-                "camera_name": camera_name or (context.scene.camera.name if context.scene.camera else None),
-                "used_existing": False
-            }
+                result_data = {
+                :render_id,
+                : "started",
+                :f"Async render started with ID: {render_id}",
+                : scene_name or context.scene.name,
+                :camera_name or (context.scene.camera.name if context.scene.camera else None),
+                : False
+                }
 
-            return True, {"result": result_data}
+                return True, {"result": result_data}
 
-        except Exception as e:
+            except Exception as e:
             logger.error(f"Async render tool error: {str(e)}")
             return False, {"result": f"Async render error: {str(e)}"}
 
     def _get_render_result_tool(self, arguments: Dict[str, Any], context) -> Tuple[bool, Any]:
-        """Get the result of an async render operation."""
         try:
             render_id = arguments.get("render_id", "")
             if not render_id:
@@ -444,19 +603,17 @@ class ToolsManager:
 
             if result_data:
                 return True, {"result": result_data}
-            else:
 
-                if render_manager.is_render_active(render_id):
-                    return True, {"result": {"status": "rendering", "render_id": render_id}}
-                else:
-                    return False, {"result": f"Render result not found for ID: {render_id}"}
+            if render_manager.is_render_active(render_id):
+                return True, {"result": {"status": "rendering", "render_id": render_id}}
+
+            return False, {"result": f"Render result not found for ID: {render_id}"}
 
         except Exception as e:
             logger.error(f"Get render result tool error: {str(e)}")
             return False, {"result": f"Get render result error: {str(e)}"}
 
     def _cancel_render_tool(self, arguments: Dict[str, Any], context) -> Tuple[bool, Any]:
-        """Cancel an active render operation."""
         try:
             render_id = arguments.get("render_id", "")
             if not render_id:
@@ -466,31 +623,29 @@ class ToolsManager:
 
             if success:
                 return True, {"result": f"Render {render_id} cancelled successfully"}
-            else:
-                return False, {"result": f"Failed to cancel render {render_id}"}
+
+            return False, {"result": f"Failed to cancel render {render_id}"}
 
         except Exception as e:
             logger.error(f"Cancel render tool error: {str(e)}")
             return False, {"result": f"Cancel render error: {str(e)}"}
 
     def _list_active_renders_tool(self, arguments: Dict[str, Any], context) -> Tuple[bool, Any]:
-        """List all active render operations."""
         try:
             active_renders = render_manager.get_active_renders()
 
-            result_data = {
-                "active_renders": active_renders,
-                "count": len(active_renders)
+            return True, {
+            :{
+            : active_renders,
+            :len(active_renders)
+            }
             }
 
-            return True, {"result": result_data}
-
-        except Exception as e:
+            except Exception as e:
             logger.error(f"List active renders tool error: {str(e)}")
             return False, {"result": f"List active renders error: {str(e)}"}
 
-    def _analyse_mesh_image_tool(self, arguments: Dict[str, Any], context) -> Tuple[bool, Any]:
-        """Analyze a mesh image by rendering a specific object and sending it for AI analysis."""
+    def _screenshot_object_tool(self, arguments: Dict[str, Any], context) -> Tuple[bool, Any]:
         try:
             object_name = arguments.get("object_name")
             if not object_name:
@@ -503,28 +658,30 @@ class ToolsManager:
             if target_object.type != 'MESH':
                 return False, {"result": f"Object '{object_name}' is not a mesh object (type: {target_object.type})"}
 
-            image_data = self._render_object_for_analysis(target_object)
+            image_data = self._render_object_isolated(target_object)
             if not image_data:
                 return False, {"result": f"Failed to render object '{object_name}'"}
 
-            return True, {
-                "result": {
-                    "image_data": image_data,
-                },
-            }
+            data_uri_prefix = "data:image/png;base64,"
+            if image_data.startswith(data_uri_prefix):
+                base64_part = image_data[len(data_uri_prefix):]
+                image_bytes = base64.b64decode(base64_part)
+                image_id = _upload_image_to_server(image_bytes, "object_screenshot", context)
+
+                result_data = {"image_data": image_data}
+                if image_id:
+                    result_data["image_id"] = image_id
+
+                return True, {"result": result_data}
+            else:
+                return True, {"result": {"image_data": image_data}}
 
         except Exception as e:
-            logger.error(f"Analyse mesh image tool error: {str(e)}")
-            import traceback
-            logger.error(f"Full traceback: {traceback.format_exc()}")
+            logger.error(f"Screenshot object tool error: {str(e)}")
+            logger.error(traceback.format_exc())
+            return False, {"result": f"Screenshot error: {str(e)}"}
 
-            return False, {"result": f"Analysis error: {str(e)}"}
-
-    def _render_object_for_analysis(self, target) -> Optional[str]:
-        sun_energy = 1.5
-        sun_yaw_deg = 35.0
-        sun_pitch_deg = -15.0
-        preserve_world_env = True
+    def _render_object_isolated(self, target) -> Optional[str]:
         tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
         filepath = tmp.name
         tmp.close()
@@ -535,30 +692,30 @@ class ToolsManager:
         win = bpy.context.window
 
         cache = {
-            "view_layer": win.view_layer,
-            "camera": scn.camera,
-            "engine": scn.render.engine,
-            "filepath": scn.render.filepath,
-            "film_transparent": scn.render.film_transparent,
-            "res_x": scn.render.resolution_x,
-            "res_y": scn.render.resolution_y,
-            "world_use_nodes": scn.world.use_nodes if scn.world else None,
-            "objects_hide_render": {o: o.hide_render for o in bpy.data.objects},
+        :win.view_layer,
+        : scn.camera,
+        :scn.render.engine,
+        : scn.render.filepath,
+        :scn.render.film_transparent,
+        : scn.render.resolution_x,
+        :scn.render.resolution_y,
+        : scn.world.use_nodes if scn.world else None,
+        :{o: o.hide_render for o in bpy.data.objects},
         }
 
-        cam_data = bpy.data.cameras.new("_TMP_CAM_DATA")
-        cam_obj = bpy.data.objects.new("_TMP_CAM", cam_data)
+        cam_data = bpy.data.cameras.new(TEMP_CAMERA_DATA_NAME)
+        cam_obj = bpy.data.objects.new(TEMP_CAMERA_OBJECT_NAME, cam_data)
 
-        sun_data = bpy.data.lights.new("_TMP_SUN_DATA", type='SUN')
-        sun_data.energy = sun_energy
-        sun_obj = bpy.data.objects.new("_TMP_SUN", sun_data)
+        sun_data = bpy.data.lights.new(TEMP_SUN_DATA_NAME, type='SUN')
+        sun_data.energy = ANALYSIS_SUN_ENERGY
+        sun_obj = bpy.data.objects.new(TEMP_SUN_OBJECT_NAME, sun_data)
 
-        iso_col = bpy.data.collections.new("_TMP_COL")
+        iso_col = bpy.data.collections.new(TEMP_COLLECTION_NAME)
         scn.collection.children.link(iso_col)
         for o in (obj, cam_obj, sun_obj):
             iso_col.objects.link(o)
 
-        iso_layer = scn.view_layers.new(name="_TMP_LAYER")
+        iso_layer = scn.view_layers.new(name=TEMP_LAYER_NAME)
 
         def _recursive_exclude(lc: bpy.types.LayerCollection, keep: bpy.types.Collection):
             lc.exclude = (lc.collection is not keep)
@@ -570,7 +727,6 @@ class ToolsManager:
         res_x, res_y = _pick_resolution(obj)
 
         try:
-
             scn.render.engine = 'BLENDER_EEVEE_NEXT'
             scn.render.film_transparent = True
             scn.render.filepath = filepath
@@ -580,8 +736,8 @@ class ToolsManager:
 
             cam_quat = cam_obj.rotation_euler.to_quaternion()
             sun_orient = (
-                    Quaternion((0, 0, 1), math.radians(sun_yaw_deg)) @
-                    Quaternion((1, 0, 0), math.radians(sun_pitch_deg)) @
+                    Quaternion((0, 0, 1), math.radians(ANALYSIS_SUN_YAW_DEG)) @
+                    Quaternion((1, 0, 0), math.radians(ANALYSIS_SUN_PITCH_DEG)) @
                     cam_quat
             )
             sun_obj.location = cam_obj.location
@@ -594,7 +750,7 @@ class ToolsManager:
                 if o not in (obj, cam_obj, sun_obj):
                     o.hide_render = True
 
-            if not preserve_world_env and scn.world:
+            if scn.world:
                 scn.world.use_nodes = False
 
             bpy.ops.render.render(write_still=True, use_viewport=False)
@@ -602,7 +758,6 @@ class ToolsManager:
             return _img_to_uri(filepath)
 
         finally:
-
             win.view_layer = cache["view_layer"]
             scn.camera = cache["camera"]
             scn.render.engine = cache["engine"]
@@ -628,6 +783,211 @@ class ToolsManager:
                     bpy.data.lights.remove(data, do_unlink=True)
 
             bpy.context.view_layer.update()
+
+    def _import_image_tool(self, arguments: Dict[str, Any], context) -> Tuple[bool, Any]:
+
+        try:
+            image_id = arguments.get("image_id", "")
+            import_type = arguments.get("import_type", "texture")
+            custom_name = arguments.get("name", "")
+
+            if not image_id:
+                return False, {"result": "image_id is required"}
+
+            if import_type not in ["texture", "image_plane", "background"]:
+                return False, {
+                    "result": f"Invalid import_type: {import_type}. Must be texture, image_plane, or background"}
+
+            from ..api.client import api_client
+            from ..auth.manager import auth_manager
+
+            if not auth_manager.is_authenticated(context):
+                return False, {"result": "Not authenticated. Please log in first."}
+
+            user_id = getattr(context.window_manager, 'vibe4d_user_id', '')
+            token = getattr(context.window_manager, 'vibe4d_user_token', '')
+
+            chat_id_prop = getattr(context.scene, 'vibe4d_current_chat_id', '')
+            if not chat_id_prop:
+                return False, {"result": "No active chat session"}
+
+            logger.info(f"Downloading image {image_id} from chat {chat_id_prop}")
+            success, image_data = api_client.download_image(chat_id_prop, image_id, user_id, token)
+
+            if not success or not image_data:
+                return False, {"result": f"Failed to download image {image_id}"}
+
+            temp_file = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+            temp_path = temp_file.name
+            temp_file.close()
+
+            try:
+                with open(temp_path, 'wb') as f:
+                    f.write(image_data)
+
+                logger.debug(f"Wrote {len(image_data)} bytes to temp file: {temp_path}")
+
+                if not os.path.exists(temp_path):
+                    logger.error(f"Temp file was not created: {temp_path}")
+                    return False, {"result": "Failed to create temporary image file"}
+
+                file_size = os.path.getsize(temp_path)
+                if file_size != len(image_data):
+                    logger.error(f"File size mismatch: expected {len(image_data)}, got {file_size}")
+                    return False, {"result": "Image file size mismatch"}
+
+                image_name = custom_name if custom_name else f"vibe4d_{image_id}"
+
+                if import_type == "texture":
+                    if image_name in bpy.data.images:
+                        bpy.data.images.remove(bpy.data.images[image_name])
+
+                    logger.debug(f"Loading image from {temp_path}")
+                    try:
+                        img = bpy.data.images.load(temp_path)
+                    except Exception as load_error:
+                        logger.error(f"Failed to load image from {temp_path}: {str(load_error)}")
+                        return False, {"result": f"Blender failed to load image: {str(load_error)}"}
+
+                    img.name = image_name
+                    img.pack()
+
+                    return True, {
+                    :f"Image '{image_name}' loaded as texture data block",
+                    : image_name,
+                    :"texture"
+                    }
+
+                    elif import_type == "image_plane":
+                    if image_name in bpy.data.images:
+                        bpy.data.images.remove(bpy.data.images[image_name])
+
+                    logger.debug(f"Loading image from {temp_path}")
+                    try:
+                        img = bpy.data.images.load(temp_path)
+                    except Exception as load_error:
+                        logger.error(f"Failed to load image from {temp_path}: {str(load_error)}")
+                        return False, {"result": f"Blender failed to load image: {str(load_error)}"}
+
+                    img.name = image_name
+                    img.pack()
+
+                    aspect_ratio = img.size[0] / img.size[1] if img.size[1] > 0 else 1.0
+
+                    bpy.ops.mesh.primitive_plane_add(size=2, location=(0, 0, 0))
+                    plane = context.active_object
+                    plane.name = f"{image_name}_plane"
+                    plane.scale.x = aspect_ratio
+
+                    mat = bpy.data.materials.new(name=f"{image_name}_mat")
+                    mat.use_nodes = True
+                    nodes = mat.node_tree.nodes
+                    nodes.clear()
+
+                    node_tex = nodes.new(type='ShaderNodeTexImage')
+                    node_tex.image = img
+                    node_tex.location = (0, 0)
+
+                    node_bsdf = nodes.new(type='ShaderNodeBsdfPrincipled')
+                    node_bsdf.location = (300, 0)
+
+                    node_output = nodes.new(type='ShaderNodeOutputMaterial')
+                    node_output.location = (600, 0)
+
+                    links = mat.node_tree.links
+                    links.new(node_tex.outputs['Color'], node_bsdf.inputs['Base Color'])
+                    links.new(node_tex.outputs['Alpha'], node_bsdf.inputs['Alpha'])
+                    links.new(node_bsdf.outputs['BSDF'], node_output.inputs['Surface'])
+
+                    mat.blend_method = 'BLEND'
+
+                    plane.data.materials.append(mat)
+
+                    return True, {
+                    :f"Image plane '{plane.name}' created with image '{image_name}'",
+                    : plane.name,
+                    :image_name,
+                    : "image_plane"
+                    }
+
+                    elif import_type == "background":
+                    if image_name in bpy.data.images:
+                        bpy.data.images.remove(bpy.data.images[image_name])
+
+                    logger.debug(f"Loading image from {temp_path}")
+                    try:
+                        img = bpy.data.images.load(temp_path)
+                    except Exception as load_error:
+                        logger.error(f"Failed to load image from {temp_path}: {str(load_error)}")
+                        return False, {"result": f"Blender failed to load image: {str(load_error)}"}
+
+                    img.name = image_name
+                    img.pack()
+
+                    world = context.scene.world
+                    if world is None:
+                        world = bpy.data.worlds.new("World")
+                        context.scene.world = world
+
+                    world.use_nodes = True
+                    nodes = world.node_tree.nodes
+                    nodes.clear()
+
+                    node_tex = nodes.new(type='ShaderNodeTexEnvironment')
+                    node_tex.image = img
+                    node_tex.location = (0, 0)
+
+                    node_background = nodes.new(type='ShaderNodeBackground')
+                    node_background.location = (300, 0)
+
+                    node_output = nodes.new(type='ShaderNodeOutputWorld')
+                    node_output.location = (600, 0)
+
+                    links = world.node_tree.links
+                    links.new(node_tex.outputs['Color'], node_background.inputs['Color'])
+                    links.new(node_background.outputs['Background'], node_output.inputs['Surface'])
+
+                    return True, {
+                    :f"Image '{image_name}' set as world background",
+                    : image_name,
+                    :"background"
+                    }
+
+                finally:
+                if os.path.exists(temp_path):
+                    try:
+                        os.unlink(temp_path)
+                    except:
+                        pass
+
+        except Exception as e:
+            logger.error(f"Import image tool error: {str(e)}")
+            logger.error(traceback.format_exc())
+            return False, {"result": f"Import error: {str(e)}"}
+
+    def _add_image_id_to_render_result(self, result_data: Dict[str, Any], context) -> Dict[str, Any]:
+
+        try:
+            if not result_data or "image_data" not in result_data:
+                return result_data
+
+            image_data_uri = result_data["image_data"]
+            data_uri_prefix = "data:image/png;base64,"
+
+            if image_data_uri.startswith(data_uri_prefix):
+                base64_part = image_data_uri[len(data_uri_prefix):]
+                image_bytes = base64.b64decode(base64_part)
+                image_id = _upload_image_to_server(image_bytes, "render", context)
+
+                if image_id:
+                    result_data["image_id"] = image_id
+                    logger.debug(f"Added image_id {image_id} to render result")
+
+            return result_data
+
+        except Exception as e:
+            logger.warning(f"Failed to add image_id to render result: {str(e)}")
+            return result_data
 
     def cleanup(self):
         render_manager.cleanup()

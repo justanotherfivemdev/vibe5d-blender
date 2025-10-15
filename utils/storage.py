@@ -1,9 +1,3 @@
-"""
-Secure storage utility for Vibe4D addon.
-
-Handles persistent storage of user credentials and custom instructions.
-"""
-
 import json
 import os
 import shutil
@@ -16,7 +10,6 @@ from .logger import logger
 
 
 class SecureStorage:
-    """Secure storage for user credentials and settings."""
 
     def __init__(self):
 
@@ -28,17 +21,7 @@ class SecureStorage:
         self.config_dir.mkdir(parents=True, exist_ok=True)
 
     def _atomic_write(self, file_path: Path, data: dict, max_retries: int = 3) -> bool:
-        """
-        Atomic write operation with retry logic.
-        
-        Args:
-            file_path: Path to the target file
-            data: Data to write
-            max_retries: Maximum number of retry attempts
-            
-        Returns:
-            bool: True if successful, False otherwise
-        """
+
         for attempt in range(max_retries):
             try:
 
@@ -82,13 +65,13 @@ class SecureStorage:
         return False
 
     def save_credentials(self, user_id: str, token: str, email: str = "", plan: str = "") -> bool:
-        """Save user credentials securely."""
+
         try:
             credentials = {
-                "user_id": user_id,
-                "token": token,
-                "email": email,
-                "plan": plan
+            :user_id,
+            : token,
+            :email,
+            : plan
             }
 
             success = self._atomic_write(self.credentials_file, credentials)
@@ -105,7 +88,7 @@ class SecureStorage:
             return False
 
     def load_credentials(self) -> Optional[Dict[str, str]]:
-        """Load saved user credentials."""
+
         try:
             if not self.credentials_file.exists():
                 logger.debug("No saved credentials found")
@@ -128,7 +111,7 @@ class SecureStorage:
             return None
 
     def clear_credentials(self) -> bool:
-        """Clear saved user credentials."""
+
         try:
             if self.credentials_file.exists():
                 self.credentials_file.unlink()
@@ -140,15 +123,7 @@ class SecureStorage:
             return False
 
     def save_custom_instructions(self, instructions: List[Dict[str, any]]) -> bool:
-        """
-        Save custom instructions to persistent storage.
-        
-        Args:
-            instructions: List of instruction dictionaries with 'text' and 'enabled' keys
-            
-        Returns:
-            bool: True if successful, False otherwise
-        """
+
         try:
 
             if not isinstance(instructions, list):
@@ -166,15 +141,15 @@ class SecureStorage:
                     return False
 
                 validated_instruction = {
-                    "text": str(instruction.get("text", "")),
-                    "enabled": bool(instruction.get("enabled", True))
+                :str(instruction.get("text", "")),
+                : bool(instruction.get("enabled", True))
                 }
                 validated_instructions.append(validated_instruction)
 
             success = self._atomic_write(self.instructions_file, validated_instructions)
 
             if success:
-                logger.info(f"Saved {len(validated_instructions)} custom instructions")
+                pass
             else:
                 logger.error("Failed to save custom instructions")
 
@@ -185,15 +160,7 @@ class SecureStorage:
             return False
 
     def save_custom_instruction(self, instruction_text: str) -> bool:
-        """
-        Save single custom instruction to persistent storage.
-        
-        Args:
-            instruction_text: Single instruction text string
-            
-        Returns:
-            bool: True if successful, False otherwise
-        """
+
         try:
 
             if not isinstance(instruction_text, str):
@@ -201,13 +168,14 @@ class SecureStorage:
                 return False
 
             instruction_data = {
-                "instruction": instruction_text.strip()
+            :instruction_text.strip()
             }
+
 
             success = self._atomic_write(self.instructions_file, instruction_data)
 
             if success:
-                logger.info(f"Saved custom instruction ({len(instruction_text)} characters)")
+                pass
             else:
                 logger.error("Failed to save custom instruction")
 
@@ -218,15 +186,9 @@ class SecureStorage:
             return False
 
     def load_custom_instructions(self) -> Optional[List[Dict[str, any]]]:
-        """
-        Load saved custom instructions.
-        
-        Returns:
-            List of instruction dictionaries or None if no instructions found
-        """
+
         try:
             if not self.instructions_file.exists():
-                logger.debug("No saved custom instructions found")
                 return None
 
             with open(self.instructions_file, 'r') as f:
@@ -247,8 +209,8 @@ class SecureStorage:
                     continue
 
                 validated_instruction = {
-                    "text": str(instruction.get("text", "")),
-                    "enabled": bool(instruction.get("enabled", True))
+                :str(instruction.get("text", "")),
+                : bool(instruction.get("enabled", True))
                 }
                 validated_instructions.append(validated_instruction)
 
@@ -263,12 +225,7 @@ class SecureStorage:
             return None
 
     def load_custom_instruction(self) -> Optional[str]:
-        """
-        Load saved single custom instruction.
-        
-        Returns:
-            Instruction text string or None if no instruction found
-        """
+
         try:
             if not self.instructions_file.exists():
                 return None
@@ -314,7 +271,7 @@ class SecureStorage:
             return None
 
     def clear_custom_instructions(self) -> bool:
-        """Clear saved custom instructions."""
+
         try:
             if self.instructions_file.exists():
                 self.instructions_file.unlink()
@@ -326,7 +283,7 @@ class SecureStorage:
             return False
 
     def clear_custom_instruction(self) -> bool:
-        """Clear saved single custom instruction."""
+
         try:
             if self.instructions_file.exists():
                 self.instructions_file.unlink()
@@ -338,15 +295,7 @@ class SecureStorage:
             return False
 
     def save_settings(self, settings_data: Dict[str, str]) -> bool:
-        """
-        Save global settings.
-        
-        Args:
-            settings_data: Dictionary containing settings data
-            
-        Returns:
-            bool: True if successful, False otherwise
-        """
+
         try:
 
             if not isinstance(settings_data, dict):
@@ -354,17 +303,18 @@ class SecureStorage:
                 return False
 
             normalized_settings = {
-                "agent_model": str(settings_data.get("agent_model", "gpt-5-mini")),
-                "ask_model": str(settings_data.get("ask_model", "gpt-5-mini")),
-                "model": str(settings_data.get("model", "gpt-5-mini")),
-                "mode": str(settings_data.get("mode", "agent"))
+            :str(settings_data.get("agent_model", "gpt-5-mini")),
+            : str(settings_data.get("ask_model", "gpt-5-mini")),
+            :str(settings_data.get("model", "gpt-5-mini")),
+            : str(settings_data.get("mode", "agent"))
             }
+
 
             success = self._atomic_write(self.settings_file, normalized_settings)
 
             if success:
                 logger.info(
-                    f"Saved settings: agent_model={normalized_settings['agent_model']}, ask_model={normalized_settings['ask_model']}, mode={normalized_settings['mode']}")
+                )
             else:
                 logger.error("Failed to save settings")
 
@@ -375,12 +325,7 @@ class SecureStorage:
             return False
 
     def load_settings(self) -> Optional[Dict[str, str]]:
-        """
-        Load saved global settings.
-        
-        Returns:
-            Dictionary containing settings or None if no settings found
-        """
+
         try:
             if not self.settings_file.exists():
                 logger.debug("No saved settings found, using defaults")
@@ -394,10 +339,10 @@ class SecureStorage:
                 return None
 
             settings = {
-                "agent_model": str(data.get("agent_model", "gpt-5-mini")),
-                "ask_model": str(data.get("ask_model", "gpt-5-mini")),
-                "model": str(data.get("model", "gpt-5-mini")),
-                "mode": str(data.get("mode", "agent"))
+            :str(data.get("agent_model", "gpt-5-mini")),
+            : str(data.get("ask_model", "gpt-5-mini")),
+            :str(data.get("model", "gpt-5-mini")),
+            : str(data.get("mode", "agent"))
             }
 
             return settings
@@ -410,7 +355,7 @@ class SecureStorage:
             return None
 
     def clear_settings(self) -> bool:
-        """Clear saved global settings."""
+
         try:
             if self.settings_file.exists():
                 self.settings_file.unlink()

@@ -1,8 +1,3 @@
-"""
-Container component for flexible layout management.
-Provides a general-purpose container with various layout options and styling.
-"""
-
 import logging
 from enum import Enum
 from typing import TYPE_CHECKING, List
@@ -17,10 +12,6 @@ logger = logging.getLogger(__name__)
 
 
 def _get_numeric_value(obj, attr_name: str, default=0):
-    """
-    Safely get numeric value from an object attribute.
-    Handles cases where the attribute might be a property object.
-    """
     try:
         value = getattr(obj, attr_name, default)
 
@@ -36,7 +27,6 @@ def _get_numeric_value(obj, attr_name: str, default=0):
 
 
 class ContainerType(Enum):
-    """Types of containers."""
     PANEL = "panel"
     GROUP = "group"
     CARD = "card"
@@ -45,7 +35,6 @@ class ContainerType(Enum):
 
 
 class Container(UIComponent):
-    """Flexible container component for layout management."""
 
     def __init__(self, x: int = 0, y: int = 0, width: int = 200, height: int = 150,
                  container_type: ContainerType = ContainerType.PANEL,
@@ -72,7 +61,7 @@ class Container(UIComponent):
         self.content_bounds = Bounds(0, 0, 0, 0)
 
         if not hasattr(self, 'style'):
-            from ..types import Style
+            from ..style_types import Style
             self.style = Style()
 
         self.apply_themed_style(container_type.value)
@@ -83,18 +72,17 @@ class Container(UIComponent):
         self._update_layout()
 
     def apply_themed_style(self, style_type: str = "panel"):
-        """Apply themed style based on container type."""
 
         if not hasattr(self, 'style') or self.style is None:
-            from ..types import Style
+            from ..style_types import Style
             self.style = Style()
 
         try:
-            from ..theme import get_themed_style
+            from ..component_theming import get_themed_component_style
 
             if not hasattr(self, 'container_type'):
 
-                themed_style = get_themed_style("panel")
+                themed_style = get_themed_component_style("panel")
                 if themed_style:
                     self.style = themed_style
 
@@ -103,7 +91,7 @@ class Container(UIComponent):
                 if not hasattr(self.style, 'border_color') or self.style.border_color is None:
                     self.style.border_color = (0.3, 0.3, 0.3, 1.0)
             elif self.container_type == ContainerType.PANEL:
-                themed_style = get_themed_style("panel")
+                themed_style = get_themed_component_style("panel")
                 if themed_style:
                     self.style = themed_style
 
@@ -116,19 +104,19 @@ class Container(UIComponent):
                 self.style.background_color = (0, 0, 0, 0)
                 self.style.border_color = (0, 0, 0, 0)
             elif self.container_type == ContainerType.CARD:
-                themed_style = get_themed_style("panel")
+                themed_style = get_themed_component_style("panel")
                 if themed_style:
                     self.style = themed_style
                 self.style.background_color = (0.2, 0.2, 0.2, 1.0)
                 self.style.border_color = (0.4, 0.4, 0.4, 1.0)
             elif self.container_type == ContainerType.SECTION:
-                themed_style = get_themed_style("panel")
+                themed_style = get_themed_component_style("panel")
                 if themed_style:
                     self.style = themed_style
                 self.style.background_color = (0.18, 0.18, 0.18, 1.0)
                 self.style.border_color = (0.3, 0.3, 0.3, 1.0)
             elif self.container_type == ContainerType.TOOLBAR:
-                themed_style = get_themed_style("panel")
+                themed_style = get_themed_component_style("panel")
                 if themed_style:
                     self.style = themed_style
                 self.style.background_color = (0.25, 0.25, 0.25, 1.0)
@@ -149,14 +137,14 @@ class Container(UIComponent):
             self.style.border_width = 1
 
     def add_child(self, child: UIComponent):
-        """Add a child component to the container."""
+
         self.children.append(child)
         if hasattr(child, 'ui_state'):
             child.ui_state = self.ui_state
         self._update_layout()
 
     def remove_child(self, child: UIComponent):
-        """Remove a child component from the container with proper cleanup."""
+
         if child in self.children:
 
             if hasattr(child, 'cleanup'):
@@ -169,7 +157,6 @@ class Container(UIComponent):
             self._update_layout()
 
     def clear_children(self):
-        """Clear all child components with proper cleanup."""
 
         for child in self.children:
             if hasattr(child, 'cleanup'):
@@ -182,25 +169,25 @@ class Container(UIComponent):
         self._update_layout()
 
     def set_title(self, title: str):
-        """Set the container title."""
+
         self.title = title
         self.title_bar_height = 30 if title else 0
         self._update_layout()
 
     def set_collapsed(self, collapsed: bool):
-        """Set the collapsed state."""
+
         if self.collapsible:
             self.is_collapsed = collapsed
             self._update_layout()
 
     def toggle_collapsed(self):
-        """Toggle the collapsed state."""
+
         if self.collapsible:
             self.is_collapsed = not self.is_collapsed
             self._update_layout()
 
     def _on_title_click(self, event: UIEvent) -> bool:
-        """Handle title bar click for collapsible containers."""
+
         if (self.collapsible and self.title and
                 self.title_bar_bounds.contains_point(event.mouse_x, event.mouse_y)):
             self.toggle_collapsed()
@@ -208,7 +195,6 @@ class Container(UIComponent):
         return False
 
     def _update_layout(self):
-        """Update container layout and child positioning."""
 
         if self.title:
             self.title_bar_bounds = Bounds(
@@ -236,11 +222,10 @@ class Container(UIComponent):
         )
 
     def get_content_bounds(self) -> Bounds:
-        """Get the content area bounds."""
+
         return self.content_bounds
 
     def render(self, renderer: 'UIRenderer'):
-        """Render the container."""
 
         if self.container_type == ContainerType.GROUP:
             return
@@ -263,7 +248,7 @@ class Container(UIComponent):
             self._render_title_bar(renderer)
 
     def _render_title_bar(self, renderer: 'UIRenderer'):
-        """Render the title bar."""
+
         if not self.title:
             return
 
@@ -281,7 +266,6 @@ class Container(UIComponent):
             renderer.draw_text(indicator, indicator_x, title_y, font_size, text_color)
 
     def handle_event(self, event: UIEvent) -> bool:
-        """Handle events for the container and its children."""
 
         handled = super().handle_event(event)
 
@@ -293,7 +277,7 @@ class Container(UIComponent):
         return handled
 
     def update_layout(self):
-        """Update component layout (called when viewport changes)."""
+
         super().update_layout()
         self._update_layout()
 

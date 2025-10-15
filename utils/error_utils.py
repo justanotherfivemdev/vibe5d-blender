@@ -1,9 +1,3 @@
-"""
-Error handling utilities for the Vibe4D addon.
-
-Provides functions for formatting and displaying error messages consistently.
-"""
-
 from typing import List, Dict, Any
 
 from .logger import logger
@@ -15,15 +9,6 @@ def format_error_message(error_code: str, user_message: str, suggestions: List[s
 
 
 def extract_error_type(error_message: str) -> str:
-    """
-    Extract error type from error message for categorization.
-    
-    Args:
-        error_message: The error message string
-        
-    Returns:
-        Error type category
-    """
     try:
         error_lower = error_message.lower()
 
@@ -53,35 +38,29 @@ def extract_error_type(error_message: str) -> str:
 
 
 def get_error_severity(error_code: str) -> str:
-    """
-    Get the severity level of an error.
-    
-    Args:
-        error_code: The error code
-        
-    Returns:
-        Severity level: 'low', 'medium', 'high', 'critical'
-    """
     try:
 
         critical_errors = {
-            'AUTHENTICATION_FAILED', 'SYSTEM_MISCONFIGURED',
-            'SKILL_LOADING_FAILED', 'FEATURE_NOT_AVAILABLE'
+        , 'SYSTEM_MISCONFIGURED',
+        , 'FEATURE_NOT_AVAILABLE'
         }
+
 
         high_errors = {
-            'PLAN_LIMIT_EXCEEDED', 'AI_SERVICE_UNAVAILABLE',
-            'CODE_GENERATION_FAILED', 'DB_ERROR'
+        , 'AI_SERVICE_UNAVAILABLE',
+        , 'DB_ERROR'
         }
+
 
         medium_errors = {
-            'RATE_LIMIT', 'INVALID_CODE_GENERATED',
-            'CODE_CORRECTION_FAILED', 'NO_ACTIONS_GENERATED'
+        , 'INVALID_CODE_GENERATED',
+        , 'NO_ACTIONS_GENERATED'
         }
 
+
         low_errors = {
-            'INVALID_REQUEST', 'INTERNAL_ERROR', 'LLM_ERROR',
-            'SKILL_SETUP_FAILED'
+        , 'INTERNAL_ERROR', 'LLM_ERROR',
+
         }
 
         if error_code in critical_errors:
@@ -101,29 +80,19 @@ def get_error_severity(error_code: str) -> str:
 
 
 def should_show_retry_button(error_code: str, retryable: bool) -> bool:
-    """
-    Determine if a retry button should be shown for an error.
-    
-    Args:
-        error_code: The error code
-        retryable: Whether the backend says the error is retryable
-        
-    Returns:
-        True if retry button should be shown
-    """
     try:
 
         no_retry_errors = {
-            'AUTHENTICATION_FAILED', 'PLAN_LIMIT_EXCEEDED',
-            'FEATURE_NOT_AVAILABLE', 'SYSTEM_MISCONFIGURED'
+        , 'PLAN_LIMIT_EXCEEDED',
+        , 'SYSTEM_MISCONFIGURED'
         }
 
         if error_code in no_retry_errors:
             return False
 
         always_retry_errors = {
-            'INTERNAL_ERROR', 'AI_SERVICE_UNAVAILABLE',
-            'LLM_ERROR', 'DB_ERROR'
+        , 'AI_SERVICE_UNAVAILABLE',
+        , 'DB_ERROR'
         }
 
         if error_code in always_retry_errors:
@@ -137,17 +106,6 @@ def should_show_retry_button(error_code: str, retryable: bool) -> bool:
 
 
 def create_chat_error_message(error_type: str, error_message: str, suggestions: List[str] = None) -> str:
-    """
-    Create a formatted error message specifically for chat display.
-    
-    Args:
-        error_type: The type of error (e.g., "API Error", "Tool Error", "Authentication Error")
-        error_message: The main error message
-        suggestions: Optional list of suggestions for the user
-        
-    Returns:
-        Formatted error message string ready for chat display
-    """
     try:
 
         formatted_msg = f"❌ **{error_type}**\n\n"
@@ -162,15 +120,6 @@ def create_chat_error_message(error_type: str, error_message: str, suggestions: 
 
 
 def create_error_context(error_data) -> Dict[str, Any]:
-    """
-    Create a comprehensive error context for debugging and display.
-    
-    Args:
-        error_data: Error data dictionary from the API or string error message
-        
-    Returns:
-        Enhanced error context
-    """
     try:
         if isinstance(error_data, dict):
             error_code = error_data.get('code', 'UNKNOWN')
@@ -191,29 +140,29 @@ def create_error_context(error_data) -> Dict[str, Any]:
             technical_info = ''
 
         return {
-            'code': error_code,
-            'message': user_message,
-            'suggestions': suggestions,
-            'retryable': retryable,
-            'technical_info': technical_info,
-            'severity': get_error_severity(error_code),
-            'type': extract_error_type(user_message),
-            'show_retry': should_show_retry_button(error_code, retryable),
-            'formatted_message': format_error_message(
-                error_code, user_message, suggestions, retryable, technical_info
-            )
+        :error_code,
+        : user_message,
+        :suggestions,
+        : retryable,
+        :technical_info,
+        : get_error_severity(error_code),
+        :extract_error_type(user_message),
+        : should_show_retry_button(error_code, retryable),
+        :format_error_message(
+            error_code, user_message, suggestions, retryable, technical_info
+        )
         }
 
-    except Exception as e:
+        except Exception as e:
         logger.error(f"Error creating error context: {e}")
         return {
-            'code': 'UNKNOWN',
-            'message': 'An unexpected error occurred',
-            'suggestions': ['Try again in a moment'],
-            'retryable': True,
-            'technical_info': str(e),
-            'severity': 'medium',
-            'type': 'general',
-            'show_retry': True,
-            'formatted_message': 'An unexpected error occurred'
+        :'UNKNOWN',
+        : 'An unexpected error occurred',
+        :['Try again in a moment'],
+        : True,
+        :str(e),
+        : 'medium',
+        :'general',
+        : True,
+        :'An unexpected error occurred'
         }

@@ -1,9 +1,3 @@
-"""
-Custom instruction manager for Vibe4D addon.
-
-Handles loading and saving custom instruction between sessions.
-"""
-
 import threading
 import time
 
@@ -14,7 +8,6 @@ from ..utils.storage import secure_storage
 
 
 class InstructionManager:
-    """Manages custom instruction persistence with improved robustness."""
 
     def __init__(self):
         self.is_initialized = False
@@ -24,7 +17,7 @@ class InstructionManager:
         self._pending_save_timer = None
 
     def initialize_instruction(self, context) -> bool:
-        """Initialize custom instruction on addon startup."""
+
         if self.is_initialized:
             return True
 
@@ -33,7 +26,6 @@ class InstructionManager:
             saved_instruction = secure_storage.load_custom_instruction()
 
             if saved_instruction is None:
-                logger.info("No saved custom instruction found")
                 self.is_initialized = True
                 return True
 
@@ -48,7 +40,7 @@ class InstructionManager:
             return False
 
     def save_instruction(self, context) -> bool:
-        """Save current custom instruction to persistent storage."""
+
         try:
             instruction = getattr(context.scene, 'vibe4d_custom_instruction', '')
 
@@ -66,7 +58,7 @@ class InstructionManager:
             return False
 
     def clear_instruction(self, context) -> bool:
-        """Clear custom instruction from both scene and storage."""
+
         try:
 
             context.scene.vibe4d_custom_instruction = ""
@@ -81,7 +73,7 @@ class InstructionManager:
             return False
 
     def _debounced_save(self, context):
-        """Execute a debounced save operation."""
+
         try:
             with self._save_lock:
                 current_time = time.time()
@@ -103,7 +95,6 @@ class InstructionManager:
             logger.error(f"Debounced save failed: {str(e)}")
 
     def _execute_save(self, context):
-        """Execute the actual save operation with retry logic."""
         max_retries = 3
         retry_delay = 0.1
 
@@ -128,17 +119,7 @@ class InstructionManager:
         logger.error(f"Auto-save failed after {max_retries} attempts")
 
     def auto_save_instruction(self, context):
-        """
-        Auto-save instruction when it changes with improved robustness.
-        
-        Features:
-        - Debouncing to prevent excessive saves
-        - Background execution to avoid blocking UI
-        - Retry logic with exponential backoff
-        - Thread-safe operation
-        """
         try:
-
             save_thread = threading.Thread(
                 target=self._debounced_save,
                 args=(context,),
@@ -150,15 +131,6 @@ class InstructionManager:
             logger.error(f"Auto-save initialization failed: {str(e)}")
 
     def force_save_instruction(self, context) -> bool:
-        """
-        Force immediate save of instruction, bypassing debouncing.
-        
-        Args:
-            context: Blender context
-            
-        Returns:
-            bool: True if successful, False otherwise
-        """
         try:
             with self._save_lock:
 
@@ -170,7 +142,6 @@ class InstructionManager:
 
                 if success:
                     self._last_save_time = time.time()
-                    logger.info("Force save completed successfully")
                 else:
                     logger.error("Force save failed")
 
@@ -181,16 +152,10 @@ class InstructionManager:
             return False
 
     def force_reload_instruction(self, context) -> bool:
-        """Force reload custom instruction from storage, ignoring initialization state."""
-        logger.info("Force reloading custom instruction from storage")
-
         try:
-
             saved_instruction = secure_storage.load_custom_instruction()
 
             if saved_instruction is None:
-                logger.info("No saved custom instruction found for force reload")
-
                 context.scene.vibe4d_custom_instruction = ""
                 return True
 

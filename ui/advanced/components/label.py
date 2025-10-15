@@ -1,7 +1,3 @@
-"""
-Label component for displaying text.
-"""
-
 import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, List, Optional, Dict, Callable, Tuple
@@ -20,7 +16,6 @@ logger.setLevel(logging.INFO)
 
 @dataclass
 class TextSegment:
-    """Represents a segment of text with its own style and interactivity."""
     text: str
     start_index: int
     end_index: int
@@ -36,7 +31,6 @@ class TextSegment:
 
 @dataclass
 class RenderedSegment:
-    """Represents a rendered text segment with position information."""
     segment: TextSegment
     x: int
     y: int
@@ -46,7 +40,6 @@ class RenderedSegment:
 
 
 def wrap_text_blf(text: str, max_width: int, font_size: int = 14) -> List[str]:
-    """Wrap text using BLF text measurements with correct font size, preserving indentation."""
     if not text:
         return [""]
 
@@ -122,7 +115,6 @@ def wrap_text_blf(text: str, max_width: int, font_size: int = 14) -> List[str]:
 
 
 class Label(UIComponent):
-    """Label component for displaying text with multiline support and interactivity."""
 
     def __init__(self, text: str = "", x: int = 0, y: int = 0, width: int = 200, height: int = 30):
 
@@ -141,15 +133,16 @@ class Label(UIComponent):
         self.hovered_segment: Optional[TextSegment] = None
 
         self.highlight_styles: Dict[str, Dict] = {
-            'default_hover': {
-                'background_color': (0.3, 0.5, 0.8, 0),
-                'text_color': (1.0, 1.0, 1.0, 1.0)
-            },
-            'default_highlight': {
-                'background_color': (0.8, 0.8, 0.2, 0),
-                'text_color': (0.0, 0.0, 0.0, 1.0)
-            }
+        :{
+        : (0.3, 0.5, 0.8, 0),
+        :(1.0, 1.0, 1.0, 1.0)
+        },
+        :{
+        : (0.8, 0.8, 0.2, 0),
+        :(0.0, 0.0, 0.0, 1.0)
         }
+        }
+
 
         self.apply_themed_style("label")
 
@@ -162,13 +155,13 @@ class Label(UIComponent):
         self.add_event_handler(EventType.MOUSE_LEAVE, self._handle_mouse_leave)
 
     def set_text(self, text: str):
-        """Set the label text and update wrapping."""
+
         if self.text != text:
             self.text = text
             self._update_wrapped_lines()
 
     def get_text(self) -> str:
-        """Get the label text."""
+
         return self.text
 
     def add_text_segment(self, start_index: int, end_index: int,
@@ -176,7 +169,7 @@ class Label(UIComponent):
                          clickable: bool = False, hoverable: bool = True,
                          on_click: Callable = None, on_hover_start: Callable = None,
                          on_hover_end: Callable = None, data: Dict = None):
-        """Add an interactive text segment."""
+
         if start_index >= end_index or start_index < 0 or end_index > len(self.text):
             raise ValueError("Invalid segment indices")
 
@@ -204,7 +197,7 @@ class Label(UIComponent):
 
     def add_highlight_style(self, name: str, background_color: Tuple = None,
                             text_color: Tuple = None):
-        """Add a custom highlight style."""
+
         style = {}
         if background_color:
             style['background_color'] = background_color
@@ -213,36 +206,36 @@ class Label(UIComponent):
         self.highlight_styles[name] = style
 
     def clear_segments(self):
-        """Clear all text segments."""
+
         self.text_segments.clear()
         self.rendered_segments.clear()
         self.hovered_segment = None
         self._update_cursor_type()
 
     def set_text_align(self, align: str):
-        """Set text alignment."""
+
         self.text_align = align
 
     def set_vertical_align(self, align: str):
-        """Set vertical alignment."""
+
         self.vertical_align = align
 
     def set_line_spacing(self, spacing: int):
-        """Set spacing between lines."""
+
         self.line_spacing = spacing
 
     def set_size(self, width: int, height: int):
-        """Override set_size to trigger text rewrapping."""
+
         super().set_size(width, height)
         self._update_wrapped_lines()
 
     def update_layout(self):
-        """Update component layout (called when viewport changes)."""
+
         super().update_layout()
         self._update_wrapped_lines()
 
     def _update_cursor_type(self):
-        """Update cursor type based on interactive segments."""
+
         from ..types import CursorType
         has_interactive = any(seg.clickable or seg.hoverable for seg in self.text_segments)
         if has_interactive:
@@ -251,7 +244,7 @@ class Label(UIComponent):
             self.set_cursor_type(CursorType.DEFAULT)
 
     def _update_wrapped_lines(self):
-        """Update the wrapped lines cache when text or size changes."""
+
         if not self.text:
             self._wrapped_lines = [""]
             self.rendered_segments.clear()
@@ -284,7 +277,7 @@ class Label(UIComponent):
             self.rendered_segments.clear()
 
     def _update_rendered_segments(self):
-        """Update the positions of rendered segments based on current layout."""
+
         self.rendered_segments.clear()
 
         if not self.text_segments or not self._wrapped_lines:
@@ -381,7 +374,6 @@ class Label(UIComponent):
             text_char_pos = line_char_end
 
     def _handle_mouse_move(self, event: UIEvent) -> bool:
-        """Handle mouse move events for hover detection."""
 
         hovered_segment = None
 
@@ -415,7 +407,7 @@ class Label(UIComponent):
         return hover_state_changed or (hovered_segment is not None)
 
     def _handle_mouse_click(self, event: UIEvent) -> bool:
-        """Handle mouse click events."""
+
         for rendered_seg in self.rendered_segments:
             if (rendered_seg.segment.clickable and
                     rendered_seg.x <= event.mouse_x <= rendered_seg.x + rendered_seg.width and
@@ -431,7 +423,7 @@ class Label(UIComponent):
         return False
 
     def _handle_mouse_leave(self, event: UIEvent) -> bool:
-        """Handle mouse leave events."""
+
         hover_state_changed = False
 
         if self.hovered_segment:
@@ -450,11 +442,11 @@ class Label(UIComponent):
         return hover_state_changed
 
     def get_wrapped_lines(self) -> List[str]:
-        """Get the current wrapped lines."""
+
         return self._wrapped_lines
 
     def get_content_height(self) -> int:
-        """Calculate the total height needed for all text lines."""
+
         if not self._wrapped_lines:
             return 0
 
@@ -463,7 +455,7 @@ class Label(UIComponent):
         return len(self._wrapped_lines) * line_height - self.line_spacing
 
     def render(self, renderer: 'UIRenderer'):
-        """Render the label with multiline support and highlighting."""
+
         if not self.text or not self._wrapped_lines:
             return
 
@@ -557,7 +549,7 @@ class Label(UIComponent):
             text_char_pos += len(line)
 
     def _force_immediate_redraw(self):
-        """Force an immediate redraw of the UI when hover state changes."""
+
         try:
 
             if self.ui_state and hasattr(self.ui_state, 'target_area') and self.ui_state.target_area:

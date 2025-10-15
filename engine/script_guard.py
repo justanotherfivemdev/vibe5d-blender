@@ -1,9 +1,3 @@
-"""
-Script guard for safe code execution.
-
-Filters malicious imports and validates code before execution.
-"""
-
 import ast
 import textwrap
 from typing import Tuple, Optional
@@ -11,108 +5,16 @@ from typing import Tuple, Optional
 from ..utils.logger import logger
 
 DANGEROUS_IMPORTS = [
-    'os',
-    'shutil',
-    'subprocess',
-    'sys',
-    'pathlib',
-    'glob',
-    'tempfile',
-    'socket',
-    'http.client',
-    'http.server',
-    'ftplib',
-    'smtplib',
-    'poplib',
-    'imaplib',
-    'telnetlib',
-    'xmlrpc.client',
-    'xmlrpc.server',
-    'urllib',
-    'webbrowser',
-    'asyncio',
-    'ssl',
-    'multiprocessing',
-    'threading',
-    'ctypes',
-    'runpy',
-    'importlib',
-    'marshal',
-    'pickle',
-    'shelve',
-    'resource',
-    'pwd',
-    'grp',
-    'spwd',
-    'crypt',
-    'getpass',
-    'signal',
-    'platform',
-    'syslog',
-    'configparser',
-    'plistlib',
-    'zipfile',
-    'tarfile',
-    'gzip',
-    'bz2',
-    'sqlite3',
-    'dbm',
-    'email',
-    'mimetypes',
-    'base64',
-    'binascii',
-    'hashlib',
-    'hmac',
-    'secrets',
-    'uuid',
-    'argparse',
-    'optparse',
-    'atexit',
-    'builtins',
-    '__builtin__',
-    '__main__'
+    ,
+,
 ]
 
-DANGEROUS_FUNCTIONS = [
-    'exec',
-    'eval',
-    'compile',
-    'open',
-    'file',
-    'input',
-    'raw_input',
-    'reload',
-    'vars',
-    'locals',
-    'globals',
-    'dir'
-]
+DANGEROUS_FUNCTIONS = []
 
-DANGEROUS_ATTRIBUTES = [
-    '__builtins__',
-    '__globals__',
-    '__locals__',
-    '__dict__',
-    '__class__',
-    '__bases__',
-    '__mro__',
-    '__subclasses__',
-    'func_globals',
-    'func_code',
-    'gi_frame',
-    'cr_frame'
-]
+DANGEROUS_ATTRIBUTES = []
 
 
 class ScriptGuard:
-    """
-    Guards against malicious code execution.
-    
-    Uses a blocklist approach for imports - any module not explicitly listed
-    in DANGEROUS_IMPORTS is allowed to be imported. This enables users to
-    import common libraries like numpy, scipy, matplotlib, etc. while still
-    blocking access to filesystem, network, and system operations.
-    """
 
     def __init__(self):
         self.dangerous_imports = set(DANGEROUS_IMPORTS)
@@ -120,15 +22,7 @@ class ScriptGuard:
         self.dangerous_attributes = set(DANGEROUS_ATTRIBUTES)
 
     def validate_code(self, code: str) -> Tuple[bool, Optional[str]]:
-        """
-        Validate code for security issues.
-        
-        Args:
-            code: Python code to validate
-            
-        Returns:
-            Tuple of (is_safe, error_message)
-        """
+
         try:
 
             tree = ast.parse(code)
@@ -155,7 +49,7 @@ class ScriptGuard:
             return False, error_msg
 
     def extract_python_code(self, text: str) -> str:
-        """Extract Python code from markdown code blocks while preserving indentation."""
+
         lines = text.split('\n')
         code_lines = []
         in_code_block = False
@@ -181,14 +75,13 @@ class ScriptGuard:
 
 
 class CodeValidator(ast.NodeVisitor):
-    """AST visitor to validate code for security issues."""
 
     def __init__(self, guard: ScriptGuard):
         self.guard = guard
         self.violations = []
 
     def visit_Import(self, node):
-        """Check import statements."""
+
         for alias in node.names:
 
             root_module = alias.name.split('.')[0]
@@ -197,7 +90,7 @@ class CodeValidator(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_ImportFrom(self, node):
-        """Check from...import statements."""
+
         if node.module:
 
             root_module = node.module.split('.')[0]
@@ -206,7 +99,6 @@ class CodeValidator(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_Call(self, node):
-        """Check function calls."""
 
         if isinstance(node.func, ast.Name):
             if node.func.id in self.guard.dangerous_functions:
@@ -220,13 +112,13 @@ class CodeValidator(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_Attribute(self, node):
-        """Check attribute access."""
+
         if node.attr in self.guard.dangerous_attributes:
             self.violations.append(f"Dangerous attribute access: {node.attr}")
         self.generic_visit(node)
 
     def visit_Exec(self, node):
-        """Check exec statements (Python 2)."""
+
         self.violations.append("Dangerous exec statement")
         self.generic_visit(node)
 

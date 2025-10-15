@@ -1,19 +1,13 @@
-"""
-Vibe4D - AI-powered Blender addon.
-
-This addon provides AI-powered code generation and assistance for Blender.
-"""
-
 bl_info = {
-    "name": "Vibe4D",
-    "author": "Emalakai",
-    "version": (0, 2, 0),
-    "blender": (4, 4, 0),
-    "location": "View3D > Sidebar > Vibe4D",
-    "description": "Ultimate Blender AI assistant",
-    "warning": "",
-    "doc_url": "https://vibe4d.com",
-    "category": "Development",
+:"Vibe4D",
+: "Vibe4D",
+:(0, 3, 0),
+: (4, 5, 3),
+:"View3D > Sidebar > Vibe4D",
+: "Ultimate Blender AI assistant",
+:"",
+: "https://vibe4d.com",
+:"Development",
 }
 
 import bpy
@@ -40,23 +34,19 @@ viewport = api.viewport
 add_viewport_render = api.add_viewport_render
 see_viewport = api.see_viewport
 see_render = api.see_render
-
 render_async = api.render_async
 get_render_result = api.get_render_result
 cancel_render = api.cancel_render
 list_active_renders = api.list_active_renders
 render_with_callback = api.render_with_callback
-analyse_mesh_image = api.analyse_mesh_image
+screenshot_object = api.screenshot_object
 
 
 @persistent
 def load_auth_and_settings_on_file_load(file):
-    """Initialize auth and settings when a Blender file is loaded."""
     try:
         if bpy.context.scene:
-
             is_authenticated = getattr(bpy.context.window_manager, 'vibe4d_authenticated', False)
-
             if not is_authenticated:
                 auth_manager.initialize_auth(bpy.context)
 
@@ -68,20 +58,14 @@ def load_auth_and_settings_on_file_load(file):
 
 @persistent
 def recover_ui_overlay_on_file_load(file):
-    """Recover UI overlay state after scene reload/file load using robust state management."""
-
     def delayed_recovery():
-        """Delayed recovery function to ensure scene is fully loaded."""
-        try:
 
+        try:
             from .ui.advanced.manager import ui_manager
             from .ui.advanced.ui_state_manager import ui_state_manager
 
             recovery_success = ui_state_manager.recover_ui_state(bpy.context, ui_manager)
-
-            if recovery_success:
-                pass
-            else:
+            if not recovery_success:
                 logger.debug("No UI state to recover or recovery not needed")
 
         except Exception as e:
@@ -99,14 +83,10 @@ def recover_ui_overlay_on_file_load(file):
 
 @persistent
 def ensure_viewport_button_handler(file):
-    """Ensure viewport button modal handler is running after file load."""
-
     def delayed_handler_check():
-        """Check and start viewport button handler if needed."""
+
         try:
-
             if hasattr(bpy.context, 'window_manager') and bpy.context.window_manager:
-
                 try:
                     bpy.ops.vibe4d.viewport_button_handler('INVOKE_DEFAULT')
                     logger.debug("Viewport button modal handler started after file load")
@@ -127,29 +107,26 @@ def ensure_viewport_button_handler(file):
 
 @persistent
 def auto_open_chat_ui_on_file_load(file):
-    """Automatically open the chat UI when a new scene is loaded."""
-
     if file:
         logger.debug(f"Skipping auto-open for existing file: {file}")
         return
 
     def delayed_ui_open():
-        """Delayed UI opening function to ensure scene is fully loaded."""
-        try:
 
+        try:
             from .ui.advanced.manager import ui_manager
 
             if ui_manager.is_ui_active():
                 logger.debug("Chat UI already active, skipping auto-open")
                 return None
 
+            MIN_VIEWPORT_WIDTH = 800
+            MIN_VIEWPORT_HEIGHT = 600
             target_area = None
             for area in bpy.context.screen.areas:
-                if area.type == 'VIEW_3D':
-
-                    if area.width > 800 and area.height > 600:
-                        target_area = area
-                        break
+                if area.type == 'VIEW_3D' and area.width > MIN_VIEWPORT_WIDTH and area.height > MIN_VIEWPORT_HEIGHT:
+                    target_area = area
+                    break
 
             if not target_area:
                 logger.debug("No suitable 3D viewport found for auto-opening chat UI")
@@ -175,7 +152,6 @@ def auto_open_chat_ui_on_file_load(file):
 
 
 def register():
-    """Register the addon."""
     try:
         logger.info("=== Registering Vibe4D Addon ===")
 
@@ -200,11 +176,9 @@ def register():
             bpy.app.handlers.load_post.append(auto_open_chat_ui_on_file_load)
 
         def delayed_modal_handler_start():
-            """Start the viewport button modal handler after context is ready."""
             try:
                 if hasattr(bpy.context, 'window_manager') and bpy.context.window_manager:
                     bpy.ops.vibe4d.viewport_button_handler('INVOKE_DEFAULT')
-                    logger.info("Viewport button modal handler started")
                 else:
                     logger.warning("Context not ready for modal handler, will retry on file load")
             except Exception as e:
@@ -232,7 +206,6 @@ def register():
 
 
 def unregister():
-    """Unregister the addon."""
     try:
         logger.info("=== Unregistering Vibe4D Addon ===")
 

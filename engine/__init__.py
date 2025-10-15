@@ -9,12 +9,8 @@ __all__ = ['classes', 'code_executor', 'script_guard', 'tools_manager', 'render_
 
 
 def register():
-    """Register engine module."""
-
     render_manager.register_handlers()
 
 
 def unregister():
-    """Unregister engine module."""
-
     render_manager.cleanup()

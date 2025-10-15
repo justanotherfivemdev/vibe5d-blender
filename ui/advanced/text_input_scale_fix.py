@@ -86,7 +86,7 @@ def patch_text_input_for_scaling():
             scaled_border_width = UnifiedStyles.get_text_input_border_width()
 
             return (scaled_padding * 2) + self.content_padding_top + self.content_padding_bottom + (
-                        scaled_border_width * 2)
+                    scaled_border_width * 2)
 
         def get_total_padding_horizontal_with_scale(self):
             """Get total horizontal padding using dynamic scaling."""
@@ -95,7 +95,7 @@ def patch_text_input_for_scaling():
             scaled_border_width = UnifiedStyles.get_text_input_border_width()
 
             return (scaled_padding * 2) + self.content_padding_left + self.content_padding_right + (
-                        scaled_border_width * 2)
+                    scaled_border_width * 2)
 
         def get_text_usable_width_with_scale(self):
             """Get the usable width for text rendering with dynamic scaling."""

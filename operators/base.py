@@ -1,9 +1,3 @@
-"""
-Base operators for Vibe4D addon.
-
-Core operators for authentication, generation, and basic functionality.
-"""
-
 import bpy
 from bpy.props import StringProperty
 from bpy.types import Operator
@@ -12,15 +6,13 @@ from ..utils.logger import logger
 
 
 class VIBE4D_OT_authenticate(Operator):
-    """Authenticate with Vibe4D service."""
-
     bl_idname = "vibe4d.authenticate"
     bl_label = "Authenticate"
     bl_description = "Authenticate with Vibe4D service"
     bl_options = {'REGISTER'}
 
     def execute(self, context):
-        """Execute authentication."""
+
         try:
             logger.info("Authentication operator called")
 
@@ -38,13 +30,11 @@ classes = [
 
 
 def register():
-    """Register operators."""
     for cls in classes:
         bpy.utils.register_class(cls)
 
 
 def unregister():
-    """Unregister operators."""
     for cls in reversed(classes):
         try:
             bpy.utils.unregister_class(cls)

@@ -4,12 +4,10 @@ from .unified_styles import Styles as UnifiedStyles
 
 
 def get_scaled_font_size() -> int:
-    """Get the base font size scaled by the UI scale factor."""
     return UnifiedStyles.get_font_size()
 
 
 class FontSizesMeta(type):
-    """Metaclass to enable class properties for FontSizes."""
 
     @property
     def Default(cls) -> int:
@@ -21,12 +19,10 @@ class FontSizesMeta(type):
 
 
 class FontSizes(metaclass=FontSizesMeta):
-    """Dynamic font sizes that scale with UI scale factor."""
     pass
 
 
 class MarkdownLayout:
-    """Layout constants for markdown message components."""
 
     @classmethod
     def CORNER_RADIUS(cls) -> int:

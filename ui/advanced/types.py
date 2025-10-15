@@ -1,7 +1,3 @@
-"""
-Core types and data structures for the UI system.
-"""
-
 import logging
 from dataclasses import dataclass, field
 from enum import Enum
@@ -11,7 +7,6 @@ logger = logging.getLogger(__name__)
 
 
 class EventType(Enum):
-    """Event types for the UI system."""
     MOUSE_CLICK = "mouse_click"
     MOUSE_PRESS = "mouse_press"
     MOUSE_DRAG = "mouse_drag"
@@ -28,7 +23,6 @@ class EventType(Enum):
 
 
 class CursorType(Enum):
-    """Cursor types for different UI element interactions."""
     DEFAULT = "DEFAULT"
     TEXT = "TEXT"
     HAND = "HAND"
@@ -44,7 +38,6 @@ class CursorType(Enum):
 
 @dataclass
 class UIEvent:
-    """Represents a UI event."""
     event_type: EventType
     mouse_x: int = 0
     mouse_y: int = 0
@@ -55,14 +48,13 @@ class UIEvent:
 
 @dataclass
 class Bounds:
-    """Represents rectangular bounds in area coordinates (Y=0 at bottom)."""
     x: int
     y: int
     width: int
     height: int
 
     def __post_init__(self):
-        """Validate bounds after initialization."""
+
         if self.width < 0:
             logger.warning(f"Bounds width is negative: {self.width}, setting to 0")
             self.width = 0
@@ -71,38 +63,31 @@ class Bounds:
             self.height = 0
 
     def contains_point(self, x: int, y: int) -> bool:
-        """Check if a point is within these bounds.
-        
-        Uses standard rectangle hit testing:
-        - Left/Bottom edges are inclusive
-        - Right/Top edges are exclusive
-        
-        This ensures pixel-perfect alignment with visual rendering.
-        """
+
         result = (self.x <= x < self.x + self.width and
                   self.y <= y < self.y + self.height)
         return result
 
     def center(self) -> Tuple[int, int]:
-        """Get the center point of the bounds."""
+
         return (self.x + self.width // 2, self.y + self.height // 2)
 
     def right(self) -> int:
-        """Get the right edge coordinate (exclusive)."""
+
         return self.x + self.width
 
     def top(self) -> int:
-        """Get the top edge coordinate (exclusive)."""
+
         return self.y + self.height
 
     def area(self) -> int:
-        """Get the area of the bounds."""
+
         return self.width * self.height
 
     def is_valid(self) -> bool:
-        """Check if the bounds are valid (non-negative dimensions)."""
+
         return self.width >= 0 and self.height >= 0
 
     def __str__(self) -> str:
-        """String representation for debugging."""
+
         return f"Bounds(x={self.x}, y={self.y}, w={self.width}, h={self.height}, right={self.right()}, top={self.top()})"

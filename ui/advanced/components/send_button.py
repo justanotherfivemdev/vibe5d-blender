@@ -1,13 +1,8 @@
-"""
-Send button component
-"""
-
 import logging
 
 from .button import Button
 from .image import ImageComponent, ImageFit, ImagePosition
-from ..component_theming import get_component_color
-from ..theme import get_themed_style
+from ..component_theming import get_themed_component_style, get_component_color
 from ..unified_styles import Styles
 
 logger = logging.getLogger(__name__)
@@ -19,7 +14,7 @@ class SendButton(Button):
                  corner_radius: int = 6, on_click=None):
         super().__init__(text, x, y, width, height, corner_radius, on_click)
 
-        self.style = get_themed_style("button")
+        self.style = get_themed_component_style("button")
 
         self.style.background_color = get_component_color('button', 'background_color')
         self.style.focus_background_color = Styles.lighten_color(self.style.background_color, 10)
@@ -47,15 +42,15 @@ class SendButton(Button):
         )
 
     def set_mode(self, is_send_mode: bool):
-        """Switch between send and stop modes."""
+
         self.is_send_mode = is_send_mode
 
     def set_stop_callback(self, callback):
-        """Set the callback for stop button clicks."""
+
         self.on_stop_click = callback
 
     def _trigger_click(self):
-        """Trigger the appropriate button click action based on current mode."""
+
         if not self.is_enabled:
             return
 
@@ -68,7 +63,7 @@ class SendButton(Button):
             logger.error(f"Error executing button click callback: {e}")
 
     def set_position(self, x: int, y: int):
-        """Override to update icon position as well."""
+
         super().set_position(x, y)
         icon_size = Styles.get_send_button_icon_size()
         icon_padding = (self.bounds.width - icon_size) // 2
@@ -78,7 +73,7 @@ class SendButton(Button):
         )
 
     def set_size(self, width: int, height: int):
-        """Override to update icon size as well."""
+
         super().set_size(width, height)
         icon_size = Styles.get_send_button_icon_size()
         icon_padding = (width - icon_size) // 2
@@ -112,7 +107,7 @@ class SendButton(Button):
         self.icon_component.render(renderer)
 
     def _get_current_colors(self):
-        """Get colors for current state using base class method."""
+
         if not self.is_enabled:
 
             bg_color = tuple(c * 0.5 for c in self.style.background_color[:3]) + (0.5,)
@@ -129,6 +124,6 @@ class SendButton(Button):
         return bg_color
 
     def cleanup(self):
-        """Clean up resources when button is destroyed."""
+
         if self.icon_component:
             self.icon_component.cleanup()

@@ -1,23 +1,19 @@
-"""
-GPU rendering system for the UI.
-Handles all GPU-based drawing operations including clipping support for scrollable content.
-"""
-
 import logging
+import math
+from collections import OrderedDict
+from contextlib import contextmanager
 from typing import Tuple, List, Optional
 
 import blf
 import gpu
 from gpu_extras.batch import batch_for_shader
 
-from .coordinates import CoordinateSystem
 from .types import Bounds
 
 logger = logging.getLogger(__name__)
 
 
 class ClipRegion:
-    """Represents a clipping region."""
 
     def __init__(self, x: int, y: int, width: int, height: int):
         self.x = x
@@ -27,22 +23,26 @@ class ClipRegion:
 
 
 class UIRenderer:
-    """Handles all GPU rendering operations with performance optimizations and clipping support."""
+    CORNER_SEGMENTS_SMOOTH = 8
+    CORNER_SEGMENTS_HIGH_QUALITY = 12
+    MAX_BATCH_CACHE_SIZE = 100
+    MAX_FONT_CACHE_SIZE = 500
 
     def __init__(self):
         self.shader = None
         self.texture_shader = None
         self._setup_shaders()
 
-        self._batch_cache = {}
-        self._last_font_size = None
-        self._font_cache = {}
+        self._batch_cache = OrderedDict()
+        self._font_cache = OrderedDict()
 
         self._clip_stack: List[ClipRegion] = []
         self._current_clip: Optional[ClipRegion] = None
+        self._clip_push_count = 0
+        self._clip_pop_count = 0
 
     def _setup_shaders(self):
-        """Setup GPU shaders."""
+
         try:
             self.shader = gpu.shader.from_builtin('UNIFORM_COLOR')
             self.texture_shader = gpu.shader.from_builtin('IMAGE')
@@ -50,83 +50,88 @@ class UIRenderer:
             logger.error(f"Failed to setup shaders: {e}")
             raise
 
-    def _get_or_create_rect_batch(self, bounds: Bounds):
-        """Get or create cached rectangle batch."""
-        cache_key = (bounds.x, bounds.y, bounds.width, bounds.height, 'rect')
+    def cleanup(self):
 
-        if cache_key not in self._batch_cache:
-            vertices = [
-                (bounds.x, bounds.y),
-                (bounds.x + bounds.width, bounds.y),
-                (bounds.x + bounds.width, bounds.y + bounds.height),
-                (bounds.x, bounds.y + bounds.height)
-            ]
-            indices = [(0, 1, 2), (2, 3, 0)]
-            self._batch_cache[cache_key] = batch_for_shader(
-                self.shader, 'TRIS', {"pos": vertices}, indices=indices
-            )
+        self._batch_cache.clear()
+        self._font_cache.clear()
+        self._clip_stack.clear()
+        self._current_clip = None
+        self._disable_scissor_test()
 
-        return self._batch_cache[cache_key]
+    def _add_to_cache(self, cache_dict: OrderedDict, key, value, max_size: int):
+
+        if key in cache_dict:
+            cache_dict.move_to_end(key)
+        else:
+            cache_dict[key] = value
+            if len(cache_dict) > max_size:
+                cache_dict.popitem(last=False)
+
+    def _validate_color(self, color: Tuple[float, float, float, float]) -> bool:
+
+        if not isinstance(color, (tuple, list)) or len(color) != 4:
+            logger.error(f"Invalid color format: {color}")
+            return False
+        return all(0.0 <= c <= 1.0 for c in color)
 
     def draw_rect(self, bounds: Bounds, color: Tuple[float, float, float, float]):
-        """Draw a filled rectangle using centralized coordinate system with caching."""
 
-        gpu_x, gpu_y = CoordinateSystem.region_to_gpu(bounds.x, bounds.y)
+        if not self._validate_color(color):
+            return
 
         vertices = [
-            (gpu_x, gpu_y),
-            (gpu_x + bounds.width, gpu_y),
-            (gpu_x + bounds.width, gpu_y + bounds.height),
-            (gpu_x, gpu_y + bounds.height)
+            (bounds.x, bounds.y),
+            (bounds.x + bounds.width, bounds.y),
+            (bounds.x + bounds.width, bounds.y + bounds.height),
+            (bounds.x, bounds.y + bounds.height)
         ]
-
         indices = [(0, 1, 2), (2, 3, 0)]
 
-        try:
+        cache_key = (bounds.x, bounds.y, bounds.width, bounds.height, 'rect')
 
+        if cache_key in self._batch_cache:
+            batch = self._batch_cache[cache_key]
+            self._batch_cache.move_to_end(cache_key)
+        else:
             batch = batch_for_shader(self.shader, 'TRIS', {"pos": vertices}, indices=indices)
+            self._add_to_cache(self._batch_cache, cache_key, batch, self.MAX_BATCH_CACHE_SIZE)
 
+        try:
             gpu.state.blend_set('ALPHA')
-            self.shader.bind()
-            self.shader.uniform_float("color", color)
-            batch.draw(self.shader)
-            gpu.state.blend_set('NONE')
+            try:
+                self.shader.bind()
+                self.shader.uniform_float("color", color)
+                batch.draw(self.shader)
+            finally:
+                gpu.state.blend_set('NONE')
         except Exception as e:
-            logger.error(f"Error drawing rectangle: {e}")
+            logger.error(f"Error drawing rectangle: {e}", exc_info=True)
 
     def draw_rect_outline(self, bounds: Bounds, color: Tuple[float, float, float, float], width: int = 1):
-        """Draw a rectangle outline using filled rectangles for proper thickness support."""
+
         if width <= 0:
             return
 
-        gpu_x, gpu_y = CoordinateSystem.region_to_gpu(bounds.x, bounds.y)
+        top_bounds = Bounds(bounds.x, bounds.y + bounds.height - width, bounds.width, width)
+        self.draw_rect(top_bounds, color)
 
-        try:
+        bottom_bounds = Bounds(bounds.x, bounds.y, bounds.width, width)
+        self.draw_rect(bottom_bounds, color)
 
-            top_bounds = Bounds(bounds.x, bounds.y + bounds.height - width, bounds.width, width)
-            self.draw_rect(top_bounds, color)
+        left_bounds = Bounds(bounds.x, bounds.y + width, width, bounds.height - 2 * width)
+        if left_bounds.height > 0:
+            self.draw_rect(left_bounds, color)
 
-            bottom_bounds = Bounds(bounds.x, bounds.y, bounds.width, width)
-            self.draw_rect(bottom_bounds, color)
-
-            left_bounds = Bounds(bounds.x, bounds.y + width, width, bounds.height - 2 * width)
-            if left_bounds.height > 0:
-                self.draw_rect(left_bounds, color)
-
-            right_bounds = Bounds(bounds.x + bounds.width - width, bounds.y + width, width, bounds.height - 2 * width)
-            if right_bounds.height > 0:
-                self.draw_rect(right_bounds, color)
-
-        except Exception as e:
-            logger.error(f"Error drawing rectangle outline: {e}")
+        right_bounds = Bounds(bounds.x + bounds.width - width, bounds.y + width, width, bounds.height - 2 * width)
+        if right_bounds.height > 0:
+            self.draw_rect(right_bounds, color)
 
     def draw_line(self, x1: int, y1: int, x2: int, y2: int, color: Tuple[float, float, float, float]):
-        """Draw a line using centralized coordinate system."""
 
-        gpu_x1, gpu_y1 = CoordinateSystem.region_to_gpu(x1, y1)
-        gpu_x2, gpu_y2 = CoordinateSystem.region_to_gpu(x2, y2)
+        if not self._validate_color(color):
+            return
 
-        vertices = [(gpu_x1, gpu_y1), (gpu_x2, gpu_y2)]
+        vertices = [(x1, y1), (x2, y2)]
 
         try:
             batch = batch_for_shader(self.shader, 'LINES', {"pos": vertices})
@@ -134,49 +139,52 @@ class UIRenderer:
             self.shader.uniform_float("color", color)
             batch.draw(self.shader)
         except Exception as e:
-            logger.error(f"Error drawing line: {e}")
+            logger.error(f"Error drawing line: {e}", exc_info=True)
 
     def draw_text(self, text: str, x: int, y: int, size: int, color: Tuple[float, float, float, float],
                   font_id: int = 0):
-        """Draw text using centralized coordinate system with consistent DPI scaling and font support."""
 
-        gpu_x, gpu_y = CoordinateSystem.region_to_gpu(x, y)
+        if not self._validate_color(color):
+            return
+
+        if not text:
+            return
 
         try:
-
             blf.size(font_id, size)
-
-            blf.position(font_id, gpu_x, gpu_y, 0)
+            blf.position(font_id, x, y, 0)
             blf.color(font_id, *color)
             blf.draw(font_id, text)
         except Exception as e:
-            logger.error(f"Error drawing text with font {font_id}: {e}")
+            logger.error(f"Error drawing text with font {font_id}: {e}", exc_info=True)
 
     def get_text_dimensions(self, text: str, size: int, font_id: int = 0) -> Tuple[int, int]:
-        """Get text dimensions with consistent DPI scaling and font support."""
+
+        if not text:
+            return (0, 0)
+
         cache_key = (text, size, font_id)
 
-        if cache_key not in self._font_cache:
-            try:
+        if cache_key in self._font_cache:
+            self._font_cache.move_to_end(cache_key)
+            return self._font_cache[cache_key]
 
-                blf.size(font_id, size)
-
-                self._font_cache[cache_key] = blf.dimensions(font_id, text)
-            except Exception as e:
-                logger.error(f"Error getting text dimensions with font {font_id}: {e}")
-                self._font_cache[cache_key] = (0, 0)
-
-        return self._font_cache[cache_key]
+        try:
+            blf.size(font_id, size)
+            dimensions = blf.dimensions(font_id, text)
+            self._add_to_cache(self._font_cache, cache_key, dimensions, self.MAX_FONT_CACHE_SIZE)
+            return dimensions
+        except Exception as e:
+            logger.error(f"Error getting text dimensions with font {font_id}: {e}", exc_info=True)
+            return (0, 0)
 
     def push_clip_rect(self, x: int, y: int, width: int, height: int):
-        """Push a clipping rectangle onto the clip stack."""
 
-        gpu_x, gpu_y = CoordinateSystem.region_to_gpu(x, y)
+        self._clip_push_count += 1
 
-        new_clip = ClipRegion(gpu_x, gpu_y, width, height)
+        new_clip = ClipRegion(x, y, width, height)
 
         if self._current_clip:
-
             left = max(self._current_clip.x, new_clip.x)
             bottom = max(self._current_clip.y, new_clip.y)
             right = min(self._current_clip.x + self._current_clip.width, new_clip.x + new_clip.width)
@@ -188,7 +196,6 @@ class UIRenderer:
                 new_clip.width = right - left
                 new_clip.height = top - bottom
             else:
-
                 new_clip.width = 0
                 new_clip.height = 0
 
@@ -199,7 +206,12 @@ class UIRenderer:
         self._apply_scissor_test()
 
     def pop_clip_rect(self):
-        """Pop the current clipping rectangle from the clip stack."""
+
+        self._clip_pop_count += 1
+
+        if self._clip_push_count != self._clip_pop_count:
+            logger.warning(f"Clip stack imbalance: {self._clip_push_count} pushes vs {self._clip_pop_count} pops")
+
         if self._clip_stack:
             self._current_clip = self._clip_stack.pop()
             self._apply_scissor_test()
@@ -207,12 +219,19 @@ class UIRenderer:
             self._current_clip = None
             self._disable_scissor_test()
 
+    @contextmanager
+    def clip_rect(self, x: int, y: int, width: int, height: int):
+
+        self.push_clip_rect(x, y, width, height)
+        try:
+            yield
+        finally:
+            self.pop_clip_rect()
+
     def _apply_scissor_test(self):
-        """Apply the current clipping region using GPU scissor test."""
+
         if self._current_clip and self._current_clip.width > 0 and self._current_clip.height > 0:
-
             gpu.state.scissor_test_set(True)
-
             gpu.state.scissor_set(
                 int(self._current_clip.x),
                 int(self._current_clip.y),
@@ -223,50 +242,86 @@ class UIRenderer:
             self._disable_scissor_test()
 
     def _disable_scissor_test(self):
-        """Disable the scissor test."""
+
         gpu.state.scissor_test_set(False)
 
     def is_point_clipped(self, x: int, y: int) -> bool:
-        """Check if a point is clipped by the current clipping region."""
+
         if not self._current_clip:
             return False
 
-        gpu_x, gpu_y = CoordinateSystem.region_to_gpu(x, y)
-
-        return (gpu_x < self._current_clip.x or
-                gpu_x >= self._current_clip.x + self._current_clip.width or
-                gpu_y < self._current_clip.y or
-                gpu_y >= self._current_clip.y + self._current_clip.height)
+        return (x < self._current_clip.x or
+                x >= self._current_clip.x + self._current_clip.width or
+                y < self._current_clip.y or
+                y >= self._current_clip.y + self._current_clip.height)
 
     def is_rect_clipped(self, bounds: Bounds) -> bool:
-        """Check if a rectangle is completely clipped."""
+
         if not self._current_clip:
             return False
 
-        gpu_x, gpu_y = CoordinateSystem.region_to_gpu(bounds.x, bounds.y)
-
-        return (gpu_x + bounds.width < self._current_clip.x or
-                gpu_x >= self._current_clip.x + self._current_clip.width or
-                gpu_y + bounds.height < self._current_clip.y or
-                gpu_y >= self._current_clip.y + self._current_clip.height)
+        return (bounds.x + bounds.width < self._current_clip.x or
+                bounds.x >= self._current_clip.x + self._current_clip.width or
+                bounds.y + bounds.height < self._current_clip.y or
+                bounds.y >= self._current_clip.y + self._current_clip.height)
 
     def clear_caches(self):
-        """Clear all caches (call when context changes)."""
+
         self._batch_cache.clear()
         self._font_cache.clear()
-        self._last_font_size = None
-
         self._clip_stack.clear()
         self._current_clip = None
+        self._clip_push_count = 0
+        self._clip_pop_count = 0
         self._disable_scissor_test()
 
-    def draw_rounded_rect(self, bounds: Bounds, color: Tuple[float, float, float, float], corner_radius: int = 0):
-        """Draw a filled rounded rectangle using centralized coordinate system."""
-        if corner_radius <= 0:
-            self.draw_rect(bounds, color)
-            return
+    def _generate_corner_vertices(self, center_x: float, center_y: float, radius: int,
+                                  start_angle: float, end_angle: float, segments: int):
 
-        gpu_x, gpu_y = CoordinateSystem.region_to_gpu(bounds.x, bounds.y)
+        vertices = [(center_x, center_y)]
+
+        for i in range(segments + 1):
+            angle = start_angle + (end_angle - start_angle) * i / segments
+            x = center_x + radius * math.cos(angle)
+            y = center_y + radius * math.sin(angle)
+            vertices.append((x, y))
+
+        indices = []
+        for i in range(1, len(vertices) - 1):
+            indices.append((0, i, i + 1))
+
+        return vertices, indices
+
+    def _generate_corner_ring(self, center_x: float, center_y: float, outer_radius: int,
+                              inner_radius: int, start_angle: float, end_angle: float, segments: int):
+
+        vertices = []
+        indices = []
+        vertex_count = 0
+
+        for i in range(segments + 1):
+            angle = start_angle + (end_angle - start_angle) * i / segments
+
+            outer_x = center_x + outer_radius * math.cos(angle)
+            outer_y = center_y + outer_radius * math.sin(angle)
+            vertices.append((outer_x, outer_y))
+
+            inner_x = center_x + inner_radius * math.cos(angle)
+            inner_y = center_y + inner_radius * math.sin(angle)
+            vertices.append((inner_x, inner_y))
+
+            if i > 0:
+                indices.append((vertex_count - 2, vertex_count, vertex_count - 1))
+                indices.append((vertex_count, vertex_count + 1, vertex_count - 1))
+
+            vertex_count += 2
+
+        return vertices, indices
+
+    def draw_rounded_rect(self, bounds: Bounds, color: Tuple[float, float, float, float], corner_radius: int = 0):
+
+        if not self._validate_color(color):
+            return
 
         max_radius = min(bounds.width, bounds.height) // 2
         corner_radius = min(corner_radius, max_radius)
@@ -276,17 +331,14 @@ class UIRenderer:
             return
 
         try:
-            import math
             vertices = []
             indices = []
             vertex_count = 0
 
-            corner_segments = 8
-
-            center_left = gpu_x + corner_radius
-            center_right = gpu_x + bounds.width - corner_radius
-            center_bottom = gpu_y
-            center_top = gpu_y + bounds.height
+            center_left = bounds.x + corner_radius
+            center_right = bounds.x + bounds.width - corner_radius
+            center_bottom = bounds.y
+            center_top = bounds.y + bounds.height
 
             if center_right > center_left:
                 vertices.extend([
@@ -301,15 +353,15 @@ class UIRenderer:
                 ])
                 vertex_count += 4
 
-            left_bottom = gpu_y + corner_radius
-            left_top = gpu_y + bounds.height - corner_radius
+            left_bottom = bounds.y + corner_radius
+            left_top = bounds.y + bounds.height - corner_radius
 
             if left_top > left_bottom:
                 vertices.extend([
-                    (gpu_x, left_bottom),
-                    (gpu_x + corner_radius, left_bottom),
-                    (gpu_x + corner_radius, left_top),
-                    (gpu_x, left_top)
+                    (bounds.x, left_bottom),
+                    (bounds.x + corner_radius, left_bottom),
+                    (bounds.x + corner_radius, left_top),
+                    (bounds.x, left_top)
                 ])
                 indices.extend([
                     (vertex_count, vertex_count + 1, vertex_count + 2),
@@ -319,10 +371,10 @@ class UIRenderer:
 
             if left_top > left_bottom:
                 vertices.extend([
-                    (gpu_x + bounds.width - corner_radius, left_bottom),
-                    (gpu_x + bounds.width, left_bottom),
-                    (gpu_x + bounds.width, left_top),
-                    (gpu_x + bounds.width - corner_radius, left_top)
+                    (bounds.x + bounds.width - corner_radius, left_bottom),
+                    (bounds.x + bounds.width, left_bottom),
+                    (bounds.x + bounds.width, left_top),
+                    (bounds.x + bounds.width - corner_radius, left_top)
                 ])
                 indices.extend([
                     (vertex_count, vertex_count + 1, vertex_count + 2),
@@ -331,78 +383,39 @@ class UIRenderer:
                 vertex_count += 4
 
             corners = [
-
-                {
-                    'center_x': gpu_x + corner_radius,
-                    'center_y': gpu_y + corner_radius,
-                    'start_angle': math.pi,
-                    'end_angle': 3 * math.pi / 2
-                },
-
-                {
-                    'center_x': gpu_x + bounds.width - corner_radius,
-                    'center_y': gpu_y + corner_radius,
-                    'start_angle': 3 * math.pi / 2,
-                    'end_angle': 2 * math.pi
-                },
-
-                {
-                    'center_x': gpu_x + bounds.width - corner_radius,
-                    'center_y': gpu_y + bounds.height - corner_radius,
-                    'start_angle': 0,
-                    'end_angle': math.pi / 2
-                },
-
-                {
-                    'center_x': gpu_x + corner_radius,
-                    'center_y': gpu_y + bounds.height - corner_radius,
-                    'start_angle': math.pi / 2,
-                    'end_angle': math.pi
-                }
+                (bounds.x + corner_radius, bounds.y + corner_radius, math.pi, 3 * math.pi / 2),
+                (bounds.x + bounds.width - corner_radius, bounds.y + corner_radius, 3 * math.pi / 2, 2 * math.pi),
+                (bounds.x + bounds.width - corner_radius, bounds.y + bounds.height - corner_radius, 0, math.pi / 2),
+                (bounds.x + corner_radius, bounds.y + bounds.height - corner_radius, math.pi / 2, math.pi)
             ]
 
-            for corner in corners:
-                center_x = corner['center_x']
-                center_y = corner['center_y']
-                start_angle = corner['start_angle']
-                end_angle = corner['end_angle']
-
-                center_vertex_idx = vertex_count
-                vertices.append((center_x, center_y))
-                vertex_count += 1
-
-                for i in range(corner_segments + 1):
-                    angle = start_angle + (end_angle - start_angle) * i / corner_segments
-                    x = center_x + corner_radius * math.cos(angle)
-                    y = center_y + corner_radius * math.sin(angle)
-                    vertices.append((x, y))
-
-                    if i > 0:
-                        indices.append((center_vertex_idx, vertex_count - 1, vertex_count))
-
-                    vertex_count += 1
+            for center_x, center_y, start_angle, end_angle in corners:
+                corner_verts, corner_indices = self._generate_corner_vertices(
+                    center_x, center_y, corner_radius, start_angle, end_angle, self.CORNER_SEGMENTS_SMOOTH
+                )
+                offset_indices = [(i + vertex_count, j + vertex_count, k + vertex_count)
+                                  for i, j, k in corner_indices]
+                vertices.extend(corner_verts)
+                indices.extend(offset_indices)
+                vertex_count += len(corner_verts)
 
             if vertices and indices:
                 batch = batch_for_shader(self.shader, 'TRIS', {"pos": vertices}, indices=indices)
-
                 gpu.state.blend_set('ALPHA')
-                self.shader.bind()
-                self.shader.uniform_float("color", color)
-                batch.draw(self.shader)
-                gpu.state.blend_set('NONE')
+                try:
+                    self.shader.bind()
+                    self.shader.uniform_float("color", color)
+                    batch.draw(self.shader)
+                finally:
+                    gpu.state.blend_set('NONE')
         except Exception as e:
-            logger.error(f"Error drawing rounded rectangle: {e}")
-
+            logger.error(f"Error drawing rounded rectangle: {e}", exc_info=True)
             self.draw_rect(bounds, color)
 
     def draw_rounded_rect_outline(self, bounds: Bounds, color: Tuple[float, float, float, float], width: int = 1,
                                   corner_radius: int = 0):
-        """Draw a rounded rectangle outline using filled shapes for proper thickness support."""
-        if width <= 0:
-            return
 
-        if corner_radius <= 0:
-            self.draw_rect_outline(bounds, color, width)
+        if width <= 0:
             return
 
         max_radius = min(bounds.width, bounds.height) // 2
@@ -412,158 +425,100 @@ class UIRenderer:
             self.draw_rect_outline(bounds, color, width)
             return
 
-        try:
+        if bounds.height >= width:
+            top_bounds = Bounds(
+                bounds.x + corner_radius,
+                bounds.y + bounds.height - width,
+                bounds.width - 2 * corner_radius,
+                width
+            )
+            if top_bounds.width > 0:
+                self.draw_rect(top_bounds, color)
 
-            if bounds.height >= width:
-                top_bounds = Bounds(
-                    bounds.x + corner_radius,
-                    bounds.y + bounds.height - width,
-                    bounds.width - 2 * corner_radius,
-                    width
-                )
-                if top_bounds.width > 0:
-                    self.draw_rect(top_bounds, color)
+        if bounds.height >= width:
+            bottom_bounds = Bounds(
+                bounds.x + corner_radius,
+                bounds.y,
+                bounds.width - 2 * corner_radius,
+                width
+            )
+            if bottom_bounds.width > 0:
+                self.draw_rect(bottom_bounds, color)
 
-            if bounds.height >= width:
-                bottom_bounds = Bounds(
-                    bounds.x + corner_radius,
-                    bounds.y,
-                    bounds.width - 2 * corner_radius,
-                    width
-                )
-                if bottom_bounds.width > 0:
-                    self.draw_rect(bottom_bounds, color)
+        if bounds.width >= width:
+            left_bounds = Bounds(
+                bounds.x,
+                bounds.y + corner_radius,
+                width,
+                bounds.height - 2 * corner_radius
+            )
+            if left_bounds.height > 0:
+                self.draw_rect(left_bounds, color)
 
-            if bounds.width >= width:
-                left_bounds = Bounds(
-                    bounds.x,
-                    bounds.y + corner_radius,
-                    width,
-                    bounds.height - 2 * corner_radius
-                )
-                if left_bounds.height > 0:
-                    self.draw_rect(left_bounds, color)
+        if bounds.width >= width:
+            right_bounds = Bounds(
+                bounds.x + bounds.width - width,
+                bounds.y + corner_radius,
+                width,
+                bounds.height - 2 * corner_radius
+            )
+            if right_bounds.height > 0:
+                self.draw_rect(right_bounds, color)
 
-            if bounds.width >= width:
-                right_bounds = Bounds(
-                    bounds.x + bounds.width - width,
-                    bounds.y + corner_radius,
-                    width,
-                    bounds.height - 2 * corner_radius
-                )
-                if right_bounds.height > 0:
-                    self.draw_rect(right_bounds, color)
+        self._draw_corner_borders(bounds, color, width, corner_radius,
+                                  [(math.pi, 3 * math.pi / 2),
+                                   (3 * math.pi / 2, 2 * math.pi),
+                                   (0, math.pi / 2),
+                                   (math.pi / 2, math.pi)])
 
-            self._draw_rounded_corner_borders(bounds, color, width, corner_radius)
+    def _draw_corner_borders(self, bounds: Bounds, color: Tuple[float, float, float, float],
+                             width: int, corner_radius: int, angle_pairs: list):
 
-        except Exception as e:
-            logger.error(f"Error drawing rounded rectangle outline: {e}")
-
-            self.draw_rect_outline(bounds, color, width)
-
-    def _draw_rounded_corner_borders(self, bounds: Bounds, color: Tuple[float, float, float, float], width: int,
-                                     corner_radius: int):
-        """Draw the corner border segments for thick rounded borders."""
-        gpu_x, gpu_y = CoordinateSystem.region_to_gpu(bounds.x, bounds.y)
+        if not self._validate_color(color):
+            return
 
         try:
-            import math
-            corner_segments = 12
-
-            corners = [
-
-                {
-                    'center_x': gpu_x + corner_radius,
-                    'center_y': gpu_y + corner_radius,
-                    'start_angle': math.pi,
-                    'end_angle': 3 * math.pi / 2,
-                    'outer_radius': corner_radius,
-                    'inner_radius': max(0, corner_radius - width)
-                },
-
-                {
-                    'center_x': gpu_x + bounds.width - corner_radius,
-                    'center_y': gpu_y + corner_radius,
-                    'start_angle': 3 * math.pi / 2,
-                    'end_angle': 2 * math.pi,
-                    'outer_radius': corner_radius,
-                    'inner_radius': max(0, corner_radius - width)
-                },
-
-                {
-                    'center_x': gpu_x + bounds.width - corner_radius,
-                    'center_y': gpu_y + bounds.height - corner_radius,
-                    'start_angle': 0,
-                    'end_angle': math.pi / 2,
-                    'outer_radius': corner_radius,
-                    'inner_radius': max(0, corner_radius - width)
-                },
-
-                {
-                    'center_x': gpu_x + corner_radius,
-                    'center_y': gpu_y + bounds.height - corner_radius,
-                    'start_angle': math.pi / 2,
-                    'end_angle': math.pi,
-                    'outer_radius': corner_radius,
-                    'inner_radius': max(0, corner_radius - width)
-                }
+            corner_centers = [
+                (bounds.x + corner_radius, bounds.y + corner_radius),
+                (bounds.x + bounds.width - corner_radius, bounds.y + corner_radius),
+                (bounds.x + bounds.width - corner_radius, bounds.y + bounds.height - corner_radius),
+                (bounds.x + corner_radius, bounds.y + bounds.height - corner_radius)
             ]
 
-            for corner in corners:
-                center_x = corner['center_x']
-                center_y = corner['center_y']
-                start_angle = corner['start_angle']
-                end_angle = corner['end_angle']
-                outer_radius = corner['outer_radius']
-                inner_radius = corner['inner_radius']
+            for (center_x, center_y), (start_angle, end_angle) in zip(corner_centers, angle_pairs):
+                outer_radius = corner_radius
+                inner_radius = max(0, corner_radius - width)
 
-                vertices = []
-                indices = []
-                vertex_count = 0
-
-                for i in range(corner_segments + 1):
-                    angle = start_angle + (end_angle - start_angle) * i / corner_segments
-
-                    outer_x = center_x + outer_radius * math.cos(angle)
-                    outer_y = center_y + outer_radius * math.sin(angle)
-                    vertices.append((outer_x, outer_y))
-
-                    inner_x = center_x + inner_radius * math.cos(angle)
-                    inner_y = center_y + inner_radius * math.sin(angle)
-                    vertices.append((inner_x, inner_y))
-
-                    if i > 0:
-                        indices.append((vertex_count - 2, vertex_count, vertex_count - 1))
-
-                        indices.append((vertex_count, vertex_count + 1, vertex_count - 1))
-
-                    vertex_count += 2
+                vertices, indices = self._generate_corner_ring(
+                    center_x, center_y, outer_radius, inner_radius,
+                    start_angle, end_angle, self.CORNER_SEGMENTS_HIGH_QUALITY
+                )
 
                 if vertices and indices:
                     batch = batch_for_shader(self.shader, 'TRIS', {"pos": vertices}, indices=indices)
                     gpu.state.blend_set('ALPHA')
-                    self.shader.bind()
-                    self.shader.uniform_float("color", color)
-                    batch.draw(self.shader)
-                    gpu.state.blend_set('NONE')
-
+                    try:
+                        self.shader.bind()
+                        self.shader.uniform_float("color", color)
+                        batch.draw(self.shader)
+                    finally:
+                        gpu.state.blend_set('NONE')
         except Exception as e:
-            logger.error(f"Error drawing rounded corner borders: {e}")
+            logger.error(f"Error drawing corner borders: {e}", exc_info=True)
 
     def draw_textured_rect(self, x: int, y: int, width: int, height: int, texture, texture_coords=None):
-        """Draw a textured rectangle with optional custom texture coordinates."""
 
-        gpu_x, gpu_y = CoordinateSystem.region_to_gpu(x, y)
+        if not texture:
+            return
 
         vertices = [
-            (gpu_x, gpu_y),
-            (gpu_x + width, gpu_y),
-            (gpu_x + width, gpu_y + height),
-            (gpu_x, gpu_y + height)
+            (x, y),
+            (x + width, y),
+            (x + width, y + height),
+            (x, y + height)
         ]
 
         if texture_coords:
-
             u_min, v_min, u_max, v_max = texture_coords
             uvs = [
                 (u_min, v_min),
@@ -572,7 +527,6 @@ class UIRenderer:
                 (u_min, v_max)
             ]
         else:
-
             uvs = [
                 (0, 0),
                 (1, 0),
@@ -590,21 +544,19 @@ class UIRenderer:
             )
 
             gpu.state.blend_set('ALPHA')
-            self.texture_shader.bind()
-            self.texture_shader.uniform_sampler("image", texture)
-            batch.draw(self.texture_shader)
-            gpu.state.blend_set('NONE')
-
+            try:
+                self.texture_shader.bind()
+                self.texture_shader.uniform_sampler("image", texture)
+                batch.draw(self.texture_shader)
+            finally:
+                gpu.state.blend_set('NONE')
         except Exception as e:
-            logger.error(f"Error drawing textured rectangle: {e}")
+            logger.error(f"Error drawing textured rectangle: {e}", exc_info=True)
 
     def draw_rounded_textured_rect(self, bounds: Bounds, texture, corner_radius: int, texture_coords=None):
-        """Draw a textured rectangle with rounded corners."""
-        if corner_radius <= 0:
-            self.draw_textured_rect(bounds.x, bounds.y, bounds.width, bounds.height, texture, texture_coords)
-            return
 
-        gpu_x, gpu_y = CoordinateSystem.region_to_gpu(bounds.x, bounds.y)
+        if not texture:
+            return
 
         max_radius = min(bounds.width, bounds.height) // 2
         corner_radius = min(corner_radius, max_radius)
@@ -621,29 +573,21 @@ class UIRenderer:
         u_range = u_max - u_min
         v_range = v_max - v_min
 
+        calc_uv = lambda x, y: (
+            u_min + ((x - bounds.x) / bounds.width if bounds.width > 0 else 0) * u_range,
+            v_min + ((y - bounds.y) / bounds.height if bounds.height > 0 else 0) * v_range
+        )
+
         try:
-            import math
             vertices = []
             uvs = []
             indices = []
             vertex_count = 0
 
-            corner_segments = 8
-
-            def calc_uv(x, y):
-
-                u_ratio = (x - gpu_x) / bounds.width if bounds.width > 0 else 0
-                v_ratio = (y - gpu_y) / bounds.height if bounds.height > 0 else 0
-
-                u = u_min + u_ratio * u_range
-                v = v_min + v_ratio * v_range
-
-                return (u, v)
-
-            center_left = gpu_x + corner_radius
-            center_right = gpu_x + bounds.width - corner_radius
-            center_bottom = gpu_y
-            center_top = gpu_y + bounds.height
+            center_left = bounds.x + corner_radius
+            center_right = bounds.x + bounds.width - corner_radius
+            center_bottom = bounds.y
+            center_top = bounds.y + bounds.height
 
             if center_right > center_left:
                 center_vertices = [
@@ -653,31 +597,27 @@ class UIRenderer:
                     (center_left, center_top)
                 ]
                 vertices.extend(center_vertices)
-
                 for vertex in center_vertices:
                     uvs.append(calc_uv(vertex[0], vertex[1]))
-
                 indices.extend([
                     (vertex_count, vertex_count + 1, vertex_count + 2),
                     (vertex_count, vertex_count + 2, vertex_count + 3)
                 ])
                 vertex_count += 4
 
-            left_bottom = gpu_y + corner_radius
-            left_top = gpu_y + bounds.height - corner_radius
+            left_bottom = bounds.y + corner_radius
+            left_top = bounds.y + bounds.height - corner_radius
 
             if left_top > left_bottom:
                 left_vertices = [
-                    (gpu_x, left_bottom),
-                    (gpu_x + corner_radius, left_bottom),
-                    (gpu_x + corner_radius, left_top),
-                    (gpu_x, left_top)
+                    (bounds.x, left_bottom),
+                    (bounds.x + corner_radius, left_bottom),
+                    (bounds.x + corner_radius, left_top),
+                    (bounds.x, left_top)
                 ]
                 vertices.extend(left_vertices)
-
                 for vertex in left_vertices:
                     uvs.append(calc_uv(vertex[0], vertex[1]))
-
                 indices.extend([
                     (vertex_count, vertex_count + 1, vertex_count + 2),
                     (vertex_count, vertex_count + 2, vertex_count + 3)
@@ -686,16 +626,14 @@ class UIRenderer:
 
             if left_top > left_bottom:
                 right_vertices = [
-                    (gpu_x + bounds.width - corner_radius, left_bottom),
-                    (gpu_x + bounds.width, left_bottom),
-                    (gpu_x + bounds.width, left_top),
-                    (gpu_x + bounds.width - corner_radius, left_top)
+                    (bounds.x + bounds.width - corner_radius, left_bottom),
+                    (bounds.x + bounds.width, left_bottom),
+                    (bounds.x + bounds.width, left_top),
+                    (bounds.x + bounds.width - corner_radius, left_top)
                 ]
                 vertices.extend(right_vertices)
-
                 for vertex in right_vertices:
                     uvs.append(calc_uv(vertex[0], vertex[1]))
-
                 indices.extend([
                     (vertex_count, vertex_count + 1, vertex_count + 2),
                     (vertex_count, vertex_count + 2, vertex_count + 3)
@@ -703,49 +641,20 @@ class UIRenderer:
                 vertex_count += 4
 
             corners = [
-
-                {
-                    'center_x': gpu_x + corner_radius,
-                    'center_y': gpu_y + corner_radius,
-                    'start_angle': math.pi,
-                    'end_angle': 3 * math.pi / 2
-                },
-
-                {
-                    'center_x': gpu_x + bounds.width - corner_radius,
-                    'center_y': gpu_y + corner_radius,
-                    'start_angle': 3 * math.pi / 2,
-                    'end_angle': 2 * math.pi
-                },
-
-                {
-                    'center_x': gpu_x + bounds.width - corner_radius,
-                    'center_y': gpu_y + bounds.height - corner_radius,
-                    'start_angle': 0,
-                    'end_angle': math.pi / 2
-                },
-
-                {
-                    'center_x': gpu_x + corner_radius,
-                    'center_y': gpu_y + bounds.height - corner_radius,
-                    'start_angle': math.pi / 2,
-                    'end_angle': math.pi
-                }
+                (bounds.x + corner_radius, bounds.y + corner_radius, math.pi, 3 * math.pi / 2),
+                (bounds.x + bounds.width - corner_radius, bounds.y + corner_radius, 3 * math.pi / 2, 2 * math.pi),
+                (bounds.x + bounds.width - corner_radius, bounds.y + bounds.height - corner_radius, 0, math.pi / 2),
+                (bounds.x + corner_radius, bounds.y + bounds.height - corner_radius, math.pi / 2, math.pi)
             ]
 
-            for corner in corners:
-                center_x = corner['center_x']
-                center_y = corner['center_y']
-                start_angle = corner['start_angle']
-                end_angle = corner['end_angle']
-
+            for center_x, center_y, start_angle, end_angle in corners:
                 center_vertex_idx = vertex_count
                 vertices.append((center_x, center_y))
                 uvs.append(calc_uv(center_x, center_y))
                 vertex_count += 1
 
-                for i in range(corner_segments + 1):
-                    angle = start_angle + (end_angle - start_angle) * i / corner_segments
+                for i in range(self.CORNER_SEGMENTS_SMOOTH + 1):
+                    angle = start_angle + (end_angle - start_angle) * i / self.CORNER_SEGMENTS_SMOOTH
                     x = center_x + corner_radius * math.cos(angle)
                     y = center_y + corner_radius * math.sin(angle)
                     vertices.append((x, y))
@@ -764,36 +673,27 @@ class UIRenderer:
                 )
 
                 gpu.state.blend_set('ALPHA')
-                self.texture_shader.bind()
-                self.texture_shader.uniform_sampler("image", texture)
-                batch.draw(self.texture_shader)
-                gpu.state.blend_set('NONE')
-
+                try:
+                    self.texture_shader.bind()
+                    self.texture_shader.uniform_sampler("image", texture)
+                    batch.draw(self.texture_shader)
+                finally:
+                    gpu.state.blend_set('NONE')
         except Exception as e:
-            logger.error(f"Error drawing rounded textured rectangle: {e}")
-
+            logger.error(f"Error drawing rounded textured rectangle: {e}", exc_info=True)
             self.draw_textured_rect(bounds.x, bounds.y, bounds.width, bounds.height, texture, texture_coords)
 
     def draw_image(self, texture, x: int, y: int, width: int, height: int):
-        """Draw a GPU texture."""
+
         if not texture:
             return
-
-        try:
-
-            self.draw_textured_rect(x, y, width, height, texture)
-
-        except Exception as e:
-            logger.error(f"Error drawing texture: {e}")
+        self.draw_textured_rect(x, y, width, height, texture)
 
     def draw_rect_with_bottom_corners_rounded(self, bounds: Bounds, color: Tuple[float, float, float, float],
                                               corner_radius: int = 0):
-        """Draw a filled rectangle with only bottom left and bottom right corners rounded."""
-        if corner_radius <= 0:
-            self.draw_rect(bounds, color)
-            return
 
-        gpu_x, gpu_y = CoordinateSystem.region_to_gpu(bounds.x, bounds.y)
+        if not self._validate_color(color):
+            return
 
         max_radius = min(bounds.width, bounds.height) // 2
         corner_radius = min(corner_radius, max_radius)
@@ -803,17 +703,14 @@ class UIRenderer:
             return
 
         try:
-            import math
             vertices = []
             indices = []
             vertex_count = 0
 
-            corner_segments = 8
-
-            center_left = gpu_x + corner_radius
-            center_right = gpu_x + bounds.width - corner_radius
-            center_bottom = gpu_y
-            center_top = gpu_y + bounds.height
+            center_left = bounds.x + corner_radius
+            center_right = bounds.x + bounds.width - corner_radius
+            center_bottom = bounds.y
+            center_top = bounds.y + bounds.height
 
             if center_right > center_left:
                 vertices.extend([
@@ -828,15 +725,15 @@ class UIRenderer:
                 ])
                 vertex_count += 4
 
-            left_bottom = gpu_y + corner_radius
-            left_top = gpu_y + bounds.height
+            left_bottom = bounds.y + corner_radius
+            left_top = bounds.y + bounds.height
 
             if left_top > left_bottom:
                 vertices.extend([
-                    (gpu_x, left_bottom),
-                    (gpu_x + corner_radius, left_bottom),
-                    (gpu_x + corner_radius, left_top),
-                    (gpu_x, left_top)
+                    (bounds.x, left_bottom),
+                    (bounds.x + corner_radius, left_bottom),
+                    (bounds.x + corner_radius, left_top),
+                    (bounds.x, left_top)
                 ])
                 indices.extend([
                     (vertex_count, vertex_count + 1, vertex_count + 2),
@@ -846,10 +743,10 @@ class UIRenderer:
 
             if left_top > left_bottom:
                 vertices.extend([
-                    (gpu_x + bounds.width - corner_radius, left_bottom),
-                    (gpu_x + bounds.width, left_bottom),
-                    (gpu_x + bounds.width, left_top),
-                    (gpu_x + bounds.width - corner_radius, left_top)
+                    (bounds.x + bounds.width - corner_radius, left_bottom),
+                    (bounds.x + bounds.width, left_bottom),
+                    (bounds.x + bounds.width, left_top),
+                    (bounds.x + bounds.width - corner_radius, left_top)
                 ])
                 indices.extend([
                     (vertex_count, vertex_count + 1, vertex_count + 2),
@@ -857,65 +754,38 @@ class UIRenderer:
                 ])
                 vertex_count += 4
 
-            corners = [
-
-                {
-                    'center_x': gpu_x + corner_radius,
-                    'center_y': gpu_y + corner_radius,
-                    'start_angle': math.pi,
-                    'end_angle': 3 * math.pi / 2
-                },
-
-                {
-                    'center_x': gpu_x + bounds.width - corner_radius,
-                    'center_y': gpu_y + corner_radius,
-                    'start_angle': 3 * math.pi / 2,
-                    'end_angle': 2 * math.pi
-                }
+            bottom_corners = [
+                (bounds.x + corner_radius, bounds.y + corner_radius, math.pi, 3 * math.pi / 2),
+                (bounds.x + bounds.width - corner_radius, bounds.y + corner_radius, 3 * math.pi / 2, 2 * math.pi)
             ]
 
-            for corner in corners:
-                center_x = corner['center_x']
-                center_y = corner['center_y']
-                start_angle = corner['start_angle']
-                end_angle = corner['end_angle']
-
-                center_vertex_idx = vertex_count
-                vertices.append((center_x, center_y))
-                vertex_count += 1
-
-                for i in range(corner_segments + 1):
-                    angle = start_angle + (end_angle - start_angle) * i / corner_segments
-                    x = center_x + corner_radius * math.cos(angle)
-                    y = center_y + corner_radius * math.sin(angle)
-                    vertices.append((x, y))
-
-                    if i > 0:
-                        indices.append((center_vertex_idx, vertex_count - 1, vertex_count))
-
-                    vertex_count += 1
+            for center_x, center_y, start_angle, end_angle in bottom_corners:
+                corner_verts, corner_indices = self._generate_corner_vertices(
+                    center_x, center_y, corner_radius, start_angle, end_angle, self.CORNER_SEGMENTS_SMOOTH
+                )
+                offset_indices = [(i + vertex_count, j + vertex_count, k + vertex_count)
+                                  for i, j, k in corner_indices]
+                vertices.extend(corner_verts)
+                indices.extend(offset_indices)
+                vertex_count += len(corner_verts)
 
             if vertices and indices:
                 batch = batch_for_shader(self.shader, 'TRIS', {"pos": vertices}, indices=indices)
-
                 gpu.state.blend_set('ALPHA')
-                self.shader.bind()
-                self.shader.uniform_float("color", color)
-                batch.draw(self.shader)
-                gpu.state.blend_set('NONE')
+                try:
+                    self.shader.bind()
+                    self.shader.uniform_float("color", color)
+                    batch.draw(self.shader)
+                finally:
+                    gpu.state.blend_set('NONE')
         except Exception as e:
-            logger.error(f"Error drawing rectangle with bottom corners rounded: {e}")
-
+            logger.error(f"Error drawing rectangle with bottom corners rounded: {e}", exc_info=True)
             self.draw_rect(bounds, color)
 
     def draw_rect_outline_with_bottom_corners_rounded(self, bounds: Bounds, color: Tuple[float, float, float, float],
                                                       width: int = 1, corner_radius: int = 0):
-        """Draw a rectangle outline with only bottom left and bottom right corners rounded."""
-        if width <= 0:
-            return
 
-        if corner_radius <= 0:
-            self.draw_rect_outline(bounds, color, width)
+        if width <= 0:
             return
 
         max_radius = min(bounds.width, bounds.height) // 2
@@ -925,112 +795,36 @@ class UIRenderer:
             self.draw_rect_outline(bounds, color, width)
             return
 
-        try:
+        if bounds.height >= width:
+            top_bounds = Bounds(
+                bounds.x,
+                bounds.y + bounds.height - width,
+                bounds.width,
+                width
+            )
+            if top_bounds.width > 0:
+                self.draw_rect(top_bounds, color)
 
-            if bounds.height >= width:
-                top_bounds = Bounds(
-                    bounds.x,
-                    bounds.y + bounds.height - width,
-                    bounds.width,
-                    width
-                )
-                if top_bounds.width > 0:
-                    self.draw_rect(top_bounds, color)
+        if bounds.width >= width:
+            left_bounds = Bounds(
+                bounds.x,
+                bounds.y + corner_radius,
+                width,
+                bounds.height - corner_radius
+            )
+            if left_bounds.height > 0:
+                self.draw_rect(left_bounds, color)
 
-            if bounds.width >= width:
-                left_bounds = Bounds(
-                    bounds.x,
-                    bounds.y + corner_radius,
-                    width,
-                    bounds.height - corner_radius
-                )
-                if left_bounds.height > 0:
-                    self.draw_rect(left_bounds, color)
+        if bounds.width >= width:
+            right_bounds = Bounds(
+                bounds.x + bounds.width - width,
+                bounds.y + corner_radius,
+                width,
+                bounds.height - corner_radius
+            )
+            if right_bounds.height > 0:
+                self.draw_rect(right_bounds, color)
 
-            if bounds.width >= width:
-                right_bounds = Bounds(
-                    bounds.x + bounds.width - width,
-                    bounds.y + corner_radius,
-                    width,
-                    bounds.height - corner_radius
-                )
-                if right_bounds.height > 0:
-                    self.draw_rect(right_bounds, color)
-
-            self._draw_bottom_rounded_corner_borders(bounds, color, width, corner_radius)
-
-        except Exception as e:
-            logger.error(f"Error drawing rectangle outline with bottom corners rounded: {e}")
-
-            self.draw_rect_outline(bounds, color, width)
-
-    def _draw_bottom_rounded_corner_borders(self, bounds: Bounds, color: Tuple[float, float, float, float], width: int,
-                                            corner_radius: int):
-        """Draw the bottom corner border segments for thick rounded borders."""
-        gpu_x, gpu_y = CoordinateSystem.region_to_gpu(bounds.x, bounds.y)
-
-        try:
-            import math
-            corner_segments = 12
-
-            corners = [
-
-                {
-                    'center_x': gpu_x + corner_radius,
-                    'center_y': gpu_y + corner_radius,
-                    'start_angle': math.pi,
-                    'end_angle': 3 * math.pi / 2,
-                    'outer_radius': corner_radius,
-                    'inner_radius': max(0, corner_radius - width)
-                },
-
-                {
-                    'center_x': gpu_x + bounds.width - corner_radius,
-                    'center_y': gpu_y + corner_radius,
-                    'start_angle': 3 * math.pi / 2,
-                    'end_angle': 2 * math.pi,
-                    'outer_radius': corner_radius,
-                    'inner_radius': max(0, corner_radius - width)
-                }
-            ]
-
-            for corner in corners:
-                center_x = corner['center_x']
-                center_y = corner['center_y']
-                start_angle = corner['start_angle']
-                end_angle = corner['end_angle']
-                outer_radius = corner['outer_radius']
-                inner_radius = corner['inner_radius']
-
-                vertices = []
-                indices = []
-                vertex_count = 0
-
-                for i in range(corner_segments + 1):
-                    angle = start_angle + (end_angle - start_angle) * i / corner_segments
-
-                    outer_x = center_x + outer_radius * math.cos(angle)
-                    outer_y = center_y + outer_radius * math.sin(angle)
-                    vertices.append((outer_x, outer_y))
-
-                    inner_x = center_x + inner_radius * math.cos(angle)
-                    inner_y = center_y + inner_radius * math.sin(angle)
-                    vertices.append((inner_x, inner_y))
-
-                    if i > 0:
-                        indices.append((vertex_count - 2, vertex_count, vertex_count - 1))
-
-                        indices.append((vertex_count, vertex_count + 1, vertex_count - 1))
-
-                    vertex_count += 2
-
-                if vertices and indices:
-                    batch = batch_for_shader(self.shader, 'TRIS', {"pos": vertices}, indices=indices)
-                    gpu.state.blend_set('ALPHA')
-                    self.shader.bind()
-                    self.shader.uniform_float("color", color)
-                    batch.draw(self.shader)
-                    gpu.state.blend_set('NONE')
-
-        except Exception as e:
-            logger.error(f"Error drawing bottom rounded corner borders: {e}")
+        self._draw_corner_borders(bounds, color, width, corner_radius,
+                                  [(math.pi, 3 * math.pi / 2),
+                                   (3 * math.pi / 2, 2 * math.pi)])

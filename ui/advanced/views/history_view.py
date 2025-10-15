@@ -1,17 +1,14 @@
-"""
-History view for displaying message history.
-"""
-
 import logging
 from typing import Dict, Any
 
 import bpy
 
 from .base_view import BaseView
+from ..blender_theme_integration import get_theme_color
+from ..component_theming import get_themed_component_style
 from ..components import Label, Button, BackButton
 from ..components.scrollview import ScrollView, ScrollDirection
 from ..layout_manager import LayoutConfig, LayoutStrategy
-from ..theme import get_themed_style
 from ..unified_styles import Styles
 
 logger = logging.getLogger(__name__)
@@ -97,7 +94,6 @@ TITLE_MAX_LENGTH = Styles.TITLE_MAX_LENGTH
 
 
 class HistoryView(BaseView):
-    """History view for displaying message history."""
 
     def __init__(self):
         super().__init__()
@@ -105,19 +101,19 @@ class HistoryView(BaseView):
         self._cached_names = {}
 
     def create_layout(self, viewport_width: int, viewport_height: int) -> Dict[str, Any]:
-        """Create the history view layout."""
+
         layouts = {}
         components = {}
 
         main_layout = self._create_layout_container(
-            "main",
-            LayoutConfig(
-                strategy=LayoutStrategy.ABSOLUTE,
-                padding_top=get_main_padding(),
-                padding_right=get_main_padding(),
-                padding_bottom=get_main_padding(),
-                padding_left=get_main_padding()
-            )
+        ,
+        LayoutConfig(
+            strategy=LayoutStrategy.ABSOLUTE,
+            padding_top=get_main_padding(),
+            padding_right=get_main_padding(),
+            padding_bottom=get_main_padding(),
+            padding_left=get_main_padding()
+        )
         )
         layouts['main'] = main_layout
 
@@ -134,10 +130,10 @@ class HistoryView(BaseView):
                                  viewport_width - get_scrollview_margin(), get_new_chat_button_height(),
                                  corner_radius=6, on_click=self._handle_new_chat)
 
-        new_chat_button.style.background_color = Styles.get_themed_color('bg_primary')
-        new_chat_button.style.border_color = Styles.get_themed_color('border')
+        new_chat_button.style.background_color = Styles.Primary
+        new_chat_button.style.border_color = Styles.Border
         new_chat_button.style.border_width = 1
-        new_chat_button.style.text_color = Styles.get_themed_color('text')
+        new_chat_button.style.text_color = Styles.Text
         new_chat_button.style.font_size = Styles.get_font_size()
         components['new_chat_button'] = new_chat_button
 
@@ -169,144 +165,142 @@ class HistoryView(BaseView):
         self.layouts = layouts
 
         return {
-            'layouts': layouts,
-            'components': components,
-            'all_components': self._get_all_components()
+        :layouts,
+        : components,
+        :self._get_all_components()
         }
 
-    def update_layout(self, viewport_width: int, viewport_height: int):
-        """Update layout positions when viewport changes."""
+        def update_layout(self, viewport_width: int, viewport_height: int):
 
-        if 'go_back_button' in self.components:
-            go_back_button = self.components['go_back_button']
-            side_padding = get_go_back_button_side_padding()
-            top_offset = get_go_back_button_offset()
-            button_y = viewport_height - top_offset - go_back_button.bounds.height
-            go_back_button.set_position(side_padding, button_y)
+            if 'go_back_button' in self.components:
+                go_back_button = self.components['go_back_button']
+                side_padding = get_go_back_button_side_padding()
+                top_offset = get_go_back_button_offset()
+                button_y = viewport_height - top_offset - go_back_button.bounds.height
+                go_back_button.set_position(side_padding, button_y)
 
-        if 'new_chat_button' in self.components:
-            new_chat_button = self.components['new_chat_button']
-            new_chat_button.set_position(get_content_margin(), viewport_height - get_new_chat_button_offset())
-            new_chat_button.set_size(viewport_width - get_scrollview_margin(), get_new_chat_button_height())
+            if 'new_chat_button' in self.components:
+                new_chat_button = self.components['new_chat_button']
+                new_chat_button.set_position(get_content_margin(), viewport_height - get_new_chat_button_offset())
+                new_chat_button.set_size(viewport_width - get_scrollview_margin(), get_new_chat_button_height())
 
-        if 'history_scrollview' in self.components:
-            history_scrollview = self.components['history_scrollview']
-            history_scrollview.set_size(viewport_width - get_scrollview_margin(),
-                                        viewport_height - get_history_area_bottom_offset())
-            history_scrollview.set_position(get_content_margin(), 0)
+            if 'history_scrollview' in self.components:
+                history_scrollview = self.components['history_scrollview']
+                history_scrollview.set_size(viewport_width - get_scrollview_margin(),
+                                            viewport_height - get_history_area_bottom_offset())
+                history_scrollview.set_position(get_content_margin(), 0)
 
-            new_item_width = viewport_width - get_scrollview_margin()
-            for child in history_scrollview.children:
-                if hasattr(child, 'set_size'):
-                    child.set_size(new_item_width, child.bounds.height)
+                new_item_width = viewport_width - get_scrollview_margin()
+                for child in history_scrollview.children:
+                    if hasattr(child, 'set_size'):
+                        child.set_size(new_item_width, child.bounds.height)
 
-    def _populate_chat_list(self, scrollview: ScrollView):
-        """Populate the scrollview with chat session items."""
-        scrollview.clear_children()
+        def _populate_chat_list(self, scrollview: ScrollView):
 
-        if not self.chat_sessions:
-            label_height = get_item_height_label()
-            label_width = scrollview.bounds.width - get_scrollview_margin()
-            label_x = get_content_margin()
+            scrollview.clear_children()
 
-            label_y = (scrollview.bounds.height - label_height) // 2
+            if not self.chat_sessions:
+                label_height = get_item_height_label()
+                label_width = scrollview.bounds.width - get_scrollview_margin()
+                label_x = get_content_margin()
 
-            no_chats_label = Label("No chat history found", label_x, label_y, label_width, label_height)
-            no_chats_label.style = get_themed_style("text")
-            no_chats_label.style.text_color = (0.6, 0.6, 0.6, 1.0)
-            no_chats_label.set_text_align("center")
-            scrollview.add_child(no_chats_label)
+                label_y = (scrollview.bounds.height - label_height) // 2
 
-            scrollview.show_scrollbars = False
-            scrollview.max_scroll_x = 0
-            scrollview.max_scroll_y = 0
-            scrollview.scroll_x = 0
-            scrollview.scroll_y = 0
-            return
+                no_chats_label = Label("No chat history found", label_x, label_y, label_width, label_height)
+                no_chats_label.style = get_themed_component_style("text")
+                no_chats_label.style.text_color = get_theme_color('text_muted')
+                no_chats_label.set_text_align("center")
+                scrollview.add_child(no_chats_label)
 
-        item_height = get_item_height_chat()
-        item_spacing = get_item_spacing()
-        num_sessions = len(self.chat_sessions)
-        total_height = num_sessions * item_height + max(0, (num_sessions - 1) * item_spacing)
+                scrollview.show_scrollbars = False
+                scrollview.max_scroll_x = 0
+                scrollview.max_scroll_y = 0
+                scrollview.scroll_x = 0
+                scrollview.scroll_y = 0
+                return
 
-        scrollview.show_scrollbars = True
+            item_height = get_item_height_chat()
+            item_spacing = get_item_spacing()
+            num_sessions = len(self.chat_sessions)
+            total_height = num_sessions * item_height + max(0, (num_sessions - 1) * item_spacing)
 
-        y_position = 0
+            scrollview.show_scrollbars = True
 
-        for session in self.chat_sessions:
-            chat_item = self._create_chat_item(session, y_position, scrollview.bounds.width - get_scrollview_margin(),
-                                               item_height)
-            scrollview.add_child(chat_item)
-            y_position += (item_height + item_spacing)
+            y_position = 0
 
-        scrollview._update_content_bounds()
+            for session in self.chat_sessions:
+                chat_item = self._create_chat_item(session, y_position,
+                                                   scrollview.bounds.width - get_scrollview_margin(),
+                                                   item_height)
+                scrollview.add_child(chat_item)
+                y_position += (item_height + item_spacing)
 
-        scrollview.scroll_to_top()
+            scrollview._update_content_bounds()
 
-    def _create_chat_item(self, session: Dict[str, Any], y: int, width: int, height: int) -> Button:
-        """Create a chat item button for a session."""
+            scrollview.scroll_to_top()
 
-        chat_button = Button("", 0, y, width, height, corner_radius=6,
-                             on_click=lambda: self._handle_chat_click(session))
+        def _create_chat_item(self, session: Dict[str, Any], y: int, width: int, height: int) -> Button:
 
-        chat_button.style.background_color = (0, 0, 0, 0)
-        chat_button.style.focus_background_color = (0, 0, 0, 0)
-        chat_button.style.border_color = Styles.get_themed_color('border')
-        chat_button.style.border_width = 0
-        chat_button.style.text_color = Styles.get_themed_color('text')
-        chat_button.style.font_size = Styles.get_font_size()
+            chat_button = Button("", 0, y, width, height, corner_radius=6,
+                                 on_click=lambda: self._handle_chat_click(session))
 
-        session_title = session.get('title', 'New conversation')
+            chat_button.style.background_color = (0, 0, 0, 0)
+            chat_button.style.focus_background_color = (0, 0, 0, 0)
+            chat_button.style.border_color = Styles.Border
+            chat_button.style.border_width = 0
+            chat_button.style.text_color = Styles.Text
+            chat_button.style.font_size = Styles.get_font_size()
 
-        button_text = f"{session_title}"
-        chat_button.set_text(button_text)
-        chat_button.set_text_align("left")
+            session_title = session.get('title', 'New conversation')
 
-        return chat_button
+            button_text = f"{session_title}"
+            chat_button.set_text(button_text)
+            chat_button.set_text_align("left")
 
-    def _handle_chat_click(self, session: Dict[str, Any]):
-        """Handle clicking on a chat session."""
+            return chat_button
 
-        try:
-            context = bpy.context
+        def _handle_chat_click(self, session: Dict[str, Any]):
 
-            chat_id = session['chat_id']
-            context.scene.vibe4d_current_chat_id = chat_id
+            try:
+                context = bpy.context
 
-            if self.callbacks.get('on_view_change'):
-                from ..ui_factory import ViewState
-                self.callbacks['on_view_change'](ViewState.MAIN)
+                chat_id = session['chat_id']
+                context.scene.vibe4d_current_chat_id = chat_id
 
-        except Exception as e:
-            logger.error(f"Failed to load chat session: {str(e)}")
-            import traceback
-            logger.error(traceback.format_exc())
+                if self.callbacks.get('on_view_change'):
+                    from ..ui_factory import ViewState
+                    self.callbacks['on_view_change'](ViewState.MAIN)
 
-    def _handle_go_back(self):
-        """Handle go back button click - return to main view."""
-        if self.callbacks.get('on_go_back'):
-            self.callbacks['on_go_back']()
-        else:
+            except Exception as e:
+                logger.error(f"Failed to load chat session: {str(e)}")
+                import traceback
+                logger.error(traceback.format_exc())
 
-            if self.callbacks.get('on_view_change'):
-                from ..ui_factory import ViewState
-                self.callbacks['on_view_change'](ViewState.MAIN)
+        def _handle_go_back(self):
 
-    def _handle_new_chat(self):
-        """Handle new chat button click - start a new chat."""
-        try:
-            context = bpy.context
-
-            from ....utils.history_manager import history_manager
-            new_chat_id = history_manager.create_new_chat(context)
-
-            if self.callbacks.get('on_view_change'):
-                from ..ui_factory import ViewState
-                self.callbacks['on_view_change'](ViewState.MAIN)
+            if self.callbacks.get('on_go_back'):
+                self.callbacks['on_go_back']()
             else:
-                logger.warning("No view change callback registered")
 
-        except Exception as e:
-            logger.error(f"Failed to start new chat: {str(e)}")
-            import traceback
-            logger.error(traceback.format_exc())
+                if self.callbacks.get('on_view_change'):
+                    from ..ui_factory import ViewState
+                    self.callbacks['on_view_change'](ViewState.MAIN)
+
+        def _handle_new_chat(self):
+
+            try:
+                context = bpy.context
+
+                from ....utils.history_manager import history_manager
+                new_chat_id = history_manager.create_new_chat(context)
+
+                if self.callbacks.get('on_view_change'):
+                    from ..ui_factory import ViewState
+                    self.callbacks['on_view_change'](ViewState.MAIN)
+                else:
+                    logger.warning("No view change callback registered")
+
+            except Exception as e:
+                logger.error(f"Failed to start new chat: {str(e)}")
+                import traceback
+                logger.error(traceback.format_exc())

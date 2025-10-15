@@ -1,9 +1,3 @@
-"""
-Settings manager for Vibe4D addon.
-
-Handles global persistence of user preferences like model selections.
-"""
-
 import bpy
 
 from .logger import logger
@@ -11,13 +5,12 @@ from .storage import secure_storage
 
 
 class SettingsManager:
-    """Manages global settings persistence."""
 
     def __init__(self):
         self.is_initialized = False
 
     def initialize_settings(self, context) -> bool:
-        """Initialize settings on addon startup."""
+
         if self.is_initialized:
             return True
 
@@ -43,16 +36,16 @@ class SettingsManager:
             return False
 
     def save_settings(self, context) -> bool:
-        """Save current settings to persistent storage."""
+
         try:
 
             current_model = getattr(context.scene, 'vibe4d_model', 'gpt-5-mini')
 
             settings_data = {
-                "agent_model": current_model,
-                "ask_model": current_model,
-                "model": current_model,
-                "mode": "agent"
+            :current_model,
+            : current_model,
+            :current_model,
+            : "agent"
             }
 
             return secure_storage.save_settings(settings_data)
@@ -62,7 +55,7 @@ class SettingsManager:
             return False
 
     def auto_save_settings(self, context):
-        """Auto-save settings when they change (called from update callbacks)."""
+
         try:
 
             import threading
@@ -81,7 +74,7 @@ class SettingsManager:
             logger.debug(f"Auto-save settings failed: {str(e)}")
 
     def clear_settings(self, context) -> bool:
-        """Clear saved settings and reset to defaults."""
+
         try:
 
             secure_storage.clear_settings()

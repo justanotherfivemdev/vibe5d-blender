@@ -1,7 +1,3 @@
-"""
-Settings view for application configuration.
-"""
-
 import logging
 import threading
 from typing import Dict, Any
@@ -11,12 +7,12 @@ import gpu
 
 from .base_view import BaseView
 from ..blender_theme_integration import get_theme_color
+from ..component_theming import get_themed_component_style
 from ..components import Label, Button, Container, TextInput, BackButton
 from ..components.base import Bounds
 from ..components.image import ImageComponent
 from ..coordinates import CoordinateSystem
 from ..layout_manager import LayoutConfig, LayoutStrategy
-from ..theme import get_themed_style
 from ..unified_styles import Styles
 
 logger = logging.getLogger(__name__)
@@ -199,7 +195,6 @@ TRUNCATION_SUFFIX = Styles.TRUNCATION_SUFFIX
 
 
 def get_rule_toggle_x_offset():
-    """Get the X offset for rule toggle buttons - uses dynamic spacing."""
     return get_container_internal_padding() + get_small_spacing()
 
 
@@ -245,7 +240,6 @@ def get_go_back_button_side_padding():
 
 
 class ToggleIconButton(Button):
-    """Button that displays toggle icons for enabled/disabled states."""
 
     def __init__(self, enabled: bool = True, x: int = 0, y: int = 0,
                  width: int = CoordinateSystem.scale_int(14), height: int = CoordinateSystem.scale_int(14),
@@ -278,11 +272,11 @@ class ToggleIconButton(Button):
         self.style.pressed_background_color = TRANSPARENT_COLOR
 
     def set_enabled_state(self, enabled: bool):
-        """Set the enabled state of the toggle."""
+
         self.enabled_state = enabled
 
     def set_position(self, x: int, y: int):
-        """Override to update icon positions as well."""
+
         super().set_position(x, y)
 
         icon_y = y + (self.bounds.height - CoordinateSystem.scale_int(14)) // 2
@@ -290,7 +284,7 @@ class ToggleIconButton(Button):
         self.disabled_icon.set_position(x, icon_y)
 
     def set_size(self, width: int, height: int):
-        """Override to update icon sizes as well."""
+
         super().set_size(width, height)
 
         self.enabled_icon.set_size(CoordinateSystem.scale_int(14), CoordinateSystem.scale_int(14))
@@ -301,7 +295,6 @@ class ToggleIconButton(Button):
         self.disabled_icon.set_position(self.bounds.x, icon_y)
 
     def _render_simple_icon(self, renderer, enabled_state):
-        """Render a simple colored icon when texture loading fails."""
 
         bounds = self.bounds
 
@@ -326,7 +319,7 @@ class ToggleIconButton(Button):
             renderer.draw_rect(check_bounds, CHECKMARK_COLOR)
 
     def render(self, renderer):
-        """Render the toggle button with appropriate icon."""
+
         if not self.visible:
             return
 
@@ -393,14 +386,14 @@ class ToggleIconButton(Button):
             self._render_simple_icon(renderer, self.enabled_state)
 
     def cleanup(self):
-        """Clean up resources when button is destroyed."""
+
         if self.enabled_icon:
             self.enabled_icon.cleanup()
         if self.disabled_icon:
             self.disabled_icon.cleanup()
 
     def _create_texture_with_fallback(self, icon_component):
-        """Create GPU texture with fallback formats in case RGBA32F isn't supported."""
+
         if not icon_component._is_image_data_valid():
             logger.warning(f"Image data not valid for {icon_component.image_path}")
             return False
@@ -461,7 +454,7 @@ class ToggleIconButton(Button):
 
                 except Exception as format_error:
                     logger.warning(
-                        f"Failed to create texture with format {format_name} for {icon_component.image_path}: {format_error}")
+                    )
                     continue
 
             logger.error(f"All texture formats failed for {icon_component.image_path}")
@@ -475,7 +468,6 @@ class ToggleIconButton(Button):
 
 
 class SettingsView(BaseView):
-    """Settings view for application configuration."""
 
     def __init__(self):
         super().__init__()
@@ -484,7 +476,7 @@ class SettingsView(BaseView):
         self.usage_data_fetched = False
 
     def create_layout(self, viewport_width: int, viewport_height: int) -> Dict[str, Any]:
-        """Create the settings view layout."""
+
         layouts = {}
         components = {}
 
@@ -505,12 +497,12 @@ class SettingsView(BaseView):
                 if saved_instruction:
                     context.scene.vibe4d_custom_instruction = str(saved_instruction)
                     logger.info(
-                        f"Loaded custom instruction from storage for settings view: {len(saved_instruction)} characters")
+                    )
                 else:
                     logger.debug("No saved custom instruction found in storage")
             else:
                 logger.debug(
-                    f"Custom instruction already loaded in scene: {len(current_instruction_in_scene)} characters")
+                )
         except Exception as e:
             logger.error(f"Failed to load custom instructions for settings view: {e}")
 
@@ -522,14 +514,14 @@ class SettingsView(BaseView):
             self._fetch_usage_data_async()
 
         main_layout = self._create_layout_container(
-            "main",
-            LayoutConfig(
-                strategy=LayoutStrategy.ABSOLUTE,
-                padding_top=get_container_internal_padding(),
-                padding_right=get_container_internal_padding(),
-                padding_bottom=get_container_internal_padding(),
-                padding_left=get_container_internal_padding()
-            )
+        ,
+        LayoutConfig(
+            strategy=LayoutStrategy.ABSOLUTE,
+            padding_top=get_container_internal_padding(),
+            padding_right=get_container_internal_padding(),
+            padding_bottom=get_container_internal_padding(),
+            padding_left=get_container_internal_padding()
+        )
         )
         layouts['main'] = main_layout
 
@@ -550,12 +542,13 @@ class SettingsView(BaseView):
             user_name = user_email.split('@')[0] if '@' in user_email else user_email
 
             name_label = Label(user_name, get_left_margin(), current_y, get_name_label_width(), get_label_height())
-            name_label.style = get_themed_style("title")
+            name_label.style = get_themed_component_style("title")
             name_label.style.font_size = get_font_size()
             name_label.set_text_align("left")
             components['name_label'] = name_label
 
-            current_y = adjustCurrectY(current_y, get_label_height(), CoordinateSystem.scale_int(6))
+            current_y = adjustCurrectY(current_y, get_label_height(),
+                                       CoordinateSystem.scale_int(6))
 
             plan_name = getattr(context.window_manager, 'vibe4d_plan_name', '')
             if plan_name:
@@ -564,18 +557,19 @@ class SettingsView(BaseView):
                 plan_display = user_plan.title() if user_plan else "Free"
             plan_text = f"Plan: {plan_display}"
             plan_label = Label(plan_text, get_left_margin(), current_y, get_plan_label_width(), get_label_height())
-            plan_label.style = get_themed_style("label")
+            plan_label.style = get_themed_component_style("label")
             plan_label.style.font_size = get_font_size()
             plan_label.style.text_color = MUTED_TEXT_COLOR
             plan_label.set_text_align("left")
             components['plan_label'] = plan_label
 
-            current_y = adjustCurrectY(current_y, get_label_height(), CoordinateSystem.scale_int(8))
+            current_y = adjustCurrectY(current_y, get_label_height(),
+                                       CoordinateSystem.scale_int(8))
 
             info_container = Container(get_left_margin(), current_y - get_info_container_height(),
                                        viewport_width - get_left_margin() - get_right_margin(),
                                        get_info_container_height())
-            info_container.style.background_color = DARK_CONTAINER_COLOR
+            info_container.style.background_color = get_theme_color('bg_panel')
             info_container.style.border_color = BORDER_COLOR
             info_container.style.border_width = get_thin_border()
             info_container.corner_radius = get_container_radius()
@@ -585,13 +579,14 @@ class SettingsView(BaseView):
 
             email_label = Label(user_email, get_left_margin() + get_container_internal_padding(), info_current_y,
                                 viewport_width - get_left_margin() - get_right_margin() - (
-                                            get_container_internal_padding() * 2), get_small_label_height())
-            email_label.style = get_themed_style("label")
+                                        get_container_internal_padding() * 2), get_small_label_height())
+            email_label.style = get_themed_component_style("label")
             email_label.style.font_size = get_font_size()
             email_label.set_text_align("left")
             components['email_label'] = email_label
 
-            info_current_y = adjustCurrectY(info_current_y, get_small_label_height(), CoordinateSystem.scale_int(8))
+            info_current_y = adjustCurrectY(info_current_y, get_small_label_height(),
+                                            CoordinateSystem.scale_int(8))
 
             if current_usage == 0 and usage_limit == 0:
                 usage_text = "Usages left: loading..."
@@ -599,18 +594,19 @@ class SettingsView(BaseView):
                 usage_text = f"Usages left: {usage_limit - current_usage}/{usage_limit}"
             usage_label = Label(usage_text, get_left_margin() + get_container_internal_padding(), info_current_y,
                                 viewport_width - get_left_margin() - get_right_margin() - (
-                                            get_container_internal_padding() * 2), get_small_label_height())
-            usage_label.style = get_themed_style("label")
+                                        get_container_internal_padding() * 2), get_small_label_height())
+            usage_label.style = get_themed_component_style("label")
             usage_label.style.font_size = get_font_size()
             usage_label.set_text_align("left")
             components['usage_label'] = usage_label
 
-            info_current_y = adjustCurrectY(info_current_y, get_small_label_height(), CoordinateSystem.scale_int(8))
+            info_current_y = adjustCurrectY(info_current_y, get_small_label_height(),
+                                            CoordinateSystem.scale_int(8))
 
             manage_sub_label = Label("Manage subscription ↗", get_left_margin() + get_container_internal_padding(),
                                      info_current_y,
                                      get_manage_sub_label_width(), get_small_label_height())
-            manage_sub_label.style = get_themed_style("label")
+            manage_sub_label.style = get_themed_component_style("label")
             manage_sub_label.style.text_color = get_theme_color('text_muted')
             manage_sub_label.style.font_size = get_font_size()
             manage_sub_label.set_text_align("left")
@@ -628,7 +624,8 @@ class SettingsView(BaseView):
                                                  text_color=get_theme_color('text_selected'))
             components['manage_sub_label'] = manage_sub_label
 
-            info_current_y = adjustCurrectY(info_current_y, get_small_label_height(), CoordinateSystem.scale_int(8))
+            info_current_y = adjustCurrectY(info_current_y, get_small_label_height(),
+                                            CoordinateSystem.scale_int(8))
 
             logout_button = Button("Log out", get_left_margin() + get_container_internal_padding(), info_current_y,
                                    get_logout_button_width(), get_large_button_height(),
@@ -643,7 +640,7 @@ class SettingsView(BaseView):
 
             instruction_section_title = Label("Custom instruction", get_left_margin(), current_y,
                                               get_plan_label_width(), get_label_height())
-            instruction_section_title.style = get_themed_style("title")
+            instruction_section_title.style = get_themed_component_style("title")
             instruction_section_title.style.font_size = get_font_size()
             instruction_section_title.set_text_align("left")
             components['instruction_section_title'] = instruction_section_title
@@ -654,7 +651,7 @@ class SettingsView(BaseView):
             instruction_container = Container(get_left_margin(), current_y - instruction_container_height,
                                               viewport_width - get_left_margin() - get_right_margin(),
                                               instruction_container_height)
-            instruction_container.style.background_color = DARK_CONTAINER_COLOR
+            instruction_container.style.background_color = get_theme_color('bg_panel')
             instruction_container.style.border_color = BORDER_COLOR
             instruction_container.style.border_width = get_thin_border()
             instruction_container.corner_radius = get_container_radius()
@@ -676,7 +673,7 @@ class SettingsView(BaseView):
             )
             instruction_input.set_text(current_instruction)
             instruction_input.on_change = self._handle_instruction_text_change
-            instruction_input.style = get_themed_style("input")
+            instruction_input.style = get_themed_component_style("input")
             instruction_input.style.font_size = get_font_size()
             instruction_input.style.background_color = TRANSPARENT_COLOR
             instruction_input.style.border_color = TRANSPARENT_COLOR
@@ -691,7 +688,7 @@ class SettingsView(BaseView):
         else:
             auth_message = Label("Please authenticate to access settings", get_left_margin(), current_y,
                                  viewport_width - get_left_margin() - get_right_margin(), get_label_height())
-            auth_message.style = get_themed_style("label")
+            auth_message.style = get_themed_component_style("label")
             auth_message.style.text_color = AUTH_MESSAGE_COLOR
             auth_message.style.font_size = get_font_size()
             auth_message.set_text_align("left")
@@ -700,7 +697,7 @@ class SettingsView(BaseView):
 
         links_section_title = Label("Vibe4D links", get_left_margin(), current_y, get_plan_label_width(),
                                     get_label_height())
-        links_section_title.style = get_themed_style("title")
+        links_section_title.style = get_themed_component_style("title")
         links_section_title.style.font_size = get_font_size()
         links_section_title.set_text_align("left")
         components['links_section_title'] = links_section_title
@@ -717,7 +714,7 @@ class SettingsView(BaseView):
         for i, (link_text, handler) in enumerate(links):
             link_label = Label(link_text, get_left_margin(), current_y, get_link_label_width(),
                                get_small_label_height())
-            link_label.style = get_themed_style("label")
+            link_label.style = get_themed_component_style("label")
             link_label.style.text_color = get_theme_color('text_muted')
             link_label.style.font_size = get_font_size()
             link_label.set_text_align("left")
@@ -740,365 +737,369 @@ class SettingsView(BaseView):
         self.layouts = layouts
 
         return {
-            'layouts': layouts,
-            'components': components,
-            'all_components': self._get_all_components()
+        :layouts,
+        : components,
+        :self._get_all_components()
         }
 
-    def update_layout(self, viewport_width: int, viewport_height: int):
-        """Update layout positions when viewport changes."""
+        def update_layout(self, viewport_width: int, viewport_height: int):
 
-        if 'go_back_button' in self.components:
-            go_back_button = self.components['go_back_button']
-            side_padding = get_go_back_button_side_padding()
-            top_offset = get_go_back_button_offset()
-            button_y = viewport_height - top_offset - go_back_button.bounds.height
-            go_back_button.set_position(side_padding, button_y)
+            if 'go_back_button' in self.components:
+                go_back_button = self.components['go_back_button']
+                side_padding = get_go_back_button_side_padding()
+                top_offset = get_go_back_button_offset()
+                button_y = viewport_height - top_offset - go_back_button.bounds.height
+                go_back_button.set_position(side_padding, button_y)
 
-            content_start_y = button_y - get_small_spacing()
-            current_y = content_start_y
-        else:
-            current_y = viewport_height
+                content_start_y = button_y - get_small_spacing()
+                current_y = content_start_y
+            else:
+                current_y = viewport_height
 
-        current_y -= get_big_spacing()
+            current_y -= get_big_spacing()
 
-        if 'name_label' in self.components:
-            self.components['name_label'].set_position(get_left_margin(), current_y)
-            self.components['name_label'].set_size(get_name_label_width(), get_label_height())
+            if 'name_label' in self.components:
+                self.components['name_label'].set_position(get_left_margin(), current_y)
+                self.components['name_label'].set_size(get_name_label_width(), get_label_height())
 
-        current_y = adjustCurrectY(current_y, get_label_height(), CoordinateSystem.scale_int(6))
+            current_y = adjustCurrectY(current_y, get_label_height(), CoordinateSystem.scale_int(6))
 
-        if 'plan_label' in self.components:
-            self.components['plan_label'].set_position(get_left_margin(), current_y)
-            self.components['plan_label'].set_size(get_plan_label_width(), get_label_height())
+            if 'plan_label' in self.components:
+                self.components['plan_label'].set_position(get_left_margin(), current_y)
+                self.components['plan_label'].set_size(get_plan_label_width(), get_label_height())
 
-        current_y = adjustCurrectY(current_y, get_label_height(), CoordinateSystem.scale_int(-4))
+            current_y = adjustCurrectY(current_y, get_label_height(), CoordinateSystem.scale_int(-4))
 
-        if 'info_container' in self.components:
-            self.components['info_container'].set_position(get_left_margin(), current_y - get_info_container_height())
-            self.components['info_container'].set_size(viewport_width - get_left_margin() - get_right_margin(),
-                                                       get_info_container_height())
+            if 'info_container' in self.components:
+                self.components['info_container'].set_position(get_left_margin(),
+                                                               current_y - get_info_container_height())
+                self.components['info_container'].set_size(viewport_width - get_left_margin() - get_right_margin(),
+                                                           get_info_container_height())
 
-        info_current_y = current_y - get_container_internal_padding() - CoordinateSystem.scale_int(12)
+            info_current_y = current_y - get_container_internal_padding() - CoordinateSystem.scale_int(12)
 
-        if 'email_label' in self.components:
-            self.components['email_label'].set_position(get_left_margin() + get_container_internal_padding(),
-                                                        info_current_y)
-            self.components['email_label'].set_size(
-                viewport_width - get_left_margin() - get_right_margin() - (get_container_internal_padding() * 2),
-                get_small_label_height())
+            if 'email_label' in self.components:
+                self.components['email_label'].set_position(get_left_margin() + get_container_internal_padding(),
+                                                            info_current_y)
+                self.components['email_label'].set_size(
+                    viewport_width - get_left_margin() - get_right_margin() - (get_container_internal_padding() * 2),
+                    get_small_label_height())
 
-        info_current_y = adjustCurrectY(info_current_y, get_small_label_height(), CoordinateSystem.scale_int(8))
+            info_current_y = adjustCurrectY(info_current_y, get_small_label_height(),
+                                            CoordinateSystem.scale_int(8))
 
-        if 'usage_label' in self.components:
-            self.components['usage_label'].set_position(get_left_margin() + get_container_internal_padding(),
-                                                        info_current_y)
-            self.components['usage_label'].set_size(
-                viewport_width - get_left_margin() - get_right_margin() - (get_container_internal_padding() * 2),
-                get_small_label_height())
+            if 'usage_label' in self.components:
+                self.components['usage_label'].set_position(get_left_margin() + get_container_internal_padding(),
+                                                            info_current_y)
+                self.components['usage_label'].set_size(
+                    viewport_width - get_left_margin() - get_right_margin() - (get_container_internal_padding() * 2),
+                    get_small_label_height())
 
-        info_current_y = adjustCurrectY(info_current_y, get_small_label_height(), CoordinateSystem.scale_int(8))
+            info_current_y = adjustCurrectY(info_current_y, get_small_label_height(),
+                                            CoordinateSystem.scale_int(8))
 
-        if 'manage_sub_label' in self.components:
-            self.components['manage_sub_label'].set_position(get_left_margin() + get_container_internal_padding(),
-                                                             info_current_y)
-            self.components['manage_sub_label'].set_size(
-                viewport_width - get_left_margin() - get_right_margin() - (get_container_internal_padding() * 2),
-                get_small_label_height())
+            if 'manage_sub_label' in self.components:
+                self.components['manage_sub_label'].set_position(get_left_margin() + get_container_internal_padding(),
+                                                                 info_current_y)
+                self.components['manage_sub_label'].set_size(
+                    viewport_width - get_left_margin() - get_right_margin() - (get_container_internal_padding() * 2),
+                    get_small_label_height())
 
-        info_current_y = adjustCurrectY(info_current_y, get_small_label_height() + CoordinateSystem.scale_int(12),
-                                        CoordinateSystem.scale_int(8))
+            info_current_y = adjustCurrectY(info_current_y, get_small_label_height() + CoordinateSystem.scale_int(12),
+                                            CoordinateSystem.scale_int(8))
 
-        if 'logout_button' in self.components:
-            self.components['logout_button'].set_position(get_left_margin() + get_container_internal_padding(),
-                                                          info_current_y)
-            self.components['logout_button'].set_size(get_logout_button_width(), get_small_button_height())
+            if 'logout_button' in self.components:
+                self.components['logout_button'].set_position(get_left_margin() + get_container_internal_padding(),
+                                                              info_current_y)
+                self.components['logout_button'].set_size(get_logout_button_width(), get_small_button_height())
 
-        current_y = adjustCurrectY(current_y, get_info_container_height() + CoordinateSystem.scale_int(12),
-                                   get_big_spacing())
+            current_y = adjustCurrectY(current_y, get_info_container_height() + CoordinateSystem.scale_int(12),
+                                       get_big_spacing())
 
-        if 'instruction_section_title' in self.components:
-            self.components['instruction_section_title'].set_position(get_left_margin(), current_y)
-            self.components['instruction_section_title'].set_size(get_plan_label_width(), get_label_height())
+            if 'instruction_section_title' in self.components:
+                self.components['instruction_section_title'].set_position(get_left_margin(), current_y)
+                self.components['instruction_section_title'].set_size(get_plan_label_width(), get_label_height())
 
-        current_y = adjustCurrectY(current_y, get_label_height() - CoordinateSystem.scale_int(12), get_small_spacing())
+            current_y = adjustCurrectY(current_y, get_label_height() - CoordinateSystem.scale_int(12),
+                                       get_small_spacing())
 
-        instruction_container_height = CoordinateSystem.scale_int(140)
-        if 'instruction_container' in self.components:
-            self.components['instruction_container'].set_position(get_left_margin(),
-                                                                  current_y - instruction_container_height)
-            self.components['instruction_container'].set_size(viewport_width - get_left_margin() - get_right_margin(),
-                                                              instruction_container_height)
+            instruction_container_height = CoordinateSystem.scale_int(140)
+            if 'instruction_container' in self.components:
+                self.components['instruction_container'].set_position(get_left_margin(),
+                                                                      current_y - instruction_container_height)
+                self.components['instruction_container'].set_size(
+                    viewport_width - get_left_margin() - get_right_margin(),
+                    instruction_container_height)
 
-        if 'instruction_input' in self.components:
-            instruction_current_y = current_y - get_container_internal_padding()
-            instruction_input_height = instruction_container_height - (get_container_internal_padding() * 2)
+            if 'instruction_input' in self.components:
+                instruction_current_y = current_y - get_container_internal_padding()
+                instruction_input_height = instruction_container_height - (get_container_internal_padding() * 2)
 
-            self.components['instruction_input'].set_position(
-                get_left_margin() + get_container_internal_padding(),
-                instruction_current_y - instruction_input_height
-            )
-            self.components['instruction_input'].set_size(
-                viewport_width - get_left_margin() - get_right_margin() - (get_container_internal_padding() * 2),
-                instruction_input_height
-            )
+                self.components['instruction_input'].set_position(
+                    get_left_margin() + get_container_internal_padding(),
+                    instruction_current_y - instruction_input_height
+                )
+                self.components['instruction_input'].set_size(
+                    viewport_width - get_left_margin() - get_right_margin() - (get_container_internal_padding() * 2),
+                    instruction_input_height
+                )
 
-        current_y = adjustCurrectY(current_y, instruction_container_height + CoordinateSystem.scale_int(12),
-                                   get_big_spacing())
+            current_y = adjustCurrectY(current_y, instruction_container_height + CoordinateSystem.scale_int(12),
+                                       get_big_spacing())
 
-        if 'links_section_title' in self.components:
-            self.components['links_section_title'].set_position(get_left_margin(), current_y)
-            self.components['links_section_title'].set_size(get_plan_label_width(), get_label_height())
+            if 'links_section_title' in self.components:
+                self.components['links_section_title'].set_position(get_left_margin(), current_y)
+                self.components['links_section_title'].set_size(get_plan_label_width(), get_label_height())
 
-        current_y = adjustCurrectY(current_y, get_label_height(), get_small_spacing())
+            current_y = adjustCurrectY(current_y, get_label_height(), get_small_spacing())
 
-        for i in range(4):
-            if f'link_{i}' in self.components:
-                self.components[f'link_{i}'].set_position(get_left_margin(), current_y)
-                current_y = adjustCurrectY(current_y, get_small_label_height(), get_link_spacing())
+            for i in range(4):
+                if f'link_{i}' in self.components:
+                    self.components[f'link_{i}'].set_position(get_left_margin(), current_y)
+                    current_y = adjustCurrectY(current_y, get_small_label_height(), get_link_spacing())
 
-    def _handle_go_back(self):
-        """Handle go back button click - return to main view."""
-        if self.callbacks.get('on_go_back'):
-            self.callbacks['on_go_back']()
-        else:
+        def _handle_go_back(self):
 
-            if self.callbacks.get('on_view_change'):
-                from ..ui_factory import ViewState
-                self.callbacks['on_view_change'](ViewState.MAIN)
+            if self.callbacks.get('on_go_back'):
+                self.callbacks['on_go_back']()
+            else:
 
-    def _handle_manage_subscription(self, segment):
-        """Handle manage subscription click."""
-        try:
-            bpy.ops.vibe4d.manage_subscription()
-        except Exception as e:
-            logger.error(f"Error opening subscription management: {e}")
+                if self.callbacks.get('on_view_change'):
+                    from ..ui_factory import ViewState
+                    self.callbacks['on_view_change'](ViewState.MAIN)
 
-    def _handle_logout(self):
-        """Handle logout button click."""
-        try:
-            bpy.ops.vibe4d.logout()
-
-            if self.callbacks.get('on_view_change'):
-                from ..ui_factory import ViewState
-                self.callbacks['on_view_change'](ViewState.AUTH)
-        except Exception as e:
-            logger.error(f"Error during logout: {e}")
-
-    def _handle_instruction_text_change(self, new_text):
-        """Handle changes to the instruction text input."""
-        try:
-            context = bpy.context
-
-            context.scene.vibe4d_custom_instruction = new_text
-
-            from ....utils.instructions_manager import instruction_manager
-            instruction_manager.force_save_instruction(context)
-
-        except Exception as e:
-            logger.error(f"Error handling instruction text change: {e}")
-
-    def _handle_open_github(self, segment):
-        """Handle GitHub link click."""
-        try:
-            import webbrowser
-            webbrowser.open("https://github.com/emalakai/vibe4d-blender")
-        except Exception as e:
-            logger.error(f"Error opening GitHub: {e}")
-
-    def _handle_open_website(self, segment):
-        """Handle website link click."""
-        try:
-            bpy.ops.vibe4d.open_website()
-        except Exception as e:
-            logger.error(f"Error opening website: {e}")
-
-    def _handle_open_discord(self, segment):
-        """Handle Discord link click."""
-        try:
-            bpy.ops.vibe4d.open_discord()
-        except Exception as e:
-            logger.error(f"Error opening Discord: {e}")
-
-    def _handle_open_twitter(self, segment):
-        """Handle Twitter link click."""
-        try:
-            import webbrowser
-            webbrowser.open("https://x.com/thevibe4d")
-        except Exception as e:
-            logger.error(f"Error opening Twitter: {e}")
-
-    def _handle_link_hover_start(self, segment):
-        """Handle link hover start - could add additional effects."""
-        pass
-
-    def _handle_link_hover_end(self, segment):
-        """Handle link hover end - could add additional effects."""
-        pass
-
-    def set_refresh_callback(self, callback):
-        """Set the refresh callback."""
-        self.refresh_callback = callback
-
-    def reset_usage_fetch_state(self):
-        """Reset the usage data fetch state to allow re-fetching."""
-        self.usage_data_fetched = False
-        self.is_fetching_usage = False
-
-    def _fetch_usage_data_async(self):
-        """Fetch usage data in a background thread."""
-        if self.is_fetching_usage:
-            logger.debug("Usage data fetch already in progress, skipping")
-            return
-
-        self.is_fetching_usage = True
-
-        usage_thread = threading.Thread(target=self._fetch_usage_data)
-        usage_thread.daemon = True
-        usage_thread.start()
-
-    def _fetch_usage_data(self):
-        """Fetch usage data from API and update the view."""
-        try:
-            context = bpy.context
-
-            user_id = getattr(context.window_manager, 'vibe4d_user_id', '')
-            token = getattr(context.window_manager, 'vibe4d_user_token', '')
-
-            if not user_id or not token:
-                logger.warning("Cannot fetch usage data - missing authentication credentials")
-                return
+        def _handle_manage_subscription(self, segment):
 
             try:
-                from ....api.client import api_client
-            except ImportError:
+                bpy.ops.vibe4d.manage_subscription()
+            except Exception as e:
+                logger.error(f"Error opening subscription management: {e}")
 
-                from vibe4d.api.client import api_client
+        def _handle_logout(self):
 
-            logger.info("Fetching usage data from API")
+            try:
+                bpy.ops.vibe4d.logout()
 
-            success, data_or_error = api_client.get_usage_info(user_id, token)
+                if self.callbacks.get('on_view_change'):
+                    from ..ui_factory import ViewState
+                    self.callbacks['on_view_change'](ViewState.AUTH)
+            except Exception as e:
+                logger.error(f"Error during logout: {e}")
 
-            def update_ui_on_main_thread():
-                """Update UI on main thread with fetched data."""
-                try:
-                    if success:
+        def _handle_instruction_text_change(self, new_text):
 
-                        usage_data = data_or_error
+            try:
+                context = bpy.context
 
-                        if 'plan_id' in usage_data:
-                            context.window_manager.vibe4d_user_plan = usage_data['plan_id']
+                context.scene.vibe4d_custom_instruction = new_text
 
-                        if 'plan_name' in usage_data:
-                            context.window_manager.vibe4d_plan_name = usage_data['plan_name']
+                from ....utils.instructions_manager import instruction_manager
+                instruction_manager.force_save_instruction(context)
 
-                        if 'current_usage' in usage_data:
-                            context.window_manager.vibe4d_current_usage = usage_data['current_usage']
+            except Exception as e:
+                logger.error(f"Error handling instruction text change: {e}")
 
-                        if 'limit' in usage_data:
-                            context.window_manager.vibe4d_usage_limit = usage_data['limit']
+        def _handle_open_github(self, segment):
 
-                        if 'limit_type' in usage_data:
-                            context.window_manager.vibe4d_limit_type = usage_data['limit_type']
+            try:
+                import webbrowser
+                webbrowser.open("https://github.com/emalakai/vibe4d-blender")
+            except Exception as e:
+                logger.error(f"Error opening GitHub: {e}")
 
-                        if 'plan_id' in usage_data:
-                            context.window_manager.vibe4d_plan_id = usage_data['plan_id']
+        def _handle_open_website(self, segment):
 
-                        if 'plan_name' in usage_data:
-                            context.window_manager.vibe4d_plan_name = usage_data['plan_name']
+            try:
+                bpy.ops.vibe4d.open_website()
+            except Exception as e:
+                logger.error(f"Error opening website: {e}")
 
-                        if 'allowed' in usage_data:
-                            context.window_manager.vibe4d_allowed = usage_data['allowed']
+        def _handle_open_discord(self, segment):
 
-                        if 'usage_percentage' in usage_data:
-                            context.window_manager.vibe4d_usage_percentage = usage_data['usage_percentage']
+            try:
+                bpy.ops.vibe4d.open_discord()
+            except Exception as e:
+                logger.error(f"Error opening Discord: {e}")
 
-                        if 'remaining_requests' in usage_data:
-                            context.window_manager.vibe4d_remaining_requests = usage_data['remaining_requests']
+        def _handle_open_twitter(self, segment):
 
-                        logger.info(
-                            f"Updated usage data: {usage_data.get('current_usage', 0)}/{usage_data.get('limit', 0)} ({usage_data.get('plan_id', 'unknown')} plan)")
+            try:
+                import webbrowser
+                webbrowser.open("https://x.com/thevibe4d")
+            except Exception as e:
+                logger.error(f"Error opening Twitter: {e}")
 
-                        try:
-                            from ....auth.manager import auth_manager
-                            auth_manager.save_auth_state(context)
-                        except Exception as e:
-                            logger.debug(f"Could not save auth state: {e}")
+        def _handle_link_hover_start(self, segment):
 
-                        if self.refresh_callback:
-                            self.refresh_callback()
-                        else:
+            pass
 
-                            self._notify_ui_system_of_changes()
+        def _handle_link_hover_end(self, segment):
 
-                    else:
+            pass
 
-                        error_msg = data_or_error.get('error', 'Unknown error')
-                        logger.warning(f"Failed to fetch usage data: {error_msg}")
+        def set_refresh_callback(self, callback):
 
+            self.refresh_callback = callback
 
+        def reset_usage_fetch_state(self):
 
-
-                except Exception as e:
-                    logger.error(f"Error updating UI with usage data: {e}")
-
-                return None
-
-            bpy.app.timers.register(update_ui_on_main_thread, first_interval=0.1)
-
-        except Exception as e:
-            logger.error(f"Error fetching usage data: {e}")
-        finally:
+            self.usage_data_fetched = False
             self.is_fetching_usage = False
 
-    def _notify_ui_system_of_changes(self):
-        """Notify the UI system that components have changed."""
-        try:
+        def _fetch_usage_data_async(self):
 
-            from ..components.component_registry import component_registry
-            component_registry.process_updates()
-
-            if self.refresh_callback:
-                self.refresh_callback()
-                logger.debug("Triggered view refresh via callback")
+            if self.is_fetching_usage:
+                logger.debug("Usage data fetch already in progress, skipping")
                 return
 
-            from ..ui_factory import improved_ui_factory
-            if improved_ui_factory and hasattr(improved_ui_factory, '_refresh_current_view'):
-                improved_ui_factory._refresh_current_view()
-                logger.debug("Triggered UI factory refresh")
-                return
+            self.is_fetching_usage = True
 
-            from ..manager import ui_manager
-            if ui_manager and hasattr(ui_manager, 'state'):
+            usage_thread = threading.Thread(target=self._fetch_usage_data)
+            usage_thread.daemon = True
+            usage_thread.start()
 
-                for component in ui_manager.state.components:
-                    if hasattr(component, '_render_dirty'):
-                        component._render_dirty = True
-
-                logger.debug("Marked UI components as dirty")
-
-        except Exception as e:
-            logger.debug(f"Could not notify UI system: {e}")
-
-    def _force_redraw(self):
-        """Force immediate redraw of the viewport."""
-        try:
-
-            for window in bpy.context.window_manager.windows:
-                for area in window.screen.areas:
-                    area.tag_redraw()
-
-            if hasattr(bpy.context, 'area') and bpy.context.area:
-                bpy.context.area.tag_redraw()
-
-            if hasattr(bpy.ops.wm, 'redraw_timer'):
-                bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1)
+        def _fetch_usage_data(self):
 
             try:
-                bpy.ops.wm.redraw_timer(type='DRAW', iterations=1)
-            except:
-                pass
+                context = bpy.context
 
-        except Exception as e:
-            logger.debug(f"Could not force redraw: {e}")
+                user_id = getattr(context.window_manager, 'vibe4d_user_id', '')
+                token = getattr(context.window_manager, 'vibe4d_user_token', '')
+
+                if not user_id or not token:
+                    logger.warning("Cannot fetch usage data - missing authentication credentials")
+                    return
+
+                try:
+                    from ....api.client import api_client
+                except ImportError:
+
+                    from vibe4d.api.client import api_client
+
+                logger.info("Fetching usage data from API")
+
+                success, data_or_error = api_client.get_usage_info(user_id, token)
+
+                def update_ui_on_main_thread():
+
+                    try:
+                        if success:
+
+                            usage_data = data_or_error
+
+                            if 'plan_id' in usage_data:
+                                context.window_manager.vibe4d_user_plan = usage_data['plan_id']
+
+                            if 'plan_name' in usage_data:
+                                context.window_manager.vibe4d_plan_name = usage_data['plan_name']
+
+                            if 'current_usage' in usage_data:
+                                context.window_manager.vibe4d_current_usage = usage_data['current_usage']
+
+                            if 'limit' in usage_data:
+                                context.window_manager.vibe4d_usage_limit = usage_data['limit']
+
+                            if 'limit_type' in usage_data:
+                                context.window_manager.vibe4d_limit_type = usage_data['limit_type']
+
+                            if 'plan_id' in usage_data:
+                                context.window_manager.vibe4d_plan_id = usage_data['plan_id']
+
+                            if 'plan_name' in usage_data:
+                                context.window_manager.vibe4d_plan_name = usage_data['plan_name']
+
+                            if 'allowed' in usage_data:
+                                context.window_manager.vibe4d_allowed = usage_data['allowed']
+
+                            if 'usage_percentage' in usage_data:
+                                context.window_manager.vibe4d_usage_percentage = usage_data['usage_percentage']
+
+                            if 'remaining_requests' in usage_data:
+                                context.window_manager.vibe4d_remaining_requests = usage_data['remaining_requests']
+
+                            logger.info(
+                            )
+
+                            try:
+                                from ....auth.manager import auth_manager
+                                auth_manager.save_auth_state(context)
+                            except Exception as e:
+                                logger.debug(f"Could not save auth state: {e}")
+
+                            if self.refresh_callback:
+                                self.refresh_callback()
+                            else:
+
+                                self._notify_ui_system_of_changes()
+
+                        else:
+
+                            error_msg = data_or_error.get('error', 'Unknown error')
+                            logger.warning(f"Failed to fetch usage data: {error_msg}")
+
+
+
+
+                    except Exception as e:
+                        logger.error(f"Error updating UI with usage data: {e}")
+
+                    return None
+
+                bpy.app.timers.register(update_ui_on_main_thread, first_interval=0.1)
+
+            except Exception as e:
+                logger.error(f"Error fetching usage data: {e}")
+            finally:
+                self.is_fetching_usage = False
+
+        def _notify_ui_system_of_changes(self):
+
+            try:
+
+                from ..components.component_registry import component_registry
+                component_registry.process_updates()
+
+                if self.refresh_callback:
+                    self.refresh_callback()
+                    logger.debug("Triggered view refresh via callback")
+                    return
+
+                from ..ui_factory import improved_ui_factory
+                if improved_ui_factory and hasattr(improved_ui_factory, '_refresh_current_view'):
+                    improved_ui_factory._refresh_current_view()
+                    logger.debug("Triggered UI factory refresh")
+                    return
+
+                from ..manager import ui_manager
+                if ui_manager and hasattr(ui_manager, 'state'):
+
+                    for component in ui_manager.state.components:
+                        if hasattr(component, '_render_dirty'):
+                            component._render_dirty = True
+
+                    logger.debug("Marked UI components as dirty")
+
+            except Exception as e:
+                logger.debug(f"Could not notify UI system: {e}")
+
+        def _force_redraw(self):
+
+            try:
+
+                for window in bpy.context.window_manager.windows:
+                    for area in window.screen.areas:
+                        area.tag_redraw()
+
+                if hasattr(bpy.context, 'area') and bpy.context.area:
+                    bpy.context.area.tag_redraw()
+
+                if hasattr(bpy.ops.wm, 'redraw_timer'):
+                    bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1)
+
+                try:
+                    bpy.ops.wm.redraw_timer(type='DRAW', iterations=1)
+                except:
+                    pass
+
+            except Exception as e:
+                logger.debug(f"Could not force redraw: {e}")

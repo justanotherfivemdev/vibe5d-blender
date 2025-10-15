@@ -1,9 +1,3 @@
-"""
-JSON utilities for handling Blender objects serialization.
-
-Provides safe JSON encoding for Blender-specific data types.
-"""
-
 import json
 from typing import Any
 
@@ -11,7 +5,6 @@ import mathutils
 
 
 class BlenderJSONEncoder(json.JSONEncoder):
-    """Custom JSON encoder for Blender objects."""
 
     def default(self, obj):
         if isinstance(obj, (mathutils.Vector, mathutils.Euler, mathutils.Quaternion)):
@@ -30,7 +23,6 @@ class BlenderJSONEncoder(json.JSONEncoder):
 
 
 def to_json_serializable(obj: Any) -> Any:
-    """Convert object to JSON serializable format."""
     if isinstance(obj, (mathutils.Vector, mathutils.Euler, mathutils.Quaternion)):
         return list(obj)
     elif isinstance(obj, mathutils.Matrix):
@@ -50,5 +42,4 @@ def to_json_serializable(obj: Any) -> Any:
 
 
 def safe_json_dumps(obj: Any, **kwargs) -> str:
-    """Safely serialize object to JSON string using Blender encoder."""
     return json.dumps(obj, cls=BlenderJSONEncoder, **kwargs)

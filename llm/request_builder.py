@@ -1,10 +1,5 @@
-"""
-Request builder for LLM API calls.
-
-Prepares requests in the required format for the AI service.
-"""
-
-from typing import Dict, Any, Optional, List
+import sys
+from typing import Dict, Any, Optional, List, Tuple
 
 import bpy
 
@@ -12,258 +7,172 @@ from ..utils.logger import logger
 
 
 class LLMRequestBuilder:
-    """Builds LLM API requests in the required format."""
-
     DEFAULT_MODEL = "gpt-5-mini"
     SOFTWARE_NAME = "blender"
+    DEFAULT_HISTORY_MESSAGE_LIMIT = 10
+
+    FALLBACK_ADDON_INFO = {
+    :"Vibe4D",
+    : "1.0.0",
+    :"Vibe4D Team",
+    : "AI-powered Blender addon",
+    :"Development"
+    }
 
     @staticmethod
-    def _get_addon_info() -> Dict[str, Any]:
-        """Extract addon information from bl_info."""
-        try:
+    def _find_addon_module_by_package() -> Optional[Any]:
+        current_package = __name__.split('.')[0]
+        addon_module = sys.modules.get(current_package)
 
-            import sys
-            addon_module = None
+        if addon_module and hasattr(addon_module, 'bl_info'):
+            logger.debug(f"Found addon module via package name: {current_package}")
+            return addon_module
+        return None
 
+    @staticmethod
+    def _find_addon_module_by_name() -> Optional[Any]:
+        for module_name, module in sys.modules.items():
+            if (hasattr(module, 'bl_info') and
+                    isinstance(module.bl_info, dict) and
+                    module.bl_info.get('name') == 'Vibe4D'):
+                logger.debug(f"Found addon module via name search: {module_name}")
+                return module
+        return None
+
+    @staticmethod
+    def _find_addon_module_by_pattern() -> Optional[Any]:
+        for module_name, module in sys.modules.items():
+            if ('vibe4d' in module_name.lower() and
+                    hasattr(module, 'bl_info') and
+                    isinstance(module.bl_info, dict)):
+                logger.debug(f"Found addon module via name pattern: {module_name}")
+                return module
+        return None
+
+    @staticmethod
+    def _extract_addon_info_from_module(addon_module: Any) -> Dict[str, Any]:
+        bl_info = addon_module.bl_info
+        version_tuple = bl_info.get('version', (0, 0, 0))
+        version_str = '.'.join(map(str, version_tuple))
+
+        return {
+        :bl_info.get('name', 'Unknown Addon'),
+        : version_str,
+        :bl_info.get('author', 'Unknown'),
+        : bl_info.get('description', ''),
+        :bl_info.get('category', 'Unknown')
+        }
+
+        @staticmethod
+        def _get_addon_info() -> Dict[str, Any]:
             try:
-
-                current_package = __name__.split('.')[0]
-                addon_module = sys.modules.get(current_package)
+                addon_module = (
+                        LLMRequestBuilder._find_addon_module_by_package() or
+                        LLMRequestBuilder._find_addon_module_by_name() or
+                        LLMRequestBuilder._find_addon_module_by_pattern()
+                )
 
                 if addon_module and hasattr(addon_module, 'bl_info'):
-                    logger.debug(f"Found addon module via package name: {current_package}")
-                else:
-                    addon_module = None
+                    return LLMRequestBuilder._extract_addon_info_from_module(addon_module)
+
+                logger.warning("Could not find bl_info, using fallback addon information")
+                return LLMRequestBuilder.FALLBACK_ADDON_INFO
+
             except Exception as e:
-                logger.debug(f"Failed to get module via package name: {str(e)}")
+                logger.error(f"Failed to extract addon info: {str(e)}")
+                return LLMRequestBuilder.FALLBACK_ADDON_INFO
 
-            if not addon_module:
-                for module_name, module in sys.modules.items():
-                    if (hasattr(module, 'bl_info') and
-                            isinstance(module.bl_info, dict) and
-                            module.bl_info.get('name') == 'Vibe4D'):
-                        addon_module = module
-                        logger.debug(f"Found addon module via name search: {module_name}")
-                        break
+        @staticmethod
+        def _get_model_and_instruction(context) -> Tuple[str, str]:
+            model = getattr(context.scene, 'vibe4d_model', LLMRequestBuilder.DEFAULT_MODEL)
+            instruction = getattr(context.scene, 'vibe4d_custom_instruction', '')
+            return model, instruction
 
-            if not addon_module:
-                for module_name, module in sys.modules.items():
-                    if ('vibe4d' in module_name.lower() and
-                            hasattr(module, 'bl_info') and
-                            isinstance(module.bl_info, dict)):
-                        addon_module = module
-                        logger.debug(f"Found addon module via name pattern: {module_name}")
-                        break
-
-            if addon_module and hasattr(addon_module, 'bl_info'):
-                bl_info = addon_module.bl_info
-
-                version_tuple = bl_info.get('version', (0, 0, 0))
-                version_str = '.'.join(map(str, version_tuple))
-
-                return {
-                    "name": bl_info.get('name', 'Unknown Addon'),
-                    "version": version_str,
-                    "author": bl_info.get('author', 'Unknown'),
-                    "description": bl_info.get('description', ''),
-                    "category": bl_info.get('category', 'Unknown')
-                }
-
-            logger.warning("Could not find bl_info, using fallback addon information")
-            return {
-                "name": "Vibe4D",
-                "version": "1.0.0",
-                "author": "Vibe4D Team",
-                "description": "AI-powered Blender addon",
-                "category": "Development"
-            }
-
-        except Exception as e:
-            logger.error(f"Failed to extract addon info: {str(e)}")
-
-            return {
-                "name": "Vibe4D",
-                "version": "1.0.0",
-                "author": "Vibe4D Team",
-                "description": "AI-powered Blender addon",
-                "category": "Development"
-            }
-
-    @staticmethod
-    def _get_model_and_instruction(context):
-        """Get model and custom instruction from unified properties."""
-
-        model_prop = getattr(context.scene, 'vibe4d_model', LLMRequestBuilder.DEFAULT_MODEL)
-
-        instruction = getattr(context.scene, 'vibe4d_custom_instruction', '')
-
-        return model_prop, instruction
-
-    @staticmethod
-    def build_chat_request(
-            context,
-            prompt: str,
-            user_id: str,
-            token: str,
-            model: Optional[str] = None,
-            include_history: bool = True
-    ) -> Dict[str, Any]:
-        """
-        Build chat request with message history for /vibe4d/v1/chat endpoint.
-        
-        Args:
-            context: Blender context object
-            prompt: User's prompt/question
-            user_id: Authenticated user ID
-            token: Authentication token
-            model: Model to use (defaults to unified model selection)
-            include_history: Whether to include chat history in messages
-            
-        Returns:
-            Dict containing the formatted chat request
-        """
-        try:
-
-            selected_model, raw_instruction = LLMRequestBuilder._get_model_and_instruction(context)
+        @staticmethod
+        def build_chat_request(
+                context,
+                prompt: str,
+                user_id: str,
+                token: str,
+                model: Optional[str] = None,
+                include_history: bool = True
+        ) -> Dict[str, Any]:
+            selected_model, instruction = LLMRequestBuilder._get_model_and_instruction(context)
             selected_model = model or selected_model
 
-            instructions = LLMRequestBuilder._get_instruction_array(raw_instruction)
-
-            blender_version = LLMRequestBuilder._get_blender_version()
-
+            instructions = LLMRequestBuilder._to_instruction_array(instruction)
             addon_info = LLMRequestBuilder._get_addon_info()
 
             messages = []
-
             if include_history:
-                recent_messages = LLMRequestBuilder._get_chat_messages_from_history(context, limit=10)
+                recent_messages = LLMRequestBuilder._get_chat_messages_from_history(
+                    context,
+                    limit=LLMRequestBuilder.DEFAULT_HISTORY_MESSAGE_LIMIT
+                )
                 messages.extend(recent_messages)
 
             messages.append({
-                "role": "user",
-                "content": prompt.strip()
+            : "user",
+            :prompt.strip()
             })
 
-            try:
-                from ..engine.query import scene_query_engine
-                schema_summary = scene_query_engine.get_llm_friendly_schema_summary(context)
-            except Exception as e:
-                logger.warning(f"Failed to get schema summary: {str(e)}")
-                schema_summary = ""
+            schema_summary = LLMRequestBuilder._get_schema_summary(context)
+
+            from ..utils.history_manager import history_manager
+            chat_id = history_manager.get_current_chat_id(context)
 
             request = {
-                "user": user_id,
-                "token": token,
-                "messages": messages,
-                "model": selected_model,
-                "instructions": instructions,
-                "tables_schemas_summary": schema_summary,
-                "software": {
-                    "name": LLMRequestBuilder.SOFTWARE_NAME,
-                    "version": blender_version
-                },
-                "addon": {
-                    "version": addon_info["version"],
-                    "name": addon_info["name"]
-                }
+            :user_id,
+            : token,
+            :chat_id,
+            : messages,
+            :selected_model,
+            : instructions,
+            :schema_summary,
+            : {
+            :LLMRequestBuilder.SOFTWARE_NAME,
+            : LLMRequestBuilder._get_blender_version()
+            },
+            :{
+            : addon_info["version"],
+            :addon_info["name"]
+            }
             }
 
-            logger.debug(f"Built chat request with {len(messages)} messages and {len(instructions)} instructions")
+            logger.debug(
+                f"Built chat request with chat_id={chat_id}, {len(messages)} messages and {len(instructions)} instructions")
             return request
 
-        except Exception as e:
-            logger.error(f"Failed to build chat request: {str(e)}")
-            raise
+        @staticmethod
+        def _get_schema_summary(context) -> str:
+            try:
+                from ..engine.query import scene_query_engine
+                return scene_query_engine.get_llm_friendly_schema_summary(context)
+            except Exception as e:
+                logger.warning(f"Failed to get schema summary: {str(e)}")
+                return ""
 
-    @staticmethod
-    def build_request(
-            context,
-            prompt: str,
-            user_id: str,
-            token: str,
-            model: Optional[str] = None
-    ) -> Dict[str, Any]:
-        """
-        Build LLM request.
-        
-        Args:
-            context: Blender context object
-            prompt: User's prompt/question
-            user_id: Authenticated user ID
-            token: Authentication token
-            model: Model to use (defaults to unified model selection)
-            
-        Returns:
-            Dict containing the formatted request
-        """
-        return LLMRequestBuilder.build_chat_request(
-            context=context,
-            prompt=prompt,
-            user_id=user_id,
-            token=token,
-            model=model,
-            include_history=True
-        )
-
-    @staticmethod
-    def _get_chat_messages_from_history(context, limit: int = 10) -> List[Dict[str, Any]]:
-        """Get recent chat messages from history."""
-        try:
-            from ..utils.history_manager import history_manager
-
-            messages = history_manager.get_chat_messages(context)
-
-            return messages[-limit:] if len(messages) > limit else messages
-
-        except Exception as e:
-            logger.error(f"Failed to get chat messages from history: {str(e)}")
-            return []
-
-    @staticmethod
-    def _get_blender_version() -> str:
-        """Get Blender version string."""
-        try:
-            version = bpy.app.version
-
-            return f"{version[0]}.{version[1]}"
-        except Exception as e:
-            logger.error(f"Failed to get Blender version: {str(e)}")
-            return "4.4"
-
-    @staticmethod
-    def _get_instruction_array(instruction_text: str) -> List[str]:
-        """Convert single instruction text to array format for server compatibility."""
-        try:
-            if instruction_text and instruction_text.strip():
-
-                return [instruction_text.strip()]
-            else:
-
+        @staticmethod
+        def _get_chat_messages_from_history(context, limit: int) -> List[Dict[str, Any]]:
+            try:
+                from ..utils.history_manager import history_manager
+                messages = history_manager.get_chat_messages(context)
+                return messages[-limit:] if len(messages) > limit else messages
+            except Exception as e:
+                logger.error(f"Failed to get chat messages from history: {str(e)}")
                 return []
 
-        except Exception as e:
-            logger.error(f"Failed to process instruction text: {str(e)}")
-            return []
+        @staticmethod
+        def _get_blender_version() -> str:
+            try:
+                version = bpy.app.version
+                return f"{version[0]}.{version[1]}"
+            except Exception as e:
+                logger.error(f"Failed to get Blender version: {str(e)}")
+                return "4.4"
 
-    @staticmethod
-    def _get_enabled_instructions(context) -> List[str]:
-        """Get list of enabled custom instructions (legacy compatibility method)."""
-        try:
-
-            instruction = getattr(context.scene, 'vibe4d_custom_instruction', '')
-            return LLMRequestBuilder._get_instruction_array(instruction)
-
-        except Exception as e:
-            logger.error(f"Failed to get custom instruction: {str(e)}")
-            return []
-
-    @staticmethod
-    def _get_enabled_instructions_from_collection(custom_instruction) -> List[str]:
-        """Get list of enabled custom instructions from a specific instruction (legacy compatibility method)."""
-        try:
-
-            return LLMRequestBuilder._get_instruction_array(custom_instruction)
-
-        except Exception as e:
-            logger.error(f"Failed to get custom instruction from input: {str(e)}")
+        @staticmethod
+        def _to_instruction_array(instruction_text: str) -> List[str]:
+            if instruction_text and instruction_text.strip():
+                return [instruction_text.strip()]
             return []

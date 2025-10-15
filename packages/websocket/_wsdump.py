@@ -1,22 +1,3 @@
-"""
-wsdump.py
-websocket - WebSocket client library for Python
-
-Copyright 2024 engn33r
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-"""
-
 import argparse
 import code
 import gzip
@@ -67,34 +48,34 @@ class VAction(argparse.Action):
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="WebSocket Simple Dump Tool")
     parser.add_argument(
-        "url", metavar="ws_url", help="websocket url. ex. ws://echo.websocket.events/"
+    , metavar = "ws_url", help = "websocket url. ex. ws://echo.websocket.events/"
     )
     parser.add_argument("-p", "--proxy", help="proxy url. ex. http://127.0.0.1:8080")
     parser.add_argument(
-        "-v",
-        "--verbose",
-        default=0,
-        nargs="?",
-        action=VAction,
-        dest="verbose",
-        help="set verbose mode. If set to 1, show opcode. "
-             "If set to 2, enable to trace  websocket module",
+    ,
+    ,
+    default = 0,
+    nargs = "?",
+    action = VAction,
+    dest = "verbose",
+    help = "set verbose mode. If set to 1, show opcode. "
+    ,
     )
     parser.add_argument(
-        "-n", "--nocert", action="store_true", help="Ignore invalid SSL cert"
+    , "--nocert", action = "store_true", help = "Ignore invalid SSL cert"
     )
     parser.add_argument("-r", "--raw", action="store_true", help="raw output")
     parser.add_argument("-s", "--subprotocols", nargs="*", help="Set subprotocols")
     parser.add_argument("-o", "--origin", help="Set origin")
     parser.add_argument(
-        "--eof-wait",
-        default=0,
-        type=int,
-        help="wait time(second) after 'EOF' received.",
+    ,
+    default = 0,
+    type = int,
+    help = "wait time(second) after 'EOF' received.",
     )
     parser.add_argument("-t", "--text", help="Send initial text")
     parser.add_argument(
-        "--timings", action="store_true", help="Print timings in seconds"
+    , action = "store_true", help = "Print timings in seconds"
     )
     parser.add_argument("--headers", help="Set custom headers. Use ',' as separator")
 

@@ -1,23 +1,5 @@
 from typing import Union
 
-"""
-_url.py
-websocket - WebSocket client library for Python
-
-Copyright 2024 engn33r
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-"""
 __all__ = ["NoLock", "validate_utf8", "extract_err_message", "extract_error_code"]
 
 
@@ -436,11 +418,6 @@ except ImportError:
 
 
 def validate_utf8(utfbytes: Union[str, bytes]) -> bool:
-    """
-    validate utf8 byte string.
-    utfbytes: utf byte string to check.
-    return value: if valid utf8 string, return true. Otherwise, return false.
-    """
     return _validate_utf8(utfbytes)
 
 

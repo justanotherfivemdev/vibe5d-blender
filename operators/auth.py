@@ -1,9 +1,3 @@
-"""
-Authentication operators for Vibe4D addon.
-
-Contains login, logout, and license purchase operators.
-"""
-
 import time
 import webbrowser
 
@@ -16,15 +10,13 @@ from ..utils.logger import logger
 
 
 class VIBE4D_OT_verify_license(Operator):
-    """License verification operator."""
-
     bl_idname = "vibe4d.verify_license"
     bl_label = "Verify License"
     bl_description = "Verify license key with Emalak AI API"
     bl_options = {'REGISTER'}
 
     def execute(self, context):
-        """Execute license verification."""
+
         try:
             license_key = context.window_manager.vibe4d_license_key.strip()
 
@@ -39,7 +31,6 @@ class VIBE4D_OT_verify_license(Operator):
 
             if success:
                 data = data_or_error
-                logger.info("License authentication successful")
 
                 context.window_manager.vibe4d_user_id = data.get("user_id", "")
                 context.window_manager.vibe4d_user_token = data.get("token", "")
@@ -71,15 +62,13 @@ class VIBE4D_OT_verify_license(Operator):
 
 
 class VIBE4D_OT_get_license_key(Operator):
-    """Open Gumroad license purchase page."""
-
     bl_idname = "vibe4d.get_license_key"
     bl_label = "Get License Key"
     bl_description = "Open Gumroad page to purchase Vibe4D license"
     bl_options = {'REGISTER'}
 
     def execute(self, context):
-        """Open the Gumroad license purchase page."""
+
         try:
             license_url = "https://vibe4d.gumroad.com/l/blender"
 
@@ -96,15 +85,13 @@ class VIBE4D_OT_get_license_key(Operator):
 
 
 class VIBE4D_OT_open_discord(Operator):
-    """Open Vibe4D Discord server."""
-
     bl_idname = "vibe4d.open_discord"
     bl_label = "Discord"
     bl_description = "Join Vibe4D Discord community"
     bl_options = {'REGISTER'}
 
     def execute(self, context):
-        """Open the Discord server."""
+
         try:
             discord_url = "https://discord.gg/dXAN23NwkM"
 
@@ -121,19 +108,15 @@ class VIBE4D_OT_open_discord(Operator):
 
 
 class VIBE4D_OT_open_website(Operator):
-    """Open Vibe4D website."""
-
     bl_idname = "vibe4d.open_website"
     bl_label = "Website"
     bl_description = "Visit Vibe4D official website"
     bl_options = {'REGISTER'}
 
     def execute(self, context):
-        """Open the website."""
         try:
-            website_url = "https://vibe4d.com"
+            website_url = "https://vibe4d.ai"
 
-            logger.info("Opening Vibe4D website")
             webbrowser.open(website_url)
 
             self.report({'INFO'}, "Website opened in browser")
@@ -146,15 +129,13 @@ class VIBE4D_OT_open_website(Operator):
 
 
 class VIBE4D_OT_manage_subscription(Operator):
-    """Open subscription management page."""
-
     bl_idname = "vibe4d.manage_subscription"
     bl_label = "Manage Subscription"
     bl_description = "Open subscription management page"
     bl_options = {'REGISTER'}
 
     def execute(self, context):
-        """Open the subscription management page."""
+
         try:
 
             subscription_url = "https://vibe4d.gumroad.com/l/blender"
@@ -172,15 +153,13 @@ class VIBE4D_OT_manage_subscription(Operator):
 
 
 class VIBE4D_OT_logout(Operator):
-    """Logout and clear authentication."""
-
     bl_idname = "vibe4d.logout"
     bl_label = "Logout"
     bl_description = "Logout and clear authentication data"
     bl_options = {'REGISTER'}
 
     def execute(self, context):
-        """Execute logout."""
+
         try:
             from ..auth.manager import auth_manager
 
@@ -200,15 +179,13 @@ class VIBE4D_OT_logout(Operator):
 
 
 class VIBE4D_OT_retry_auth(Operator):
-    """Retry authentication operator for network errors."""
-
     bl_idname = "vibe4d.retry_auth"
     bl_label = "Retry Connection"
     bl_description = "Retry authentication validation after network error"
     bl_options = {'REGISTER'}
 
     def execute(self, context):
-        """Execute authentication retry."""
+
         try:
             logger.info("Retrying authentication validation")
 
@@ -271,15 +248,13 @@ class VIBE4D_OT_retry_auth(Operator):
 
 
 class VIBE4D_OT_check_auth_status(Operator):
-    """Check current authentication status."""
-
     bl_idname = "vibe4d.check_auth_status"
     bl_label = "Check Auth Status"
     bl_description = "Check current authentication status"
     bl_options = {'REGISTER'}
 
     def execute(self, context):
-        """Check authentication status."""
+
         try:
             if auth_manager.is_authenticated(context):
                 user_info = auth_manager.get_user_info(context)
@@ -301,15 +276,13 @@ class VIBE4D_OT_check_auth_status(Operator):
 
 
 class VIBE4D_OT_handle_network_error(Operator):
-    """Handle network error states."""
-
     bl_idname = "vibe4d.handle_network_error"
     bl_label = "Retry Connection"
     bl_description = "Retry connecting to Vibe4D API"
     bl_options = {'REGISTER'}
 
     def execute(self, context):
-        """Handle network error retry."""
+
         try:
             if auth_manager.initialize_auth(context):
                 context.window_manager.vibe4d_network_error = False
@@ -328,29 +301,24 @@ class VIBE4D_OT_handle_network_error(Operator):
 
 
 class VIBE4D_OT_clear_network_error(Operator):
-    """Clear network error flag."""
-
     bl_idname = "vibe4d.clear_network_error"
     bl_label = "Dismiss"
     bl_description = "Dismiss network error notification"
     bl_options = {'REGISTER'}
 
     def execute(self, context):
-        """Clear network error flag."""
         context.window_manager.vibe4d_network_error = False
         return {'FINISHED'}
 
 
 class VIBE4D_OT_refresh_usage(Operator):
-    """Refresh usage information from API."""
-
     bl_idname = "vibe4d.refresh_usage"
     bl_label = "Refresh Usage"
     bl_description = "Refresh usage information from API"
     bl_options = {'REGISTER'}
 
     def execute(self, context):
-        """Refresh usage information."""
+
         try:
             from ..auth.manager import auth_manager
 
