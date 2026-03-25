@@ -70,13 +70,13 @@ class MaterialsTable(BaseTable):
 
     def _extract_all_fields(self, mat) -> Dict[str, Any]:
         mat_data = {
-        :mat.name,
-        : mat.use_nodes,
-        :mat.users,
-        : to_json_serializable(mat.diffuse_color),
-        :mat.metallic,
-        : mat.roughness,
-        :mat.blend_method
+            'name': mat.name,
+            'use_nodes': mat.use_nodes,
+            'users': mat.users,
+            'diffuse_color': to_json_serializable(mat.diffuse_color),
+            'metallic': mat.metallic,
+            'roughness': mat.roughness,
+            'blend_method': mat.blend_method
         }
 
         if hasattr(mat, 'alpha'):
@@ -97,9 +97,9 @@ class MaterialsTable(BaseTable):
 
         for node in node_tree.nodes:
             node_data = {
-            :node.name,
-            : node.type,
-            :[round(node.location.x, 2), round(node.location.y, 2)],
+                'name': node.name,
+                'type': node.type,
+                'location': [round(node.location.x, 2), round(node.location.y, 2)],
             }
 
             inputs = {}
@@ -128,13 +128,13 @@ class MaterialsTable(BaseTable):
         for link in node_tree.links:
             if link.is_valid:
                 connections.append({
-                : link.from_node.name,
-                :link.from_socket.name,
-                : link.to_node.name,
-                :link.to_socket.name,
+                    'from_node': link.from_node.name,
+                    'from_socket': link.from_socket.name,
+                    'to_node': link.to_node.name,
+                    'to_socket': link.to_socket.name,
                 })
 
-            return {
-            :nodes,
-            : connections
-            }
+        return {
+            'nodes': nodes,
+            'connections': connections
+        }

@@ -56,10 +56,10 @@ class CollectionsTable(BaseTable):
 
     def _extract_all_fields(self, collection) -> Dict[str, Any]:
         return {
-        :collection.name,
-        : [obj.name for obj in collection.objects],
-        :len(collection.objects),
-        : [child.name for child in collection.children],
-        :collection.hide_viewport,
-        : collection.hide_render
+            'name': collection.name,
+            'objects': [obj.name for obj in collection.objects],
+            'objects_count': len(collection.objects),
+            'children': [child.name for child in collection.children],
+            'hide_viewport': collection.hide_viewport,
+            'hide_render': collection.hide_render
         }

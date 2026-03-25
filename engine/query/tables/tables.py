@@ -26,8 +26,8 @@ class TablesTable(BaseTable):
                 break
 
             table_data = {
-            :table_name,
-            : table_instance.description
+                'name': table_name,
+                'description': table_instance.description
             }
 
             if where and not self._matches_where(table_data, where):

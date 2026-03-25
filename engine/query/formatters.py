@@ -109,18 +109,18 @@ class TableFormatter(DataFormatter):
 
 class CompactFormatter(DataFormatter):
     ABBREV = {
-    :'loc',
-    : 'rot',
-    :'vis',
-    : 'mats',
-    :'res',
-    : 'samp',
-    :'metal',
-    : 'rough',
-    :'sel',
-    : 'coll',
-    :'mods',
-    : 'cons',
+        'location': 'loc',
+        'rotation': 'rot',
+        'visible': 'vis',
+        'materials': 'mats',
+        'resolution': 'res',
+        'samples': 'samp',
+        'metallic': 'metal',
+        'roughness': 'rough',
+        'selected': 'sel',
+        'collection': 'coll',
+        'modifiers': 'mods',
+        'constraints': 'cons',
     }
 
     def format(self, data: List[Dict[str, Any]]) -> str:
@@ -349,12 +349,12 @@ class FormatSelector:
 
 class FormatFactory:
     _formatters = {
-    :JSONFormatter,
-    : CSVFormatter,
-    :TableFormatter,
-    : CompactFormatter,
-    :ColumnarFormatter,
-    : GraphFormatter,
+        'json': JSONFormatter,
+        'csv': CSVFormatter,
+        'table': TableFormatter,
+        'compact': CompactFormatter,
+        'columnar': ColumnarFormatter,
+        'graph': GraphFormatter,
     }
 
     @classmethod

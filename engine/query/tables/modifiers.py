@@ -60,11 +60,11 @@ class ModifiersTable(BaseTable):
 
     def _extract_all_fields(self, obj, mod) -> Dict[str, Any]:
         mod_data = {
-        :obj.name,
-        : mod.name,
-        :mod.type,
-        : mod.show_viewport,
-        :mod.show_render,
+            'object_name': obj.name,
+            'name': mod.name,
+            'type': mod.type,
+            'show_viewport': mod.show_viewport,
+            'show_render': mod.show_render,
         }
 
         if mod.type == 'SUBSURF':

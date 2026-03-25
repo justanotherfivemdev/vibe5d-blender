@@ -6,15 +6,15 @@ from .conditions import WhereCondition, WhereExpression
 
 class QueryParser:
     OPERATORS = {
-    :1,
-    : 2,
-    :3,
-    : 4, 'NOT IN': 4,
-    :4, 'NOT LIKE': 4, 'ILIKE': 4, 'NOT ILIKE': 4,
-    :4, 'IS NOT': 4,
-    :4, 'NOT BETWEEN': 4,
-    :5, '!=': 5, '<>': 5,
-    :5, '<=': 5, '>': 5, '>=': 5
+        'OR': 1,
+        'AND': 2,
+        'NOT': 3,
+        'IN': 4, 'NOT IN': 4,
+        'LIKE': 4, 'NOT LIKE': 4, 'ILIKE': 4, 'NOT ILIKE': 4,
+        'IS': 4, 'IS NOT': 4,
+        'BETWEEN': 4, 'NOT BETWEEN': 4,
+        '=': 5, '!=': 5, '<>': 5,
+        '<': 5, '<=': 5, '>': 5, '>=': 5
     }
 
     NULL_OPERATORS = {'IS', 'IS NOT'}

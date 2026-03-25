@@ -152,25 +152,25 @@ class ToolsManager:
 
     def __init__(self):
         self.tools = {
-        :self._execute_tool,
-        : self._execute_tool,
-        :self._query_tool,
-        : self._query_tool,
-        :self._scene_context_tool,
-        : self._viewport_tool,
-        :self._viewport_tool,
-        : self._viewport_tool,
-        :self._viewport_tool,
-        : self._screenshot_camera_view_tool,
-        :self._screenshot_tool,
-        : self._see_render_tool,
-        :self._see_render_tool,
-        : self._render_async_tool,
-        :self._get_render_result_tool,
-        : self._cancel_render_tool,
-        :self._list_active_renders_tool,
-        : self._screenshot_object_tool,
-        :self._import_image_tool,
+            'execute': self._execute_tool,
+            'execute_code': self._execute_tool,
+            'query': self._query_tool,
+            'scene_query': self._query_tool,
+            'scene_context': self._scene_context_tool,
+            'see_viewport': self._viewport_tool,
+            'viewport': self._viewport_tool,
+            'screenshot_viewport': self._viewport_tool,
+            'see_current_viewport': self._viewport_tool,
+            'screenshot_camera_view': self._screenshot_camera_view_tool,
+            'screenshot': self._screenshot_tool,
+            'see_render': self._see_render_tool,
+            'render_sync': self._see_render_tool,
+            'render_async': self._render_async_tool,
+            'get_render_result': self._get_render_result_tool,
+            'cancel_render': self._cancel_render_tool,
+            'list_active_renders': self._list_active_renders_tool,
+            'screenshot_object': self._screenshot_object_tool,
+            'import_image': self._import_image_tool,
         }
 
         render_manager.register_handlers()
@@ -238,22 +238,22 @@ class ToolsManager:
             current_language = locale.getdefaultlocale()[0] if locale.getdefaultlocale()[0] else None
 
             info = {
-            :context.scene.name,
-            : context.scene.frame_current,
-            :context.scene.frame_start,
-            : context.scene.frame_end,
-            :context.scene.render.engine,
-            : bpy.app.version_string,
-            :current_file_path,
-            : platform.system(),
-            :{
-            : context.window.width,
-            :context.window.height
-            },
-            :context.preferences.system.dpi,
-            : current_language,
-            :selected_objects,
-            : active_object,
+                'scene_name': context.scene.name,
+                'frame_current': context.scene.frame_current,
+                'frame_start': context.scene.frame_start,
+                'frame_end': context.scene.frame_end,
+                'render_engine': context.scene.render.engine,
+                'blender_version': bpy.app.version_string,
+                'file_path': current_file_path,
+                'os': platform.system(),
+                'window_size': {
+                    'width': context.window.width,
+                    'height': context.window.height
+                },
+                'dpi': context.preferences.system.dpi,
+                'language': current_language,
+                'selected_objects': selected_objects,
+                'active_object': active_object,
             }
 
             return True, {"result": info}
@@ -322,12 +322,12 @@ class ToolsManager:
                 image_id = _upload_image_to_server(image_data, "viewport", context)
 
                 result_data = {
-                :data_uri,
-                : original_res_x,
-                :original_res_y,
-                : file_size,
-                :"PNG",
-                : shading_mode
+                    'image_data': data_uri,
+                    'width': original_res_x,
+                    'height': original_res_y,
+                    'file_size': file_size,
+                    'format': "PNG",
+                    'shading_mode': shading_mode
                 }
 
                 if image_id:
@@ -421,14 +421,14 @@ class ToolsManager:
                 image_id = _upload_image_to_server(image_data, "camera_view", context)
 
                 result_data = {
-                :data_uri,
-                : original_res_x,
-                :original_res_y,
-                : camera.name,
-                :frame if frame is not None else original_frame,
-                : file_size,
-                :"PNG",
-                : shading_mode
+                    'image_data': data_uri,
+                    'width': original_res_x,
+                    'height': original_res_y,
+                    'camera': camera.name,
+                    'frame': frame if frame is not None else original_frame,
+                    'file_size': file_size,
+                    'format': "PNG",
+                    'shading_mode': shading_mode
                 }
 
                 if image_id:
@@ -479,9 +479,9 @@ class ToolsManager:
                 image_id = _upload_image_to_server(image_data, "screenshot", context)
 
                 result_data = {
-                :data_uri,
-                : file_size,
-                :"PNG"
+                    'image_data': data_uri,
+                    'file_size': file_size,
+                    'format': "PNG"
                 }
 
                 if context.window:
@@ -570,26 +570,26 @@ class ToolsManager:
             if completion_data.get('completed'):
                 result_data = completion_data['result']
                 return True, {
-                :{
-                    **result_data,
-                : "completed",
-                :f"Used existing render result with ID: {render_id}",
-                : True
-                }
-                }
-
-                result_data = {
-                :render_id,
-                : "started",
-                :f"Async render started with ID: {render_id}",
-                : scene_name or context.scene.name,
-                :camera_name or (context.scene.camera.name if context.scene.camera else None),
-                : False
+                    'result': {
+                        **result_data,
+                        'status': "completed",
+                        'message': f"Used existing render result with ID: {render_id}",
+                        'used_existing': True
+                    }
                 }
 
-                return True, {"result": result_data}
+            result_data = {
+                'render_id': render_id,
+                'status': "started",
+                'message': f"Async render started with ID: {render_id}",
+                'scene_name': scene_name or context.scene.name,
+                'camera_name': camera_name or (context.scene.camera.name if context.scene.camera else None),
+                'used_existing': False
+            }
 
-            except Exception as e:
+            return True, {"result": result_data}
+
+        except Exception as e:
             logger.error(f"Async render tool error: {str(e)}")
             return False, {"result": f"Async render error: {str(e)}"}
 
@@ -635,13 +635,13 @@ class ToolsManager:
             active_renders = render_manager.get_active_renders()
 
             return True, {
-            :{
-            : active_renders,
-            :len(active_renders)
-            }
+                'result': {
+                    'active_renders': active_renders,
+                    'count': len(active_renders)
+                }
             }
 
-            except Exception as e:
+        except Exception as e:
             logger.error(f"List active renders tool error: {str(e)}")
             return False, {"result": f"List active renders error: {str(e)}"}
 
@@ -692,15 +692,15 @@ class ToolsManager:
         win = bpy.context.window
 
         cache = {
-        :win.view_layer,
-        : scn.camera,
-        :scn.render.engine,
-        : scn.render.filepath,
-        :scn.render.film_transparent,
-        : scn.render.resolution_x,
-        :scn.render.resolution_y,
-        : scn.world.use_nodes if scn.world else None,
-        :{o: o.hide_render for o in bpy.data.objects},
+            'view_layer': win.view_layer,
+            'camera': scn.camera,
+            'engine': scn.render.engine,
+            'filepath': scn.render.filepath,
+            'film_transparent': scn.render.film_transparent,
+            'res_x': scn.render.resolution_x,
+            'res_y': scn.render.resolution_y,
+            'world_use_nodes': scn.world.use_nodes if scn.world else None,
+            'objects_hide_render': {o: o.hide_render for o in bpy.data.objects},
         }
 
         cam_data = bpy.data.cameras.new(TEMP_CAMERA_DATA_NAME)
@@ -853,12 +853,12 @@ class ToolsManager:
                     img.pack()
 
                     return True, {
-                    :f"Image '{image_name}' loaded as texture data block",
-                    : image_name,
-                    :"texture"
+                        'result': f"Image '{image_name}' loaded as texture data block",
+                        'image_name': image_name,
+                        'import_type': "texture"
                     }
 
-                    elif import_type == "image_plane":
+                elif import_type == "image_plane":
                     if image_name in bpy.data.images:
                         bpy.data.images.remove(bpy.data.images[image_name])
 
@@ -904,13 +904,13 @@ class ToolsManager:
                     plane.data.materials.append(mat)
 
                     return True, {
-                    :f"Image plane '{plane.name}' created with image '{image_name}'",
-                    : plane.name,
-                    :image_name,
-                    : "image_plane"
+                        'result': f"Image plane '{plane.name}' created with image '{image_name}'",
+                        'object_name': plane.name,
+                        'image_name': image_name,
+                        'import_type': "image_plane"
                     }
 
-                    elif import_type == "background":
+                elif import_type == "background":
                     if image_name in bpy.data.images:
                         bpy.data.images.remove(bpy.data.images[image_name])
 
@@ -948,12 +948,12 @@ class ToolsManager:
                     links.new(node_background.outputs['Background'], node_output.inputs['Surface'])
 
                     return True, {
-                    :f"Image '{image_name}' set as world background",
-                    : image_name,
-                    :"background"
+                        'result': f"Image '{image_name}' set as world background",
+                        'image_name': image_name,
+                        'import_type': "background"
                     }
 
-                finally:
+            finally:
                 if os.path.exists(temp_path):
                     try:
                         os.unlink(temp_path)

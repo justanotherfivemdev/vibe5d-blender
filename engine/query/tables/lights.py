@@ -66,11 +66,11 @@ class LightsTable(BaseTable):
 
     def _extract_all_fields(self, light) -> Dict[str, Any]:
         light_data = {
-        :light.name,
-        : light.type,
-        :light.energy,
-        : to_json_serializable(light.color),
-        :light.users
+            'name': light.name,
+            'type': light.type,
+            'energy': light.energy,
+            'color': to_json_serializable(light.color),
+            'users': light.users
         }
 
         if light.type == 'SUN':

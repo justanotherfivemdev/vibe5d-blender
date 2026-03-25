@@ -54,9 +54,9 @@ class TextsTable(BaseTable):
 
     def _extract_all_fields(self, text) -> Dict[str, Any]:
         return {
-        :text.name,
-        : len(text.lines),
-        :text.is_modified,
-        : text.is_in_memory,
-        :text.filepath if text.filepath else None
+            'name': text.name,
+            'lines': len(text.lines),
+            'is_modified': text.is_modified,
+            'is_in_memory': text.is_in_memory,
+            'filepath': text.filepath if text.filepath else None
         }

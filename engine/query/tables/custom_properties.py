@@ -30,10 +30,10 @@ class CustomPropertiesTable(BaseTable):
                     return
 
                 prop_data = {
-                :obj.name,
-                : "OBJECT",
-                :key,
-                : to_json_serializable(obj[key])
+                    'object_name': obj.name,
+                    'block_type': "OBJECT",
+                    'property_name': key,
+                    'value': to_json_serializable(obj[key])
                 }
 
                 if where and not self._matches_where(prop_data, where):

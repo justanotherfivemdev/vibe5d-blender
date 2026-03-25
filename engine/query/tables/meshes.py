@@ -56,10 +56,10 @@ class MeshesTable(BaseTable):
 
     def _extract_all_fields(self, mesh) -> Dict[str, Any]:
         return {
-        :mesh.name,
-        : len(mesh.vertices),
-        :len(mesh.edges),
-        : len(mesh.polygons),
-        :mesh.users,
-        : [mat.name for mat in mesh.materials if mat]
+            'name': mesh.name,
+            'vertices': len(mesh.vertices),
+            'edges': len(mesh.edges),
+            'faces': len(mesh.polygons),
+            'users': mesh.users,
+            'materials': [mat.name for mat in mesh.materials if mat]
         }

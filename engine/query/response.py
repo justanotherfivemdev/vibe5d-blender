@@ -12,9 +12,9 @@ class QueryResponse:
 
     def to_dict(self) -> Dict[str, Any]:
         response = {
-        :self.status,
-        : self.format_type,
-        :self.count
+            'status': self.status,
+            'format': self.format_type,
+            'count': self.count
         }
 
         if self.status == "success":

@@ -92,18 +92,18 @@ class ObjectsTable(BaseTable):
 
     def _extract_all_fields(self, obj, context) -> Dict[str, Any]:
         obj_data = {
-        :obj.name,
-        : obj.type,
-        :to_json_serializable(obj.location),
-        : to_json_serializable(obj.rotation_euler),
-        :to_json_serializable(obj.scale),
-        : obj.visible_get(),
-        :obj.select_get(),
-        : obj == context.active_object,
-        :obj.data.name if obj.data else None,
-        : obj.parent.name if obj.parent else None,
-        :obj.users_collection[0].name if obj.users_collection else None,
-        : [child.name for child in obj.children],
+            'name': obj.name,
+            'type': obj.type,
+            'location': to_json_serializable(obj.location),
+            'rotation': to_json_serializable(obj.rotation_euler),
+            'scale': to_json_serializable(obj.scale),
+            'visible': obj.visible_get(),
+            'selected': obj.select_get(),
+            'active': obj == context.active_object,
+            'data_name': obj.data.name if obj.data else None,
+            'parent': obj.parent.name if obj.parent else None,
+            'collection': obj.users_collection[0].name if obj.users_collection else None,
+            'children': [child.name for child in obj.children],
         }
 
         if obj.type == 'MESH' and obj.data:
@@ -142,10 +142,10 @@ class ObjectsTable(BaseTable):
         modifiers = []
         for mod in obj.modifiers:
             mod_data = {
-            :mod.name,
-            : mod.type,
-            :mod.show_viewport,
-            : mod.show_render,
+                'name': mod.name,
+                'type': mod.type,
+                'show_viewport': mod.show_viewport,
+                'show_render': mod.show_render,
             }
 
             if mod.type == 'SUBSURF':
@@ -173,10 +173,10 @@ class ObjectsTable(BaseTable):
         constraints = []
         for con in obj.constraints:
             con_data = {
-            :con.name,
-            : con.type,
-            :not con.mute,
-            : con.influence,
+                'name': con.name,
+                'type': con.type,
+                'enabled': not con.mute,
+                'influence': con.influence,
             }
 
             if hasattr(con, 'target'):
