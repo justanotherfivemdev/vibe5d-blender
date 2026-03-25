@@ -195,13 +195,13 @@ class HistoryManager:
 
                     if has_image:
                         message_dict = {
-                        :msg.role,
-                        : [
-                            {"type": "text", "text": msg.content},
-                            {"type": "image_url", "image_url": {"url": msg.image_data, "detail": "high"}}
-                        ]
+                            "role": msg.role,
+                            "content": [
+                                {"type": "text", "text": msg.content},
+                                {"type": "image_url", "image_url": {"url": msg.image_data, "detail": "high"}}
+                            ]
                         }
-                        else:
+                    else:
                         message_dict = {"role": msg.role, "content": msg.content}
 
                     if msg.role == "assistant" and msg.tool_calls_json:
@@ -241,30 +241,30 @@ class HistoryManager:
                 chat_id = msg.chat_id
                 if chat_id not in chats:
                     chats[chat_id] = {
-                    :chat_id,
-                    : 'New conversation',
-                    :msg.timestamp,
-                    : 0
+                        'chat_id': chat_id,
+                        'title': 'New conversation',
+                        'last_message_time': msg.timestamp,
+                        'message_count': 0
                     }
 
-                    chats[chat_id]['message_count'] += 1
-                    chats[chat_id]['last_message_time'] = max(chats[chat_id]['last_message_time'], msg.timestamp)
+                chats[chat_id]['message_count'] += 1
+                chats[chat_id]['last_message_time'] = max(chats[chat_id]['last_message_time'], msg.timestamp)
 
-                    if msg.role == 'user' and chats[chat_id]['title'] == 'New conversation':
-                        title = msg.content.strip().split('\n')[0]
-                        if len(title) > 50:
-                            title = title[:50] + "..."
-                        chats[chat_id]['title'] = title
+                if msg.role == 'user' and chats[chat_id]['title'] == 'New conversation':
+                    title = msg.content.strip().split('\n')[0]
+                    if len(title) > 50:
+                        title = title[:50] + "..."
+                    chats[chat_id]['title'] = title
 
-                chat_list = list(chats.values())
-                chat_list.sort(key=lambda c: c['last_message_time'], reverse=True)
+            chat_list = list(chats.values())
+            chat_list.sort(key=lambda c: c['last_message_time'], reverse=True)
 
-                logger.debug(
-                    f"🔍 Found {len(chat_list)} chats in scene '{scene_name}': {[c['chat_id'] for c in chat_list]}")
+            logger.debug(
+                f"🔍 Found {len(chat_list)} chats in scene '{scene_name}': {[c['chat_id'] for c in chat_list]}")
 
-                return chat_list
+            return chat_list
 
-            except Exception as e:
+        except Exception as e:
             logger.error(f"Failed to get all chats: {str(e)}")
             return []
 

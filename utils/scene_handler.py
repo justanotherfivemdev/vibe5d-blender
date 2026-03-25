@@ -156,10 +156,9 @@ class SceneChangeHandler:
             context.scene.vibe5d_execution_pending = False
 
             props_to_clear = [
-                ,
-            ,
-            ,
-
+                'vibe5d_output_content',
+                'vibe5d_final_code',
+                'vibe5d_console_output',
             ]
 
             for prop in props_to_clear:

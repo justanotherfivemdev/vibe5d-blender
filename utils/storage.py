@@ -68,10 +68,10 @@ class SecureStorage:
 
         try:
             credentials = {
-            :user_id,
-            : token,
-            :email,
-            : plan
+                "user_id": user_id,
+                "token": token,
+                "email": email,
+                "plan": plan
             }
 
             success = self._atomic_write(self.credentials_file, credentials)
@@ -141,8 +141,8 @@ class SecureStorage:
                     return False
 
                 validated_instruction = {
-                :str(instruction.get("text", "")),
-                : bool(instruction.get("enabled", True))
+                    "text": str(instruction.get("text", "")),
+                    "enabled": bool(instruction.get("enabled", True))
                 }
                 validated_instructions.append(validated_instruction)
 
@@ -168,7 +168,7 @@ class SecureStorage:
                 return False
 
             instruction_data = {
-            :instruction_text.strip()
+                "instruction": instruction_text.strip()
             }
 
 
@@ -209,8 +209,8 @@ class SecureStorage:
                     continue
 
                 validated_instruction = {
-                :str(instruction.get("text", "")),
-                : bool(instruction.get("enabled", True))
+                    "text": str(instruction.get("text", "")),
+                    "enabled": bool(instruction.get("enabled", True))
                 }
                 validated_instructions.append(validated_instruction)
 
