@@ -1,13 +1,13 @@
 bl_info = {
-:"Vibe4D",
-: "Vibe4D",
-:(0, 3, 0),
-: (4, 5, 3),
-:"View3D > Sidebar > Vibe4D",
-: "Ultimate Blender AI assistant",
-:"",
-: "https://vibe4d.com",
-:"Development",
+    "name": "Vibe5D",
+    "author": "Vibe5D Community",
+    "version": (0, 4, 0),
+    "blender": (4, 5, 3),
+    "location": "View3D > Sidebar > Vibe5D",
+    "description": "Open-source Blender AI assistant — use OpenAI or local LLMs",
+    "doc_url": "",
+    "tracker_url": "https://github.com/justanotherfivemdev/vibe4d-blender",
+    "category": "Development",
 }
 
 import bpy
@@ -46,7 +46,7 @@ screenshot_object = api.screenshot_object
 def load_auth_and_settings_on_file_load(file):
     try:
         if bpy.context.scene:
-            is_authenticated = getattr(bpy.context.window_manager, 'vibe4d_authenticated', False)
+            is_authenticated = getattr(bpy.context.window_manager, 'vibe5d_authenticated', False)
             if not is_authenticated:
                 auth_manager.initialize_auth(bpy.context)
 
@@ -88,7 +88,7 @@ def ensure_viewport_button_handler(file):
         try:
             if hasattr(bpy.context, 'window_manager') and bpy.context.window_manager:
                 try:
-                    bpy.ops.vibe4d.viewport_button_handler('INVOKE_DEFAULT')
+                    bpy.ops.vibe5d.viewport_button_handler('INVOKE_DEFAULT')
                     logger.debug("Viewport button modal handler started after file load")
                 except RuntimeError as e:
                     if "already running" in str(e).lower():
@@ -134,7 +134,7 @@ def auto_open_chat_ui_on_file_load(file):
 
             try:
                 with bpy.context.temp_override(area=target_area):
-                    bpy.ops.vibe4d.show_advanced_ui()
+                    bpy.ops.vibe5d.show_advanced_ui()
             except Exception as e:
                 logger.error(f"Failed to auto-open chat UI using operator: {e}")
 
@@ -153,7 +153,7 @@ def auto_open_chat_ui_on_file_load(file):
 
 def register():
     try:
-        logger.info("=== Registering Vibe4D Addon ===")
+        logger.info("=== Registering Vibe5D Addon ===")
 
         ui.register()
         operators.register()
@@ -178,7 +178,7 @@ def register():
         def delayed_modal_handler_start():
             try:
                 if hasattr(bpy.context, 'window_manager') and bpy.context.window_manager:
-                    bpy.ops.vibe4d.viewport_button_handler('INVOKE_DEFAULT')
+                    bpy.ops.vibe5d.viewport_button_handler('INVOKE_DEFAULT')
                 else:
                     logger.warning("Context not ready for modal handler, will retry on file load")
             except Exception as e:
@@ -198,16 +198,16 @@ def register():
         except Exception as e:
             logger.debug(f"Failed to load initial auth/settings/instructions: {str(e)}")
 
-        logger.info("Vibe4D addon registered successfully")
+        logger.info("Vibe5D addon registered successfully")
 
     except Exception as e:
-        logger.error(f"Failed to register Vibe4D addon: {str(e)}")
+        logger.error(f"Failed to register Vibe5D addon: {str(e)}")
         raise
 
 
 def unregister():
     try:
-        logger.info("=== Unregistering Vibe4D Addon ===")
+        logger.info("=== Unregistering Vibe5D Addon ===")
 
         try:
             if bpy.context.scene:
@@ -233,10 +233,10 @@ def unregister():
         operators.unregister()
         ui.unregister()
 
-        logger.info("Vibe4D addon unregistered successfully")
+        logger.info("Vibe5D addon unregistered successfully")
 
     except Exception as e:
-        logger.error(f"Failed to unregister Vibe4D addon: {str(e)}")
+        logger.error(f"Failed to unregister Vibe5D addon: {str(e)}")
 
 
 if __name__ == "__main__":

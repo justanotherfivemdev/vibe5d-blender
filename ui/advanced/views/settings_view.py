@@ -481,21 +481,23 @@ class SettingsView(BaseView):
         components = {}
 
         context = bpy.context
-        is_authenticated = getattr(context.window_manager, 'vibe4d_authenticated', False)
-        user_email = getattr(context.window_manager, 'vibe4d_user_email', '')
-        user_plan = getattr(context.window_manager, 'vibe4d_user_plan', '')
+        # In Vibe5D (open-source), settings are always accessible
+        # We don't check is_authenticated anymore
+        is_authenticated = True  # Always show settings
+        user_email = getattr(context.window_manager, 'vibe5d_user_email', '')
+        user_plan = getattr(context.window_manager, 'vibe5d_user_plan', '')
 
         try:
             from ....utils.instructions_manager import instruction_manager
             from ....utils.storage import secure_storage
 
-            current_instruction_in_scene = getattr(context.scene, 'vibe4d_custom_instruction', '')
+            current_instruction_in_scene = getattr(context.scene, 'vibe5d_custom_instruction', '')
 
             if not current_instruction_in_scene:
 
                 saved_instruction = secure_storage.load_custom_instruction()
                 if saved_instruction:
-                    context.scene.vibe4d_custom_instruction = str(saved_instruction)
+                    context.scene.vibe5d_custom_instruction = str(saved_instruction)
                     logger.info(
                     )
                 else:
@@ -506,8 +508,8 @@ class SettingsView(BaseView):
         except Exception as e:
             logger.error(f"Failed to load custom instructions for settings view: {e}")
 
-        current_usage = getattr(context.window_manager, 'vibe4d_current_usage', 0)
-        usage_limit = getattr(context.window_manager, 'vibe4d_usage_limit', 100)
+        current_usage = getattr(context.window_manager, 'vibe5d_current_usage', 0)
+        usage_limit = getattr(context.window_manager, 'vibe5d_usage_limit', 100)
 
         if is_authenticated and not self.usage_data_fetched and not self.is_fetching_usage:
             self.usage_data_fetched = True
@@ -550,7 +552,7 @@ class SettingsView(BaseView):
             current_y = adjustCurrectY(current_y, get_label_height(),
                                        CoordinateSystem.scale_int(6))
 
-            plan_name = getattr(context.window_manager, 'vibe4d_plan_name', '')
+            plan_name = getattr(context.window_manager, 'vibe5d_plan_name', '')
             if plan_name:
                 plan_display = plan_name
             else:
@@ -657,7 +659,7 @@ class SettingsView(BaseView):
             instruction_container.corner_radius = get_container_radius()
             components['instruction_container'] = instruction_container
 
-            current_instruction = getattr(context.scene, 'vibe4d_custom_instruction', '')
+            current_instruction = getattr(context.scene, 'vibe5d_custom_instruction', '')
 
             instruction_current_y = current_y - get_container_internal_padding()
             instruction_input_height = instruction_container_height - (get_container_internal_padding() * 2)
@@ -697,9 +699,8 @@ class SettingsView(BaseView):
             current_y = adjustCurrectY(current_y, get_label_height(), get_small_spacing())
 
             # Provider selection label
-            current_provider = getattr(context.scene, 'vibe4d_provider', 'openai')
+            current_provider = getattr(context.scene, 'vibe5d_provider', 'openai')
             provider_display_names = {
-                'vibe4d': 'Vibe4D (Cloud)',
                 'openai': 'OpenAI / ChatGPT',
                 'local': 'Local LLM (Ollama, LM Studio, etc.)'
             }
@@ -737,7 +738,7 @@ class SettingsView(BaseView):
             button_x = get_left_margin() + get_container_internal_padding()
             button_spacing = CoordinateSystem.scale_int(8)
 
-            for provider_id, provider_name in [('openai', 'OpenAI'), ('local', 'Local'), ('vibe4d', 'Vibe4D')]:
+            for provider_id, provider_name in [('openai', 'OpenAI'), ('local', 'Local')]:
                 is_active = (current_provider == provider_id)
                 btn = Button(provider_name, button_x, provider_inner_y - button_height,
                              button_width, button_height)
@@ -753,7 +754,7 @@ class SettingsView(BaseView):
             provider_inner_y = provider_inner_y - button_height - get_small_spacing()
 
             # Provider model input
-            current_provider_model = getattr(context.scene, 'vibe4d_provider_model', '')
+            current_provider_model = getattr(context.scene, 'vibe5d_provider_model', '')
             if current_provider == 'openai':
                 model_placeholder = "gpt-4o-mini"
             elif current_provider == 'local':
@@ -802,7 +803,7 @@ class SettingsView(BaseView):
 
                 current_y = adjustCurrectY(current_y, get_small_label_height(), CoordinateSystem.scale_int(2))
 
-                current_api_key = getattr(context.scene, 'vibe4d_provider_api_key', '')
+                current_api_key = getattr(context.scene, 'vibe5d_provider_api_key', '')
                 api_key_display = ('•' * min(len(current_api_key), 20)) if current_api_key else ''
 
                 api_key_input = TextInput(
@@ -837,7 +838,7 @@ class SettingsView(BaseView):
 
                 current_y = adjustCurrectY(current_y, get_small_label_height(), CoordinateSystem.scale_int(2))
 
-                current_base_url = getattr(context.scene, 'vibe4d_provider_base_url', '')
+                current_base_url = getattr(context.scene, 'vibe5d_provider_base_url', '')
                 if current_provider == 'local':
                     url_placeholder = "http://localhost:11434/v1"
                 else:
@@ -870,7 +871,7 @@ class SettingsView(BaseView):
             elif current_provider == 'local':
                 help_text = "Start Ollama/LM Studio, then use its API URL"
             else:
-                help_text = "Uses Vibe4D cloud (requires license key)"
+                help_text = "Select a provider above"
 
             provider_help = Label(help_text, get_left_margin(), current_y - get_small_label_height(),
                                   viewport_width - get_left_margin() - get_right_margin(), get_small_label_height())
@@ -892,7 +893,7 @@ class SettingsView(BaseView):
             components['auth_message'] = auth_message
             current_y = adjustCurrectY(current_y, get_label_height(), get_big_spacing())
 
-        links_section_title = Label("Vibe4D links", get_left_margin(), current_y, get_plan_label_width(),
+        links_section_title = Label("Vibe5D links", get_left_margin(), current_y, get_plan_label_width(),
                                     get_label_height())
         links_section_title.style = get_themed_component_style("title")
         links_section_title.style.font_size = get_font_size()
@@ -903,8 +904,6 @@ class SettingsView(BaseView):
 
         links = [
             ("Github ↗", self._handle_open_github),
-            ("Website ↗", self._handle_open_website),
-            ("Twitter (X) ↗", self._handle_open_twitter),
             ("Discord ↗", self._handle_open_discord)
         ]
 
@@ -1068,14 +1067,14 @@ class SettingsView(BaseView):
         def _handle_manage_subscription(self, segment):
 
             try:
-                bpy.ops.vibe4d.manage_subscription()
+                bpy.ops.vibe5d.manage_subscription()
             except Exception as e:
                 logger.error(f"Error opening subscription management: {e}")
 
         def _handle_logout(self):
 
             try:
-                bpy.ops.vibe4d.logout()
+                bpy.ops.vibe5d.logout()
 
                 if self.callbacks.get('on_view_change'):
                     from ..ui_factory import ViewState
@@ -1088,7 +1087,7 @@ class SettingsView(BaseView):
             try:
                 context = bpy.context
 
-                context.scene.vibe4d_custom_instruction = new_text
+                context.scene.vibe5d_custom_instruction = new_text
 
                 from ....utils.instructions_manager import instruction_manager
                 instruction_manager.force_save_instruction(context)
@@ -1100,7 +1099,7 @@ class SettingsView(BaseView):
             """Handle provider selection change."""
             try:
                 context = bpy.context
-                context.scene.vibe4d_provider = provider_id
+                context.scene.vibe5d_provider = provider_id
 
                 from ....utils.settings_manager import settings_manager
                 settings_manager.auto_save_settings(context)
@@ -1120,7 +1119,7 @@ class SettingsView(BaseView):
                 context = bpy.context
                 # Only save if it's not the masked display
                 if new_text and not all(c == '•' for c in new_text):
-                    context.scene.vibe4d_provider_api_key = new_text
+                    context.scene.vibe5d_provider_api_key = new_text
 
                     from ....utils.settings_manager import settings_manager
                     settings_manager.auto_save_settings(context)
@@ -1132,7 +1131,7 @@ class SettingsView(BaseView):
             """Handle base URL input change."""
             try:
                 context = bpy.context
-                context.scene.vibe4d_provider_base_url = new_text
+                context.scene.vibe5d_provider_base_url = new_text
 
                 from ....utils.settings_manager import settings_manager
                 settings_manager.auto_save_settings(context)
@@ -1144,7 +1143,7 @@ class SettingsView(BaseView):
             """Handle provider model input change."""
             try:
                 context = bpy.context
-                context.scene.vibe4d_provider_model = new_text
+                context.scene.vibe5d_provider_model = new_text
 
                 from ....utils.settings_manager import settings_manager
                 settings_manager.auto_save_settings(context)
@@ -1156,21 +1155,21 @@ class SettingsView(BaseView):
 
             try:
                 import webbrowser
-                webbrowser.open("https://github.com/emalakai/vibe4d-blender")
+                webbrowser.open("https://github.com/justanotherfivemdev/vibe4d-blender")
             except Exception as e:
                 logger.error(f"Error opening GitHub: {e}")
 
         def _handle_open_website(self, segment):
 
             try:
-                bpy.ops.vibe4d.open_website()
+                bpy.ops.vibe5d.open_website()
             except Exception as e:
                 logger.error(f"Error opening website: {e}")
 
         def _handle_open_discord(self, segment):
 
             try:
-                bpy.ops.vibe4d.open_discord()
+                bpy.ops.vibe5d.open_discord()
             except Exception as e:
                 logger.error(f"Error opening Discord: {e}")
 
@@ -1178,7 +1177,7 @@ class SettingsView(BaseView):
 
             try:
                 import webbrowser
-                webbrowser.open("https://x.com/thevibe4d")
+                webbrowser.open("https://github.com/justanotherfivemdev/vibe4d-blender")
             except Exception as e:
                 logger.error(f"Error opening Twitter: {e}")
 
@@ -1216,8 +1215,8 @@ class SettingsView(BaseView):
             try:
                 context = bpy.context
 
-                user_id = getattr(context.window_manager, 'vibe4d_user_id', '')
-                token = getattr(context.window_manager, 'vibe4d_user_token', '')
+                user_id = getattr(context.window_manager, 'vibe5d_user_id', '')
+                token = getattr(context.window_manager, 'vibe5d_user_token', '')
 
                 if not user_id or not token:
                     logger.warning("Cannot fetch usage data - missing authentication credentials")
@@ -1227,7 +1226,7 @@ class SettingsView(BaseView):
                     from ....api.client import api_client
                 except ImportError:
 
-                    from vibe4d.api.client import api_client
+                    from vibe5d.api.client import api_client
 
                 logger.info("Fetching usage data from API")
 
@@ -1241,34 +1240,34 @@ class SettingsView(BaseView):
                             usage_data = data_or_error
 
                             if 'plan_id' in usage_data:
-                                context.window_manager.vibe4d_user_plan = usage_data['plan_id']
+                                context.window_manager.vibe5d_user_plan = usage_data['plan_id']
 
                             if 'plan_name' in usage_data:
-                                context.window_manager.vibe4d_plan_name = usage_data['plan_name']
+                                context.window_manager.vibe5d_plan_name = usage_data['plan_name']
 
                             if 'current_usage' in usage_data:
-                                context.window_manager.vibe4d_current_usage = usage_data['current_usage']
+                                context.window_manager.vibe5d_current_usage = usage_data['current_usage']
 
                             if 'limit' in usage_data:
-                                context.window_manager.vibe4d_usage_limit = usage_data['limit']
+                                context.window_manager.vibe5d_usage_limit = usage_data['limit']
 
                             if 'limit_type' in usage_data:
-                                context.window_manager.vibe4d_limit_type = usage_data['limit_type']
+                                context.window_manager.vibe5d_limit_type = usage_data['limit_type']
 
                             if 'plan_id' in usage_data:
-                                context.window_manager.vibe4d_plan_id = usage_data['plan_id']
+                                context.window_manager.vibe5d_plan_id = usage_data['plan_id']
 
                             if 'plan_name' in usage_data:
-                                context.window_manager.vibe4d_plan_name = usage_data['plan_name']
+                                context.window_manager.vibe5d_plan_name = usage_data['plan_name']
 
                             if 'allowed' in usage_data:
-                                context.window_manager.vibe4d_allowed = usage_data['allowed']
+                                context.window_manager.vibe5d_allowed = usage_data['allowed']
 
                             if 'usage_percentage' in usage_data:
-                                context.window_manager.vibe4d_usage_percentage = usage_data['usage_percentage']
+                                context.window_manager.vibe5d_usage_percentage = usage_data['usage_percentage']
 
                             if 'remaining_requests' in usage_data:
-                                context.window_manager.vibe4d_remaining_requests = usage_data['remaining_requests']
+                                context.window_manager.vibe5d_remaining_requests = usage_data['remaining_requests']
 
                             logger.info(
                             )

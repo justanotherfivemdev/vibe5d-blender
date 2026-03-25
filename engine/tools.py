@@ -124,8 +124,8 @@ def _upload_image_to_server(image_data_bytes: bytes, source_type: str, context) 
             logger.warning("Not authenticated, cannot upload image")
             return None
 
-        user_id = getattr(context.window_manager, 'vibe4d_user_id', '')
-        token = getattr(context.window_manager, 'vibe4d_user_token', '')
+        user_id = getattr(context.window_manager, 'vibe5d_user_id', '')
+        token = getattr(context.window_manager, 'vibe5d_user_token', '')
 
         from ..utils.history_manager import history_manager
         chat_id = history_manager.get_current_chat_id(context)
@@ -205,7 +205,7 @@ class ToolsManager:
             success, error = code_executor.execute_code(context)
 
             if success:
-                console_output = getattr(context.scene, 'vibe4d_console_output', '')
+                console_output = getattr(context.scene, 'vibe5d_console_output', '')
                 return True, {"result": "Success", "console_output": console_output}
 
             return False, {"result": error or "Code execution failed"}
@@ -804,10 +804,10 @@ class ToolsManager:
             if not auth_manager.is_authenticated(context):
                 return False, {"result": "Not authenticated. Please log in first."}
 
-            user_id = getattr(context.window_manager, 'vibe4d_user_id', '')
-            token = getattr(context.window_manager, 'vibe4d_user_token', '')
+            user_id = getattr(context.window_manager, 'vibe5d_user_id', '')
+            token = getattr(context.window_manager, 'vibe5d_user_token', '')
 
-            chat_id_prop = getattr(context.scene, 'vibe4d_current_chat_id', '')
+            chat_id_prop = getattr(context.scene, 'vibe5d_current_chat_id', '')
             if not chat_id_prop:
                 return False, {"result": "No active chat session"}
 
@@ -836,7 +836,7 @@ class ToolsManager:
                     logger.error(f"File size mismatch: expected {len(image_data)}, got {file_size}")
                     return False, {"result": "Image file size mismatch"}
 
-                image_name = custom_name if custom_name else f"vibe4d_{image_id}"
+                image_name = custom_name if custom_name else f"vibe5d_{image_id}"
 
                 if import_type == "texture":
                     if image_name in bpy.data.images:

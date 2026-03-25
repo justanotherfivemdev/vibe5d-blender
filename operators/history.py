@@ -5,8 +5,8 @@ from ..utils.history_manager import history_manager
 from ..utils.logger import logger
 
 
-class VIBE4D_OT_clear_chat_messages(Operator):
-    bl_idname = "vibe4d.clear_chat_messages"
+class VIBE5D_OT_clear_chat_messages(Operator):
+    bl_idname = "vibe5d.clear_chat_messages"
     bl_label = "Clear All Chat Messages"
     bl_description = "Clear all chat messages from all sessions"
     bl_options = {'REGISTER', 'UNDO'}
@@ -29,8 +29,8 @@ class VIBE4D_OT_clear_chat_messages(Operator):
             return {'CANCELLED'}
 
 
-class VIBE4D_OT_clear_mode_chat_messages(Operator):
-    bl_idname = "vibe4d.clear_mode_chat_messages"
+class VIBE5D_OT_clear_mode_chat_messages(Operator):
+    bl_idname = "vibe5d.clear_mode_chat_messages"
     bl_label = "Clear Mode Chat Messages"
     bl_description = "Clear chat messages for the current mode"
     bl_options = {'REGISTER', 'UNDO'}
@@ -66,8 +66,8 @@ class VIBE4D_OT_clear_mode_chat_messages(Operator):
             return {'CANCELLED'}
 
 
-class VIBE4D_OT_clear_current_chat_session(Operator):
-    bl_idname = "vibe4d.clear_current_chat"
+class VIBE5D_OT_clear_current_chat_session(Operator):
+    bl_idname = "vibe5d.clear_current_chat"
     bl_label = "Clear Current Chat"
     bl_description = "Clear all messages from the current chat"
     bl_options = {'REGISTER'}
@@ -94,8 +94,8 @@ class VIBE4D_OT_clear_current_chat_session(Operator):
             return {'CANCELLED'}
 
 
-class VIBE4D_OT_start_new_chat(Operator):
-    bl_idname = "vibe4d.start_new_chat"
+class VIBE5D_OT_start_new_chat(Operator):
+    bl_idname = "vibe5d.start_new_chat"
     bl_label = "New Chat"
     bl_description = "Start a new chat"
     bl_options = {'REGISTER'}
@@ -117,8 +117,8 @@ class VIBE4D_OT_start_new_chat(Operator):
 
 
 classes = [
-    VIBE4D_OT_clear_chat_messages,
-    VIBE4D_OT_clear_mode_chat_messages,
-    VIBE4D_OT_clear_current_chat_session,
-    VIBE4D_OT_start_new_chat,
+    VIBE5D_OT_clear_chat_messages,
+    VIBE5D_OT_clear_mode_chat_messages,
+    VIBE5D_OT_clear_current_chat_session,
+    VIBE5D_OT_start_new_chat,
 ]

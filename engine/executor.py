@@ -37,12 +37,12 @@ class PrintCapture:
         if text.strip():
             self.outputs.append(text.strip())
             try:
-                current_output = getattr(self.context.scene, 'vibe4d_console_output', '')
+                current_output = getattr(self.context.scene, 'vibe5d_console_output', '')
                 if current_output:
                     new_output = current_output + '\n' + text.strip()
                 else:
                     new_output = text.strip()
-                self.context.scene.vibe4d_console_output = new_output
+                self.context.scene.vibe5d_console_output = new_output
             except Exception as e:
                 logger.error(f"Failed to update console output: {str(e)}")
 
@@ -98,7 +98,7 @@ class CodeExecutor:
             original_stdout = sys.stdout
 
             try:
-                context.scene.vibe4d_console_output = ""
+                context.scene.vibe5d_console_output = ""
 
                 bpy.ops.ed.undo_push(message="Before AI Code Execution")
                 self.execution_state.undo_steps = 1
@@ -183,7 +183,7 @@ class CodeExecutor:
                 logger.info("Rolling back changes due to execution error")
                 rollback_success = self._rollback_changes(context)
 
-                context.scene.vibe4d_console_output = ""
+                context.scene.vibe5d_console_output = ""
                 self.execution_state.clear()
 
                 if not rollback_success:
@@ -227,10 +227,10 @@ class CodeExecutor:
 
                 self.execution_state.clear()
 
-                context.scene.vibe4d_final_code = ""
-                context.scene.vibe4d_last_error = ""
-                context.scene.vibe4d_console_output = ""
-                context.scene.vibe4d_prompt = ""
+                context.scene.vibe5d_final_code = ""
+                context.scene.vibe5d_last_error = ""
+                context.scene.vibe5d_console_output = ""
+                context.scene.vibe5d_prompt = ""
 
                 for area in bpy.context.screen.areas:
                     if area.type == 'VIEW_3D':
@@ -259,11 +259,11 @@ class CodeExecutor:
 
                 self.execution_state.clear()
 
-                context.scene.vibe4d_final_code = ""
-                context.scene.vibe4d_last_error = ""
-                context.scene.vibe4d_console_output = ""
-                context.scene.vibe4d_execution_pending = False
-                context.scene.vibe4d_prompt = ""
+                context.scene.vibe5d_final_code = ""
+                context.scene.vibe5d_last_error = ""
+                context.scene.vibe5d_console_output = ""
+                context.scene.vibe5d_execution_pending = False
+                context.scene.vibe5d_prompt = ""
 
                 for area in bpy.context.screen.areas:
                     if area.type == 'VIEW_3D':

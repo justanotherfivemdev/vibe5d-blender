@@ -548,22 +548,18 @@ class ImprovedUIFactory:
                 if not self.check_and_handle_connectivity():
                     return
 
-                is_authenticated = getattr(context.window_manager, 'vibe4d_authenticated', False)
-
-                if is_authenticated:
-                    self.switch_to_view(ViewState.MAIN)
-                else:
-                    self.switch_to_view(ViewState.AUTH)
+                # Vibe5D is open-source - always go directly to main view
+                self.switch_to_view(ViewState.MAIN)
 
             except Exception as e:
                 logger.error(f"Error determining startup view: {e}")
                 import traceback
                 logger.error(traceback.format_exc())
                 try:
-                    self.switch_to_view(ViewState.AUTH)
-                    logger.info("Fallback: Switched to auth view due to error")
+                    self.switch_to_view(ViewState.MAIN)
+                    logger.info("Fallback: Switched to main view due to error")
                 except Exception as fallback_error:
-                    logger.error(f"Failed to switch to auth view as fallback: {fallback_error}")
+                    logger.error(f"Failed to switch to main view as fallback: {fallback_error}")
 
         def add_image_message_to_scrollview(self, text: str, image_data_uri: str, is_ai_response: bool = False):
 
@@ -664,7 +660,7 @@ class ImprovedUIFactory:
                     import bpy
                     context = bpy.context
                     from ...utils.history_manager import history_manager
-                    current_chat_id = getattr(context.scene, 'vibe4d_current_chat_id', '')
+                    current_chat_id = getattr(context.scene, 'vibe5d_current_chat_id', '')
                     if current_chat_id:
                         current_text = self.get_send_text()
                         history_manager.save_unsent_text(context, current_chat_id, current_text)
@@ -679,7 +675,7 @@ class ImprovedUIFactory:
                     import bpy
                     context = bpy.context
                     from ...utils.history_manager import history_manager
-                    current_chat_id = getattr(context.scene, 'vibe4d_current_chat_id', '')
+                    current_chat_id = getattr(context.scene, 'vibe5d_current_chat_id', '')
                     if current_chat_id:
                         history_manager.restore_unsent_text(context, current_chat_id)
                         logger.debug(f"Restored unsent text after UI change for chat: {current_chat_id}")

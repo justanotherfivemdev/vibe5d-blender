@@ -47,7 +47,7 @@ class OpenAIStreamingResponse:
 
 
 # Default system prompt for Blender assistant when using direct OpenAI mode
-BLENDER_SYSTEM_PROMPT = """You are Vibe4D, an expert AI assistant for Blender 3D. You help users with:
+BLENDER_SYSTEM_PROMPT = """You are Vibe5D, an expert open-source AI assistant for Blender 3D. You help users with:
 - Creating, modifying, and managing 3D objects, materials, and scenes
 - Writing and explaining Blender Python (bpy) scripts
 - Answering questions about Blender workflows, rendering, and techniques
@@ -244,7 +244,7 @@ class OpenAIClient:
             headers = {
                 "Content-Type": "application/json",
                 "Accept": "text/event-stream",
-                "User-Agent": "Vibe4D-Blender-Addon"
+                "User-Agent": "Vibe5D-Blender-Addon"
             }
 
             if api_key:

@@ -6,8 +6,8 @@ from ..utils.instructions_manager import instruction_manager
 from ..utils.logger import logger
 
 
-class VIBE4D_OT_save_instruction(Operator):
-    bl_idname = "vibe4d.save_instruction"
+class VIBE5D_OT_save_instruction(Operator):
+    bl_idname = "vibe5d.save_instruction"
     bl_label = "Save Instruction"
     bl_description = "Manually save custom instruction to persistent storage"
     bl_options = {'REGISTER'}
@@ -30,8 +30,8 @@ class VIBE4D_OT_save_instruction(Operator):
             return {'CANCELLED'}
 
 
-class VIBE4D_OT_force_save_instruction(Operator):
-    bl_idname = "vibe4d.force_save_instruction"
+class VIBE5D_OT_force_save_instruction(Operator):
+    bl_idname = "vibe5d.force_save_instruction"
     bl_label = "Force Save Instruction"
     bl_description = "Force immediate save of custom instruction, bypassing debouncing"
     bl_options = {'REGISTER'}
@@ -54,8 +54,8 @@ class VIBE4D_OT_force_save_instruction(Operator):
             return {'CANCELLED'}
 
 
-class VIBE4D_OT_load_instruction(Operator):
-    bl_idname = "vibe4d.load_instruction"
+class VIBE5D_OT_load_instruction(Operator):
+    bl_idname = "vibe5d.load_instruction"
     bl_label = "Load Instruction"
     bl_description = "Manually load custom instruction from persistent storage"
     bl_options = {'REGISTER'}
@@ -78,8 +78,8 @@ class VIBE4D_OT_load_instruction(Operator):
             return {'CANCELLED'}
 
 
-class VIBE4D_OT_clear_instruction(Operator):
-    bl_idname = "vibe4d.clear_instruction"
+class VIBE5D_OT_clear_instruction(Operator):
+    bl_idname = "vibe5d.clear_instruction"
     bl_label = "Clear Instruction"
     bl_description = "Clear custom instruction from both scene and storage"
     bl_options = {'REGISTER'}
@@ -104,10 +104,10 @@ class VIBE4D_OT_clear_instruction(Operator):
 
 
 classes = [
-    VIBE4D_OT_save_instruction,
-    VIBE4D_OT_force_save_instruction,
-    VIBE4D_OT_load_instruction,
-    VIBE4D_OT_clear_instruction,
+    VIBE5D_OT_save_instruction,
+    VIBE5D_OT_force_save_instruction,
+    VIBE5D_OT_load_instruction,
+    VIBE5D_OT_clear_instruction,
 ]
 
 

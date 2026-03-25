@@ -9,85 +9,54 @@ from ..auth.manager import auth_manager
 from ..utils.logger import logger
 
 
-class VIBE4D_OT_verify_license(Operator):
-    bl_idname = "vibe4d.verify_license"
-    bl_label = "Verify License"
-    bl_description = "Verify license key with Emalak AI API"
+class VIBE5D_OT_verify_license(Operator):
+    bl_idname = "vibe5d.verify_license"
+    bl_label = "Save API Key"
+    bl_description = "Save API key for selected LLM provider"
     bl_options = {'REGISTER'}
 
     def execute(self, context):
 
         try:
-            license_key = context.window_manager.vibe4d_license_key.strip()
-
-            if not license_key:
-                self.report({'ERROR'}, "Please enter a valid license key")
-                return {'CANCELLED'}
-
-            logger.info("Attempting authentication with license key")
-            context.window_manager.vibe4d_status = "Verifying license..."
-
-            success, data_or_error = api_client.verify_license(license_key)
-
-            if success:
-                data = data_or_error
-
-                context.window_manager.vibe4d_user_id = data.get("user_id", "")
-                context.window_manager.vibe4d_user_token = data.get("token", "")
-                context.window_manager.vibe4d_user_email = data.get("email", "")
-                context.window_manager.vibe4d_user_plan = data.get("plan_id", "")
-
-                context.window_manager.vibe4d_authenticated = True
-                context.window_manager.vibe4d_status = f"Authenticated ({data.get('plan_id', 'unknown')} plan)"
-
-                auth_manager.save_auth_state(context)
-
-                auth_manager.update_usage_info(context)
-
-                self.report({'INFO'}, f"Successfully authenticated! Welcome {data.get('email', 'User')}")
-
-                return {'FINISHED'}
-            else:
-                error_msg = data_or_error
-                logger.error(f"License authentication failed: {error_msg}")
-                context.window_manager.vibe4d_status = "Authentication failed"
-                self.report({'ERROR'}, f"Authentication failed: {error_msg}")
-                return {'CANCELLED'}
-
-        except Exception as e:
-            logger.error(f"License authentication error: {str(e)}")
-            context.window_manager.vibe4d_status = "Authentication error"
-            self.report({'ERROR'}, f"Authentication error: {str(e)}")
-            return {'CANCELLED'}
-
-
-class VIBE4D_OT_get_license_key(Operator):
-    bl_idname = "vibe4d.get_license_key"
-    bl_label = "Get License Key"
-    bl_description = "Open Gumroad page to purchase Vibe4D license"
-    bl_options = {'REGISTER'}
-
-    def execute(self, context):
-
-        try:
-            license_url = "https://vibe4d.gumroad.com/l/blender"
-
-            logger.info("Opening license purchase page")
-            webbrowser.open(license_url)
-
-            self.report({'INFO'}, "License purchase page opened in browser")
+            # In Vibe5D, this just confirms the provider settings are saved
+            from ..utils.settings_manager import settings_manager
+            settings_manager.save_settings(context)
+            self.report({'INFO'}, "Provider settings saved successfully")
             return {'FINISHED'}
 
         except Exception as e:
-            logger.error(f"Failed to open license page: {str(e)}")
-            self.report({'ERROR'}, f"Failed to open license page: {str(e)}")
+            logger.error(f"Settings save error: {str(e)}")
+            self.report({'ERROR'}, f"Failed to save settings: {str(e)}")
             return {'CANCELLED'}
 
 
-class VIBE4D_OT_open_discord(Operator):
-    bl_idname = "vibe4d.open_discord"
+class VIBE5D_OT_get_license_key(Operator):
+    bl_idname = "vibe5d.get_license_key"
+    bl_label = "Open GitHub"
+    bl_description = "Open Vibe5D GitHub repository"
+    bl_options = {'REGISTER'}
+
+    def execute(self, context):
+
+        try:
+            github_url = "https://github.com/justanotherfivemdev/vibe4d-blender"
+
+            logger.info("Opening GitHub page")
+            webbrowser.open(github_url)
+
+            self.report({'INFO'}, "GitHub page opened in browser")
+            return {'FINISHED'}
+
+        except Exception as e:
+            logger.error(f"Failed to open GitHub page: {str(e)}")
+            self.report({'ERROR'}, f"Failed to open GitHub page: {str(e)}")
+            return {'CANCELLED'}
+
+
+class VIBE5D_OT_open_discord(Operator):
+    bl_idname = "vibe5d.open_discord"
     bl_label = "Discord"
-    bl_description = "Join Vibe4D Discord community"
+    bl_description = "Join Vibe5D Discord community"
     bl_options = {'REGISTER'}
 
     def execute(self, context):
@@ -107,15 +76,15 @@ class VIBE4D_OT_open_discord(Operator):
             return {'CANCELLED'}
 
 
-class VIBE4D_OT_open_website(Operator):
-    bl_idname = "vibe4d.open_website"
+class VIBE5D_OT_open_website(Operator):
+    bl_idname = "vibe5d.open_website"
     bl_label = "Website"
-    bl_description = "Visit Vibe4D official website"
+    bl_description = "Visit Vibe5D GitHub repository"
     bl_options = {'REGISTER'}
 
     def execute(self, context):
         try:
-            website_url = "https://vibe4d.ai"
+            website_url = "https://github.com/justanotherfivemdev/vibe4d-blender"
 
             webbrowser.open(website_url)
 
@@ -128,32 +97,32 @@ class VIBE4D_OT_open_website(Operator):
             return {'CANCELLED'}
 
 
-class VIBE4D_OT_manage_subscription(Operator):
-    bl_idname = "vibe4d.manage_subscription"
-    bl_label = "Manage Subscription"
-    bl_description = "Open subscription management page"
+class VIBE5D_OT_manage_subscription(Operator):
+    bl_idname = "vibe5d.manage_subscription"
+    bl_label = "View Project"
+    bl_description = "Open Vibe5D project page"
     bl_options = {'REGISTER'}
 
     def execute(self, context):
 
         try:
 
-            subscription_url = "https://vibe4d.gumroad.com/l/blender"
+            project_url = "https://github.com/justanotherfivemdev/vibe4d-blender"
 
-            logger.info("Opening subscription management page")
-            webbrowser.open(subscription_url)
+            logger.info("Opening project page")
+            webbrowser.open(project_url)
 
-            self.report({'INFO'}, "Subscription management page opened in browser")
+            self.report({'INFO'}, "Project page opened in browser")
             return {'FINISHED'}
 
         except Exception as e:
-            logger.error(f"Failed to open subscription page: {str(e)}")
-            self.report({'ERROR'}, f"Failed to open subscription page: {str(e)}")
+            logger.error(f"Failed to open project page: {str(e)}")
+            self.report({'ERROR'}, f"Failed to open project page: {str(e)}")
             return {'CANCELLED'}
 
 
-class VIBE4D_OT_logout(Operator):
-    bl_idname = "vibe4d.logout"
+class VIBE5D_OT_logout(Operator):
+    bl_idname = "vibe5d.logout"
     bl_label = "Logout"
     bl_description = "Logout and clear authentication data"
     bl_options = {'REGISTER'}
@@ -165,7 +134,7 @@ class VIBE4D_OT_logout(Operator):
 
             auth_manager.clear_auth_state(context)
 
-            context.window_manager.vibe4d_status = "Ready"
+            context.window_manager.vibe5d_status = "Ready"
 
             self.report({'INFO'}, "Logged out successfully")
             logger.info("User logged out")
@@ -178,8 +147,8 @@ class VIBE4D_OT_logout(Operator):
             return {'CANCELLED'}
 
 
-class VIBE4D_OT_retry_auth(Operator):
-    bl_idname = "vibe4d.retry_auth"
+class VIBE5D_OT_retry_auth(Operator):
+    bl_idname = "vibe5d.retry_auth"
     bl_label = "Retry Connection"
     bl_description = "Retry authentication validation after network error"
     bl_options = {'REGISTER'}
@@ -189,18 +158,18 @@ class VIBE4D_OT_retry_auth(Operator):
         try:
             logger.info("Retrying authentication validation")
 
-            context.window_manager.vibe4d_network_error = False
-            context.window_manager.vibe4d_status = "Retrying connection..."
+            context.window_manager.vibe5d_network_error = False
+            context.window_manager.vibe5d_status = "Retrying connection..."
 
             bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1)
 
-            user_id = getattr(context.window_manager, 'vibe4d_user_id', '')
-            token = getattr(context.window_manager, 'vibe4d_user_token', '')
-            plan = getattr(context.window_manager, 'vibe4d_user_plan', '')
+            user_id = getattr(context.window_manager, 'vibe5d_user_id', '')
+            token = getattr(context.window_manager, 'vibe5d_user_token', '')
+            plan = getattr(context.window_manager, 'vibe5d_user_plan', '')
 
             if not user_id or not token:
                 logger.error("No credentials available for retry")
-                context.window_manager.vibe4d_status = "No credentials to retry"
+                context.window_manager.vibe5d_status = "No credentials to retry"
                 self.report({'ERROR'}, "No saved credentials available")
                 return {'CANCELLED'}
 
@@ -208,9 +177,9 @@ class VIBE4D_OT_retry_auth(Operator):
 
             if is_valid:
 
-                context.window_manager.vibe4d_authenticated = True
-                context.window_manager.vibe4d_status = f"Authenticated ({plan} plan)" if plan else "Authenticated"
-                context.window_manager.vibe4d_network_error = False
+                context.window_manager.vibe5d_authenticated = True
+                context.window_manager.vibe5d_status = f"Authenticated ({plan} plan)" if plan else "Authenticated"
+                context.window_manager.vibe5d_network_error = False
 
                 auth_manager.last_validation_time = time.time()
 
@@ -222,8 +191,8 @@ class VIBE4D_OT_retry_auth(Operator):
 
             elif error_type == "network":
 
-                context.window_manager.vibe4d_network_error = True
-                context.window_manager.vibe4d_status = f"Authenticated ({plan} plan) - API temporarily unavailable" if plan else "Authenticated - API temporarily unavailable"
+                context.window_manager.vibe5d_network_error = True
+                context.window_manager.vibe5d_status = f"Authenticated ({plan} plan) - API temporarily unavailable" if plan else "Authenticated - API temporarily unavailable"
 
                 logger.warning("Authentication retry failed - network still unavailable")
                 self.report({'WARNING'}, "API still unavailable - please try again later")
@@ -232,7 +201,7 @@ class VIBE4D_OT_retry_auth(Operator):
             else:
 
                 logger.warning("Authentication retry failed - invalid credentials")
-                context.window_manager.vibe4d_network_error = False
+                context.window_manager.vibe5d_network_error = False
 
                 auth_manager.clear_auth_state(context)
 
@@ -241,14 +210,14 @@ class VIBE4D_OT_retry_auth(Operator):
 
         except Exception as e:
             logger.error(f"Authentication retry error: {str(e)}")
-            context.window_manager.vibe4d_status = "Retry failed"
-            context.window_manager.vibe4d_network_error = True
+            context.window_manager.vibe5d_status = "Retry failed"
+            context.window_manager.vibe5d_network_error = True
             self.report({'ERROR'}, f"Retry failed: {str(e)}")
             return {'CANCELLED'}
 
 
-class VIBE4D_OT_check_auth_status(Operator):
-    bl_idname = "vibe4d.check_auth_status"
+class VIBE5D_OT_check_auth_status(Operator):
+    bl_idname = "vibe5d.check_auth_status"
     bl_label = "Check Auth Status"
     bl_description = "Check current authentication status"
     bl_options = {'REGISTER'}
@@ -275,44 +244,44 @@ class VIBE4D_OT_check_auth_status(Operator):
             return {'CANCELLED'}
 
 
-class VIBE4D_OT_handle_network_error(Operator):
-    bl_idname = "vibe4d.handle_network_error"
+class VIBE5D_OT_handle_network_error(Operator):
+    bl_idname = "vibe5d.handle_network_error"
     bl_label = "Retry Connection"
-    bl_description = "Retry connecting to Vibe4D API"
+    bl_description = "Retry connecting to LLM provider"
     bl_options = {'REGISTER'}
 
     def execute(self, context):
 
         try:
             if auth_manager.initialize_auth(context):
-                context.window_manager.vibe4d_network_error = False
+                context.window_manager.vibe5d_network_error = False
                 self.report({'INFO'}, "Connection restored!")
                 return {'FINISHED'}
             else:
-                context.window_manager.vibe4d_network_error = True
+                context.window_manager.vibe5d_network_error = True
                 self.report({'WARNING'}, "Still unable to connect to API")
                 return {'FINISHED'}
 
         except Exception as e:
             logger.error(f"Network error handling failed: {str(e)}")
-            context.window_manager.vibe4d_network_error = True
+            context.window_manager.vibe5d_network_error = True
             self.report({'ERROR'}, f"Connection retry failed: {str(e)}")
             return {'CANCELLED'}
 
 
-class VIBE4D_OT_clear_network_error(Operator):
-    bl_idname = "vibe4d.clear_network_error"
+class VIBE5D_OT_clear_network_error(Operator):
+    bl_idname = "vibe5d.clear_network_error"
     bl_label = "Dismiss"
     bl_description = "Dismiss network error notification"
     bl_options = {'REGISTER'}
 
     def execute(self, context):
-        context.window_manager.vibe4d_network_error = False
+        context.window_manager.vibe5d_network_error = False
         return {'FINISHED'}
 
 
-class VIBE4D_OT_refresh_usage(Operator):
-    bl_idname = "vibe4d.refresh_usage"
+class VIBE5D_OT_refresh_usage(Operator):
+    bl_idname = "vibe5d.refresh_usage"
     bl_label = "Refresh Usage"
     bl_description = "Refresh usage information from API"
     bl_options = {'REGISTER'}
@@ -331,9 +300,9 @@ class VIBE4D_OT_refresh_usage(Operator):
             success = auth_manager.update_usage_info(context)
 
             if success:
-                current_usage = getattr(context.window_manager, 'vibe4d_current_usage', 0)
-                usage_limit = getattr(context.window_manager, 'vibe4d_usage_limit', 0)
-                usage_percentage = getattr(context.window_manager, 'vibe4d_usage_percentage', 0.0)
+                current_usage = getattr(context.window_manager, 'vibe5d_current_usage', 0)
+                usage_limit = getattr(context.window_manager, 'vibe5d_usage_limit', 0)
+                usage_percentage = getattr(context.window_manager, 'vibe5d_usage_percentage', 0.0)
 
                 self.report({'INFO'}, f"Usage updated: {current_usage}/{usage_limit} ({usage_percentage:.1f}%)")
                 logger.info("Usage information refreshed successfully")
@@ -350,15 +319,15 @@ class VIBE4D_OT_refresh_usage(Operator):
 
 
 classes = [
-    VIBE4D_OT_verify_license,
-    VIBE4D_OT_get_license_key,
-    VIBE4D_OT_open_discord,
-    VIBE4D_OT_open_website,
-    VIBE4D_OT_manage_subscription,
-    VIBE4D_OT_logout,
-    VIBE4D_OT_retry_auth,
-    VIBE4D_OT_check_auth_status,
-    VIBE4D_OT_handle_network_error,
-    VIBE4D_OT_clear_network_error,
-    VIBE4D_OT_refresh_usage,
+    VIBE5D_OT_verify_license,
+    VIBE5D_OT_get_license_key,
+    VIBE5D_OT_open_discord,
+    VIBE5D_OT_open_website,
+    VIBE5D_OT_manage_subscription,
+    VIBE5D_OT_logout,
+    VIBE5D_OT_retry_auth,
+    VIBE5D_OT_check_auth_status,
+    VIBE5D_OT_handle_network_error,
+    VIBE5D_OT_clear_network_error,
+    VIBE5D_OT_refresh_usage,
 ]

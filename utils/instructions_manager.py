@@ -29,7 +29,7 @@ class InstructionManager:
                 self.is_initialized = True
                 return True
 
-            context.scene.vibe4d_custom_instruction = str(saved_instruction)
+            context.scene.vibe5d_custom_instruction = str(saved_instruction)
 
             self.is_initialized = True
             return True
@@ -42,7 +42,7 @@ class InstructionManager:
     def save_instruction(self, context) -> bool:
 
         try:
-            instruction = getattr(context.scene, 'vibe4d_custom_instruction', '')
+            instruction = getattr(context.scene, 'vibe5d_custom_instruction', '')
 
             success = secure_storage.save_custom_instruction(instruction)
 
@@ -61,7 +61,7 @@ class InstructionManager:
 
         try:
 
-            context.scene.vibe4d_custom_instruction = ""
+            context.scene.vibe5d_custom_instruction = ""
 
             secure_storage.clear_custom_instruction()
 
@@ -156,10 +156,10 @@ class InstructionManager:
             saved_instruction = secure_storage.load_custom_instruction()
 
             if saved_instruction is None:
-                context.scene.vibe4d_custom_instruction = ""
+                context.scene.vibe5d_custom_instruction = ""
                 return True
 
-            context.scene.vibe4d_custom_instruction = str(saved_instruction)
+            context.scene.vibe5d_custom_instruction = str(saved_instruction)
 
             return True
 

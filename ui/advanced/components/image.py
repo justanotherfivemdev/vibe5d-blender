@@ -138,7 +138,7 @@ class ImageComponent(UIComponent):
                     logger.error(f"Image file not found: {resolved_path}")
                 return
 
-            image_name = f"vibe4d_image_{hash(resolved_path) % 10000}"
+            image_name = f"vibe5d_image_{hash(resolved_path) % 10000}"
             if image_name in bpy.data.images:
                 try:
                     bpy.data.images.remove(bpy.data.images[image_name])

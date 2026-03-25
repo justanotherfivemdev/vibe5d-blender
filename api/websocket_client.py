@@ -84,7 +84,7 @@ class StreamingResponse:
 
 
 class LLMWebSocketClient:
-    WEBSOCKET_URL = "wss://vibe4d.ai/v1/chat"
+    WEBSOCKET_URL = "wss://vibe5d.local/v1/chat"
 
     def __init__(self):
         self.ws = None

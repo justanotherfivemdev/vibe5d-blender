@@ -105,7 +105,7 @@ class NoConnectionView(BaseView):
         title_text.style.text_color = get_theme_color('text')
         components['title_text'] = title_text
 
-        subtitle_text = Label("Vibe4D cannot work without internet.\nPlease check your connection.",
+        subtitle_text = Label("Cannot connect to the LLM provider.\nCheck your connection or provider settings.",
                               layout_params['center_x'] - layout_params['subtitle_width'] // 2,
                               positions['subtitle_y'],
                               layout_params['subtitle_width'],
@@ -202,7 +202,7 @@ class NoConnectionView(BaseView):
                     from ...api.client import api_client
                 except ImportError:
 
-                    from vibe4d.api.client import api_client
+                    from vibe5d.api.client import api_client
 
                 success, _ = api_client._make_request("/v1/license/verify", {"license_key": "test"})
 
@@ -210,7 +210,7 @@ class NoConnectionView(BaseView):
 
                     import bpy
                     context = bpy.context
-                    is_authenticated = getattr(context.window_manager, 'vibe4d_authenticated', False)
+                    is_authenticated = getattr(context.window_manager, 'vibe5d_authenticated', False)
 
                     if is_authenticated:
 
@@ -287,7 +287,7 @@ class NoConnectionView(BaseView):
                     from ...api.client import api_client
                 except ImportError:
 
-                    from vibe4d.api.client import api_client
+                    from vibe5d.api.client import api_client
 
                 api_client.timeout = 5
                 success, _ = api_client._make_request("/v1/license/verify", {"license_key": "test"})

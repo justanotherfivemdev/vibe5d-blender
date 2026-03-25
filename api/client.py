@@ -9,7 +9,7 @@ from ..utils.logger import logger
 
 
 class APIClient:
-    BASE_URL = "https://api.vibe4d.ai"
+    BASE_URL = "https://api.vibe5d.local"
 
     ERROR_CODES = {
         0: "CLIENT_ERROR",
@@ -37,7 +37,7 @@ class APIClient:
 
             headers = {
             :'application/json',
-            : 'Vibe4D-Blender-Addon/0.0.4'
+            : 'Vibe5D-Blender-Addon/0.0.4'
             }
 
 
@@ -88,7 +88,7 @@ class APIClient:
         try:
 
             headers = {
-            :'Vibe4D-Blender-Addon/0.0.4'
+            :'Vibe5D-Blender-Addon/0.0.4'
             }
 
 
@@ -239,7 +239,7 @@ class APIClient:
             headers = {
             :'image/png',
             : source_type,
-            :'Vibe4D-Blender-Addon/0.0.4'
+            :'Vibe5D-Blender-Addon/0.0.4'
             }
 
             req = urllib.request.Request(url, data=image_data, headers=headers, method="POST")
@@ -287,7 +287,7 @@ class APIClient:
 
         try:
             headers = {
-            :'Vibe4D-Blender-Addon/0.0.4'
+            :'Vibe5D-Blender-Addon/0.0.4'
             }
 
             req = urllib.request.Request(url, headers=headers, method="GET")

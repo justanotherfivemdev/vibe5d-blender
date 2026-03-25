@@ -48,7 +48,7 @@ class SceneChangeHandler:
     def _on_scene_update(self, scene, depsgraph):
         try:
             context = bpy.context
-            if not context.scene or not getattr(context.scene, 'vibe4d_execution_pending', False):
+            if not context.scene or not getattr(context.scene, 'vibe5d_execution_pending', False):
                 return
 
             has_changes = any(
@@ -65,7 +65,7 @@ class SceneChangeHandler:
     def _on_undo_redo(self, *args):
         try:
             context = bpy.context
-            if context.scene and getattr(context.scene, 'vibe4d_execution_pending', False):
+            if context.scene and getattr(context.scene, 'vibe5d_execution_pending', False):
                 self._auto_accept_execution(context)
         except Exception as e:
             logger.error(f"Error in undo/redo handler: {e}")
@@ -150,10 +150,10 @@ class SceneChangeHandler:
 
     def _auto_accept_execution(self, context):
         try:
-            if not getattr(context.scene, 'vibe4d_execution_pending', False):
+            if not getattr(context.scene, 'vibe5d_execution_pending', False):
                 return
 
-            context.scene.vibe4d_execution_pending = False
+            context.scene.vibe5d_execution_pending = False
 
             props_to_clear = [
                 ,
@@ -169,8 +169,8 @@ class SceneChangeHandler:
                     except:
                         pass
 
-            if hasattr(context.scene, 'vibe4d_scene_modified'):
-                context.scene.vibe4d_scene_modified = False
+            if hasattr(context.scene, 'vibe5d_scene_modified'):
+                context.scene.vibe5d_scene_modified = False
 
             logger.info("Auto-accepted execution due to scene changes")
 

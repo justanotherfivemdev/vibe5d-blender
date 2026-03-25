@@ -17,7 +17,7 @@ class HistoryManager:
     def save_unsent_text(self, context, chat_id: str = None, text: str = None):
         try:
             if not chat_id:
-                chat_id = getattr(context.scene, 'vibe4d_current_chat_id', '')
+                chat_id = getattr(context.scene, 'vibe5d_current_chat_id', '')
 
             if not chat_id:
                 logger.debug("No chat ID available to save unsent text")
@@ -34,7 +34,7 @@ class HistoryManager:
                     text = ""
 
             self._unsent_text_per_chat[chat_id] = text
-            context.scene.vibe4d_current_text_input = text
+            context.scene.vibe5d_current_text_input = text
 
             logger.debug(f"Saved unsent text for chat {chat_id}: '{text[:50]}...' ({len(text)} chars)")
 
@@ -44,7 +44,7 @@ class HistoryManager:
     def restore_unsent_text(self, context, chat_id: str = None):
         try:
             if not chat_id:
-                chat_id = getattr(context.scene, 'vibe4d_current_chat_id', '')
+                chat_id = getattr(context.scene, 'vibe5d_current_chat_id', '')
 
             if not chat_id:
                 logger.debug("No chat ID available to restore unsent text")
@@ -61,13 +61,13 @@ class HistoryManager:
                         if text_input and hasattr(text_input, 'set_text'):
                             text_input.set_text(saved_text)
 
-                context.scene.vibe4d_current_text_input = saved_text
+                context.scene.vibe5d_current_text_input = saved_text
                 logger.debug(
                     f"Restored unsent text for chat {chat_id}: '{saved_text[:50]}...' ({len(saved_text)} chars)")
 
             except Exception as e:
                 logger.warning(f"Failed to restore unsent text to UI: {str(e)}")
-                context.scene.vibe4d_current_text_input = saved_text
+                context.scene.vibe5d_current_text_input = saved_text
 
         except Exception as e:
             logger.error(f"Failed to restore unsent text: {str(e)}")
@@ -75,7 +75,7 @@ class HistoryManager:
     def clear_unsent_text(self, context, chat_id: str = None):
         try:
             if not chat_id:
-                chat_id = getattr(context.scene, 'vibe4d_current_chat_id', '')
+                chat_id = getattr(context.scene, 'vibe5d_current_chat_id', '')
 
             if not chat_id:
                 logger.debug("No chat ID available to clear unsent text")
@@ -84,7 +84,7 @@ class HistoryManager:
             if chat_id in self._unsent_text_per_chat:
                 del self._unsent_text_per_chat[chat_id]
 
-            context.scene.vibe4d_current_text_input = ""
+            context.scene.vibe5d_current_text_input = ""
             logger.debug(f"Cleared unsent text for chat {chat_id}")
 
         except Exception as e:
@@ -92,13 +92,13 @@ class HistoryManager:
 
     def create_new_chat(self, context) -> str:
         try:
-            current_chat_id = getattr(context.scene, 'vibe4d_current_chat_id', '')
+            current_chat_id = getattr(context.scene, 'vibe5d_current_chat_id', '')
             if current_chat_id:
                 self.save_unsent_text(context, current_chat_id)
 
             chat_id = str(uuid.uuid4())
-            context.scene.vibe4d_current_chat_id = chat_id
-            context.scene.vibe4d_current_text_input = ""
+            context.scene.vibe5d_current_chat_id = chat_id
+            context.scene.vibe5d_current_text_input = ""
             self.clear_unsent_text(context, chat_id)
 
             try:
@@ -120,14 +120,14 @@ class HistoryManager:
 
     def get_current_chat_id(self, context) -> str:
         scene_name = context.scene.name if context.scene else 'None'
-        chat_id = getattr(context.scene, 'vibe4d_current_chat_id', '')
+        chat_id = getattr(context.scene, 'vibe5d_current_chat_id', '')
 
         if not chat_id:
             chat_id = self._find_latest_chat_for_scene(context)
             if not chat_id:
                 chat_id = self.create_new_chat(context)
             else:
-                context.scene.vibe4d_current_chat_id = chat_id
+                context.scene.vibe5d_current_chat_id = chat_id
                 self.restore_unsent_text(context, chat_id)
 
         return chat_id
@@ -136,7 +136,7 @@ class HistoryManager:
                     tool_call_id: str = None) -> bool:
         try:
             chat_id = self.get_current_chat_id(context)
-            chat_messages = context.scene.vibe4d_chat_messages
+            chat_messages = context.scene.vibe5d_chat_messages
             new_message = chat_messages.add()
             new_message.chat_id = chat_id
             new_message.role = role
@@ -162,7 +162,7 @@ class HistoryManager:
     def add_error_message(self, context, error_content: str) -> bool:
         try:
             chat_id = self.get_current_chat_id(context)
-            chat_messages = context.scene.vibe4d_chat_messages
+            chat_messages = context.scene.vibe5d_chat_messages
             new_message = chat_messages.add()
             new_message.chat_id = chat_id
             new_message.role = "error"
@@ -186,7 +186,7 @@ class HistoryManager:
                 logger.debug("No chat ID found - returning empty messages list")
                 return []
 
-            chat_messages = context.scene.vibe4d_chat_messages
+            chat_messages = context.scene.vibe5d_chat_messages
             indexed_messages = []
 
             for i, msg in enumerate(chat_messages):
@@ -232,7 +232,7 @@ class HistoryManager:
     def get_all_chats(self, context) -> List[Dict[str, Any]]:
         try:
             scene_name = context.scene.name if context.scene else 'None'
-            chat_messages = context.scene.vibe4d_chat_messages
+            chat_messages = context.scene.vibe5d_chat_messages
             chats = {}
 
             logger.debug(f"🔍 get_all_chats called for scene '{scene_name}', found {len(chat_messages)} total messages")
@@ -270,13 +270,13 @@ class HistoryManager:
 
     def save_current_text_input(self, context, text: str):
         try:
-            context.scene.vibe4d_current_text_input = text
+            context.scene.vibe5d_current_text_input = text
         except Exception as e:
             logger.error(f"Failed to save text input: {str(e)}")
 
     def get_current_text_input(self, context) -> str:
         try:
-            return getattr(context.scene, 'vibe4d_current_text_input', '')
+            return getattr(context.scene, 'vibe5d_current_text_input', '')
         except Exception as e:
             logger.error(f"Failed to get text input: {str(e)}")
             return ""
@@ -284,7 +284,7 @@ class HistoryManager:
     def switch_to_chat(self, context, chat_id: str):
         try:
             scene_name = context.scene.name if context.scene else 'None'
-            current_chat_id = getattr(context.scene, 'vibe4d_current_chat_id', '')
+            current_chat_id = getattr(context.scene, 'vibe5d_current_chat_id', '')
 
             if current_chat_id == chat_id:
                 logger.debug(f"Already on chat {chat_id}")
@@ -295,7 +295,7 @@ class HistoryManager:
             if current_chat_id:
                 self.save_unsent_text(context, current_chat_id)
 
-            context.scene.vibe4d_current_chat_id = chat_id
+            context.scene.vibe5d_current_chat_id = chat_id
             self.restore_unsent_text(context, chat_id)
 
             logger.info(f"🔍 Switched to chat: {chat_id} in scene '{scene_name}'")
@@ -311,11 +311,11 @@ class HistoryManager:
             latest_chat = self._find_latest_chat_for_scene(context)
 
             if latest_chat:
-                context.scene.vibe4d_current_chat_id = latest_chat
+                context.scene.vibe5d_current_chat_id = latest_chat
                 logger.info(f"Scene change: loaded latest chat {latest_chat} for scene {scene_name}")
             else:
-                context.scene.vibe4d_current_chat_id = ""
-                context.scene.vibe4d_current_text_input = ""
+                context.scene.vibe5d_current_chat_id = ""
+                context.scene.vibe5d_current_text_input = ""
                 logger.info(f"Scene change: no chats found for scene {scene_name}, cleared state")
 
             time.sleep(0.01)
@@ -323,8 +323,8 @@ class HistoryManager:
         except Exception as e:
             logger.error(f"Failed to handle scene change: {str(e)}")
             try:
-                context.scene.vibe4d_current_chat_id = ""
-                context.scene.vibe4d_current_text_input = ""
+                context.scene.vibe5d_current_chat_id = ""
+                context.scene.vibe5d_current_text_input = ""
                 logger.info("Cleared chat state due to scene change error")
             except Exception:
                 pass
@@ -344,7 +344,7 @@ class HistoryManager:
             if not chat_id:
                 chat_id = self.get_current_chat_id(context)
 
-            chat_messages = context.scene.vibe4d_chat_messages
+            chat_messages = context.scene.vibe5d_chat_messages
             messages_to_remove = []
 
             for i, msg in enumerate(chat_messages):
@@ -363,7 +363,7 @@ class HistoryManager:
                                         image_data: str = None) -> bool:
         try:
             chat_id = self.get_current_chat_id(context)
-            chat_messages = context.scene.vibe4d_chat_messages
+            chat_messages = context.scene.vibe5d_chat_messages
 
             tool_response_index = -1
             for i, msg in enumerate(chat_messages):

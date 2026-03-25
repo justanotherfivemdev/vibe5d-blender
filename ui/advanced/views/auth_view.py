@@ -153,7 +153,7 @@ class AuthView(BaseView):
                               layout_params['logo_height'])
         components['logo'] = logo
 
-        welcome_text = Label("Hello! Enter your license key to use Vibe4d",
+        welcome_text = Label("Welcome to Vibe5D! Configure your LLM in Settings.",
                              layout_params['center_x'] - layout_params['welcome_width'] // 2,
                              positions['welcome_y'],
                              layout_params['welcome_width'],
@@ -176,7 +176,7 @@ class AuthView(BaseView):
         status_text.visible = False
         components['status_text'] = status_text
 
-        error_text = Label("Invalid license key. Please try again.",
+        error_text = Label("Connection error. Please check your settings.",
                            layout_params['center_x'] - layout_params['error_width'] // 2,
                            positions['error_y'],
                            layout_params['error_width'],
@@ -189,7 +189,7 @@ class AuthView(BaseView):
         error_text.visible = False
         components['error_text'] = error_text
 
-        license_input = TextInput(placeholder="Enter license key", max_height=get_auth_input_height(),
+        license_input = TextInput(placeholder="Enter API key (optional for local LLMs)", max_height=get_auth_input_height(),
                                   corner_radius=get_auth_input_corner_radius(), auto_resize=False, multiline=False,
                                   content_padding_right=get_auth_input_content_padding())
         license_input.style = get_themed_component_style("input")
@@ -225,7 +225,7 @@ class AuthView(BaseView):
         )
         components['auth_button'] = auth_button
 
-        license_text_combined = Label("Need license? Get free license ↗",
+        license_text_combined = Label("Open source — no license needed ↗",
                                       layout_params['center_x'] - layout_params['combined_license_width'] // 2,
                                       positions['license_y'],
                                       layout_params['combined_license_width'],
@@ -239,7 +239,7 @@ class AuthView(BaseView):
         license_text_combined.add_highlight_style('license_link_normal',
                                                   text_color=get_theme_color('text_muted'))
 
-        target_text = "Get free license ↗"
+        target_text = "no license needed ↗"
         start_idx = license_text_combined.text.find(target_text)
         end_idx = start_idx + len(target_text)
 
@@ -251,7 +251,7 @@ class AuthView(BaseView):
             clickable=True,
             hoverable=True,
             on_click=lambda segment: self._handle_get_license(),
-            data={'url': 'https://vibe4d.ai'}
+            data={'url': 'https://github.com/justanotherfivemdev/vibe4d-blender'}
         )
 
         components['license_text_combined'] = license_text_combined
@@ -367,7 +367,7 @@ class AuthView(BaseView):
                         from ...api.client import api_client
                     except ImportError:
 
-                        from vibe4d.api.client import api_client
+                        from vibe5d.api.client import api_client
 
                     logger.info(f"Starting license verification for key: {license_key[:8]}...")
 
@@ -408,19 +408,19 @@ class AuthView(BaseView):
                         from ...auth.manager import auth_manager
                     except ImportError:
 
-                        from vibe4d.auth.manager import auth_manager
+                        from vibe5d.auth.manager import auth_manager
 
                     context = bpy.context
 
                     data = data_or_error
-                    context.window_manager.vibe4d_user_id = data.get("user_id", "")
-                    context.window_manager.vibe4d_user_token = data.get("token", "")
-                    context.window_manager.vibe4d_user_email = data.get("email", "")
-                    context.window_manager.vibe4d_user_plan = data.get("plan_id", "")
+                    context.window_manager.vibe5d_user_id = data.get("user_id", "")
+                    context.window_manager.vibe5d_user_token = data.get("token", "")
+                    context.window_manager.vibe5d_user_email = data.get("email", "")
+                    context.window_manager.vibe5d_user_plan = data.get("plan_id", "")
 
-                    context.window_manager.vibe4d_authenticated = True
+                    context.window_manager.vibe5d_authenticated = True
                     plan_name = data.get("plan_id", "unknown")
-                    context.window_manager.vibe4d_status = f"Authenticated ({plan_name} plan)"
+                    context.window_manager.vibe5d_status = f"Authenticated ({plan_name} plan)"
 
                     auth_manager.save_auth_state(context)
 
@@ -447,7 +447,7 @@ class AuthView(BaseView):
 
                 try:
                     context = bpy.context
-                    context.window_manager.vibe4d_status = "Authentication failed"
+                    context.window_manager.vibe5d_status = "Authentication failed"
                 except Exception as e:
                     logger.warning(f"Could not update status in context: {e}")
 
@@ -513,8 +513,8 @@ class AuthView(BaseView):
 
         def _handle_get_license(self):
 
-            webbrowser.open("https://vibe4d.gumroad.com/l/blender")
-            logger.info("Opened Gumroad license page")
+            webbrowser.open("https://github.com/justanotherfivemdev/vibe4d-blender")
+            logger.info("Opened GitHub project page")
 
             if self.callbacks.get('on_get_license'):
                 self.callbacks['on_get_license']()
@@ -594,7 +594,7 @@ class AuthView(BaseView):
                     from ...auth.manager import auth_manager
                 except ImportError:
 
-                    from vibe4d.auth.manager import auth_manager
+                    from vibe5d.auth.manager import auth_manager
 
                 context = bpy.context
                 return auth_manager.is_authenticated(context)
@@ -610,7 +610,7 @@ class AuthView(BaseView):
                     from ...auth.manager import auth_manager
                 except ImportError:
 
-                    from vibe4d.auth.manager import auth_manager
+                    from vibe5d.auth.manager import auth_manager
 
                 context = bpy.context
                 return auth_manager.get_user_info(context) or {}
@@ -626,7 +626,7 @@ class AuthView(BaseView):
                     from ...auth.manager import auth_manager
                 except ImportError:
 
-                    from vibe4d.auth.manager import auth_manager
+                    from vibe5d.auth.manager import auth_manager
 
                 context = bpy.context
                 auth_manager.logout(context)

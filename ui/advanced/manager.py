@@ -315,7 +315,7 @@ class UIManager:
                 try:
                     context = bpy.context
                     from ...utils.history_manager import history_manager
-                    current_chat_id = getattr(context.scene, 'vibe4d_current_chat_id', '')
+                    current_chat_id = getattr(context.scene, 'vibe5d_current_chat_id', '')
                     if current_chat_id:
                         history_manager.clear_unsent_text(context, current_chat_id)
                 except Exception as e:
@@ -355,15 +355,11 @@ class UIManager:
 
                 context = bpy.context
 
-                # Determine which provider to use
-                provider = getattr(context.scene, 'vibe4d_provider', 'openai')
+                # Determine which provider to use (openai or local only in Vibe5D)
+                provider = getattr(context.scene, 'vibe5d_provider', 'openai')
 
-                if provider in ('openai', 'local'):
-                    # Use OpenAI-compatible client
-                    self._start_openai_generation(prompt, context, provider)
-                else:
-                    # Use Vibe4D WebSocket client (requires authentication)
-                    self._start_vibe4d_generation(prompt, context)
+                # Always use OpenAI-compatible client (works for both openai and local)
+                self._start_openai_generation(prompt, context, provider)
 
             except Exception as e:
                 logger.error(f"Error starting real API generation: {e}")
@@ -380,9 +376,9 @@ class UIManager:
                     openai_client.close()
 
                 # Get provider-specific settings
-                api_key = getattr(context.scene, 'vibe4d_provider_api_key', '')
-                base_url = getattr(context.scene, 'vibe4d_provider_base_url', '')
-                provider_model = getattr(context.scene, 'vibe4d_provider_model', '')
+                api_key = getattr(context.scene, 'vibe5d_provider_api_key', '')
+                base_url = getattr(context.scene, 'vibe5d_provider_base_url', '')
+                provider_model = getattr(context.scene, 'vibe5d_provider_model', '')
 
                 # Set defaults based on provider type
                 if provider == 'local':
@@ -396,7 +392,7 @@ class UIManager:
                     if not provider_model:
                         provider_model = 'gpt-4o-mini'
 
-                selected_model = provider_model or getattr(context.scene, 'vibe4d_model', 'gpt-4o-mini')
+                selected_model = provider_model or getattr(context.scene, 'vibe5d_model', 'gpt-4o-mini')
 
                 request = LLMRequestBuilder.build_openai_chat_request(
                     context=context,
@@ -426,8 +422,8 @@ class UIManager:
                 logger.error(f"Error starting OpenAI generation: {e}")
                 self._handle_api_error(f"Failed to start generation: {str(e)}")
 
-        def _start_vibe4d_generation(self, prompt: str, context):
-            """Start generation using Vibe4D WebSocket backend."""
+        def _start_vibe5d_generation(self, prompt: str, context):
+            """Start generation using Vibe5D WebSocket backend."""
             try:
                 from ...llm.request_builder import LLMRequestBuilder
                 from ...api.websocket_client import llm_websocket_client
@@ -435,20 +431,20 @@ class UIManager:
                 if not llm_websocket_client.is_ready_for_new_request():
                     logger.info("WebSocket client is busy or has active connection, waiting...")
 
-                if not getattr(context.window_manager, 'vibe4d_authenticated', False):
+                if not getattr(context.window_manager, 'vibe5d_authenticated', False):
                     logger.error("Not authenticated")
                     self._handle_api_error("Please authenticate first")
                     return
 
-                user_id = getattr(context.window_manager, 'vibe4d_user_id', '')
-                token = getattr(context.window_manager, 'vibe4d_user_token', '')
+                user_id = getattr(context.window_manager, 'vibe5d_user_id', '')
+                token = getattr(context.window_manager, 'vibe5d_user_token', '')
 
                 if not user_id or not token:
                     logger.error("Authentication credentials missing")
                     self._handle_api_error("Authentication credentials missing")
                     return
 
-                selected_model = getattr(context.scene, 'vibe4d_model', 'gpt-5-mini')
+                selected_model = getattr(context.scene, 'vibe5d_model', 'gpt-5-mini')
 
                 request = LLMRequestBuilder.build_chat_request(
                     context=context,
@@ -472,10 +468,10 @@ class UIManager:
                     self._handle_api_error("Failed to start generation")
                     return
 
-                logger.info(f"Vibe4D chat request. Prompt: '{prompt[:200]}' using model: {selected_model}")
+                logger.info(f"Vibe5D chat request. Prompt: '{prompt[:200]}' using model: {selected_model}")
 
             except Exception as e:
-                logger.error(f"Error starting Vibe4D generation: {e}")
+                logger.error(f"Error starting Vibe5D generation: {e}")
                 self._handle_api_error(f"Failed to start generation: {str(e)}")
 
         def _handle_api_progress(self, response):
@@ -852,8 +848,8 @@ class UIManager:
                     usage = response.usage_info
                     current = usage.get('current_usage', 0)
                     limit = usage.get('limit', 0)
-                    context.window_manager.vibe4d_current_usage = current
-                    context.window_manager.vibe4d_usage_limit = limit
+                    context.window_manager.vibe5d_current_usage = current
+                    context.window_manager.vibe5d_usage_limit = limit
                     logger.debug(f"Updated usage info: {current}/{limit}")
 
                 self._reset_generation_state()
@@ -1265,7 +1261,7 @@ class UIManager:
                     try:
                         context = bpy.context
                         from ...utils.history_manager import history_manager
-                        current_chat_id = getattr(context.scene, 'vibe4d_current_chat_id', '')
+                        current_chat_id = getattr(context.scene, 'vibe5d_current_chat_id', '')
                         if current_chat_id:
                             history_manager.clear_unsent_text(context, current_chat_id)
                     except Exception as e:
@@ -1320,12 +1316,12 @@ class UIManager:
 
                     try:
                         context = bpy.context
-                        context.scene.vibe4d_output_content = ""
-                        context.scene.vibe4d_final_code = ""
-                        context.scene.vibe4d_guide_content = ""
-                        context.scene.vibe4d_last_error = ""
-                        context.scene.vibe4d_console_output = ""
-                        context.scene.vibe4d_is_generating = False
+                        context.scene.vibe5d_output_content = ""
+                        context.scene.vibe5d_final_code = ""
+                        context.scene.vibe5d_guide_content = ""
+                        context.scene.vibe5d_last_error = ""
+                        context.scene.vibe5d_console_output = ""
+                        context.scene.vibe5d_is_generating = False
                         logger.info("Cleared scene-level chat state")
                     except Exception as e:
                         logger.error(f"Error clearing scene state: {e}")
@@ -1367,7 +1363,7 @@ class UIManager:
 
                     internal_model = model_mapping.get(selected_model, selected_model.lower().replace(" ", "-"))
 
-                    context.scene.vibe4d_model = internal_model
+                    context.scene.vibe5d_model = internal_model
 
                     logger.info(f"Updated unified model to: {internal_model}")
 
@@ -1456,7 +1452,7 @@ class UIManager:
                         self.cursor_redraw_handler = bpy.app.timers.register(self._enforce_ui_settings,
                                                                              first_interval=self.performance_config.timer_interval)
                     try:
-                        bpy.ops.vibe4d.ui_modal_handler('INVOKE_DEFAULT')
+                        bpy.ops.vibe5d.ui_modal_handler('INVOKE_DEFAULT')
                     except Exception as e:
                         logger.warning(f"Failed to start modal handler: {e}")
 
@@ -1873,7 +1869,7 @@ class UIManager:
 
                 try:
 
-                    bpy.context.window_manager.vibe4d_ui_was_active = False
+                    bpy.context.window_manager.vibe5d_ui_was_active = False
                 except Exception as e:
                     logger.debug(f"Could not clear UI state tracking: {e}")
                 finally:
@@ -2661,7 +2657,7 @@ class UIManager:
                         try:
                             from ...utils.history_manager import history_manager
                             context = bpy.context
-                            current_chat_id = getattr(context.scene, 'vibe4d_current_chat_id', '')
+                            current_chat_id = getattr(context.scene, 'vibe5d_current_chat_id', '')
                             if current_chat_id:
                                 current_text = self.factory.get_send_text() if self.factory else ""
                                 history_manager.save_unsent_text(context, current_chat_id, current_text)
@@ -2674,7 +2670,7 @@ class UIManager:
                         try:
                             from ...utils.history_manager import history_manager
                             context = bpy.context
-                            current_chat_id = getattr(context.scene, 'vibe4d_current_chat_id', '')
+                            current_chat_id = getattr(context.scene, 'vibe5d_current_chat_id', '')
                             if current_chat_id:
                                 history_manager.restore_unsent_text(context, current_chat_id)
                                 logger.debug(f"Restored unsent text after UI change for chat: {current_chat_id}")

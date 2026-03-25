@@ -1,5 +1,5 @@
 """
-Advanced UI Panels for Vibe4D Addon
+Advanced UI Panels for Vibe5D Addon
 """
 
 import bpy

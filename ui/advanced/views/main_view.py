@@ -335,7 +335,7 @@ class MainView(BaseView):
                 import bpy
                 context = bpy.context
 
-                current_model = getattr(context.scene, 'vibe4d_model', 'gpt-5-mini')
+                current_model = getattr(context.scene, 'vibe5d_model', 'gpt-5-mini')
 
                 model_reverse_mapping = {
                 :"Claude Sonnet 4.5",
@@ -730,11 +730,11 @@ class MainView(BaseView):
                     file_new_just_happened = scene_handler.check_and_clear_file_new_flag()
 
                     if file_new_just_happened:
-                        all_chat_messages = context.scene.vibe4d_chat_messages
+                        all_chat_messages = context.scene.vibe5d_chat_messages
                         if len(all_chat_messages) > 0:
-                            context.scene.vibe4d_chat_messages.clear()
-                            context.scene.vibe4d_current_chat_id = ""
-                            context.scene.vibe4d_current_text_input = ""
+                            context.scene.vibe5d_chat_messages.clear()
+                            context.scene.vibe5d_current_chat_id = ""
+                            context.scene.vibe5d_current_text_input = ""
 
                             message_scrollview = self.get_message_scrollview()
                             if message_scrollview:
@@ -748,7 +748,7 @@ class MainView(BaseView):
                                 self._show_empty_chat_message(message_scrollview)
                             return
                     else:
-                        current_chat_id = getattr(context.scene, 'vibe4d_current_chat_id', '')
+                        current_chat_id = getattr(context.scene, 'vibe5d_current_chat_id', '')
                         if not current_chat_id:
                             message_scrollview = self.get_message_scrollview()
                             if message_scrollview:
@@ -757,7 +757,7 @@ class MainView(BaseView):
                             return
 
                 from ....utils.history_manager import history_manager
-                current_chat_id = getattr(context.scene, 'vibe4d_current_chat_id', '')
+                current_chat_id = getattr(context.scene, 'vibe5d_current_chat_id', '')
 
                 if not current_chat_id:
                     logger.info(f"📋 No current chat ID in scene {context.scene.name} - showing empty chat")
@@ -865,7 +865,7 @@ class MainView(BaseView):
                 import bpy
                 context = bpy.context
                 from ....utils.history_manager import history_manager
-                current_chat_id = getattr(context.scene, 'vibe4d_current_chat_id', '')
+                current_chat_id = getattr(context.scene, 'vibe5d_current_chat_id', '')
                 if current_chat_id:
                     history_manager.restore_unsent_text(context, current_chat_id)
                     logger.debug(f"Restored unsent text for current chat: {current_chat_id}")
@@ -893,7 +893,7 @@ class MainView(BaseView):
                 import bpy
                 context = bpy.context
                 from ....utils.history_manager import history_manager
-                current_chat_id = getattr(context.scene, 'vibe4d_current_chat_id', '')
+                current_chat_id = getattr(context.scene, 'vibe5d_current_chat_id', '')
                 if current_chat_id:
                     history_manager.save_unsent_text(context, current_chat_id, text)
             except Exception as e:

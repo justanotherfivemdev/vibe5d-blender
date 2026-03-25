@@ -20,10 +20,10 @@ class LLMRequestBuilder:
     MAX_TOTAL_CONTEXT_CHARS = 120000
 
     FALLBACK_ADDON_INFO = {
-        "name": "Vibe4D",
-        "version": "1.0.0",
-        "author": "Vibe4D Team",
-        "description": "AI-powered Blender addon",
+        "name": "Vibe5D",
+        "version": "0.4.0",
+        "author": "Vibe5D Community",
+        "description": "Open-source AI-powered Blender addon",
         "category": "Development"
     }
 
@@ -42,7 +42,7 @@ class LLMRequestBuilder:
         for module_name, module in sys.modules.items():
             if (hasattr(module, 'bl_info') and
                     isinstance(module.bl_info, dict) and
-                    module.bl_info.get('name') == 'Vibe4D'):
+                    module.bl_info.get('name') == 'Vibe5D'):
                 logger.debug(f"Found addon module via name search: {module_name}")
                 return module
         return None
@@ -50,7 +50,7 @@ class LLMRequestBuilder:
     @staticmethod
     def _find_addon_module_by_pattern() -> Optional[Any]:
         for module_name, module in sys.modules.items():
-            if ('vibe4d' in module_name.lower() and
+            if ('vibe5d' in module_name.lower() and
                     hasattr(module, 'bl_info') and
                     isinstance(module.bl_info, dict)):
                 logger.debug(f"Found addon module via name pattern: {module_name}")
@@ -92,8 +92,8 @@ class LLMRequestBuilder:
 
     @staticmethod
     def _get_model_and_instruction(context) -> Tuple[str, str]:
-        model = getattr(context.scene, 'vibe4d_model', LLMRequestBuilder.DEFAULT_MODEL)
-        instruction = getattr(context.scene, 'vibe4d_custom_instruction', '')
+        model = getattr(context.scene, 'vibe5d_model', LLMRequestBuilder.DEFAULT_MODEL)
+        instruction = getattr(context.scene, 'vibe5d_custom_instruction', '')
         return model, instruction
 
     @staticmethod
@@ -235,9 +235,9 @@ class LLMRequestBuilder:
 
         # Get provider settings from scene properties
         if not base_url:
-            base_url = getattr(context.scene, 'vibe4d_provider_base_url', '')
+            base_url = getattr(context.scene, 'vibe5d_provider_base_url', '')
         if not api_key:
-            api_key = getattr(context.scene, 'vibe4d_provider_api_key', '')
+            api_key = getattr(context.scene, 'vibe5d_provider_api_key', '')
 
         request = {
             "api_key": api_key,

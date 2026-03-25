@@ -6,8 +6,8 @@ from bpy.types import Operator
 logger = logging.getLogger(__name__)
 
 
-class VIBE4D_OT_viewport_button_handler(Operator):
-    bl_idname = "vibe4d.viewport_button_handler"
+class VIBE5D_OT_viewport_button_handler(Operator):
+    bl_idname = "vibe5d.viewport_button_handler"
     bl_label = "Viewport Button Handler"
     bl_description = "Handle mouse events for viewport button"
     bl_options = {'REGISTER'}
@@ -42,7 +42,7 @@ class VIBE4D_OT_viewport_button_handler(Operator):
 
 
 classes = [
-    VIBE4D_OT_viewport_button_handler,
+    VIBE5D_OT_viewport_button_handler,
 ]
 
 

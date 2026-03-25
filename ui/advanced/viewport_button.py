@@ -96,7 +96,7 @@ class ViewportButton:
 
             if logo_path.exists():
 
-                image_name = f"vibe4d_logo_{logo_path.name}"
+                image_name = f"vibe5d_logo_{logo_path.name}"
                 if image_name in bpy.data.images:
                     self.logo_image = bpy.data.images[image_name]
                 else:
@@ -484,7 +484,7 @@ class ViewportButton:
 
         try:
 
-            bpy.ops.vibe4d.show_advanced_ui()
+            bpy.ops.vibe5d.show_advanced_ui()
         except Exception as e:
             logger.error(f"Error handling button click: {e}")
 

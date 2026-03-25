@@ -265,7 +265,7 @@ class HistoryView(BaseView):
                 context = bpy.context
 
                 chat_id = session['chat_id']
-                context.scene.vibe4d_current_chat_id = chat_id
+                context.scene.vibe5d_current_chat_id = chat_id
 
                 if self.callbacks.get('on_view_change'):
                     from ..ui_factory import ViewState
