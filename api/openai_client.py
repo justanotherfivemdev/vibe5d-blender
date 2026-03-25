@@ -171,7 +171,7 @@ class OpenAIClient:
         if schema_summary:
             if len(schema_summary) > self.MAX_SINGLE_MESSAGE_CHARS:
                 schema_summary = schema_summary[:self.MAX_SINGLE_MESSAGE_CHARS] + \
-                    "\n\n[Schema truncated due to size. Use queries to explore specific tables.]"
+                    "\n\n[Scene context truncated due to size. Use queries to explore specific objects and data.]"
                 logger.warning(
                     f"Schema summary truncated from {len(request_data.get('schema_summary', ''))} "
                     f"to {self.MAX_SINGLE_MESSAGE_CHARS} chars"
@@ -239,13 +239,12 @@ class OpenAIClient:
                 "messages": messages,
                 "stream": True,
                 "temperature": 0.7,
-                "max_tokens": 4096
             }
 
             headers = {
                 "Content-Type": "application/json",
                 "Accept": "text/event-stream",
-                "User-Agent": "Vibe4D-Blender-Addon/0.3.0"
+                "User-Agent": "Vibe4D-Blender-Addon"
             }
 
             if api_key:

@@ -376,7 +376,8 @@ class UIManager:
                 from ...api.openai_client import openai_client
 
                 if not openai_client.is_ready_for_new_request():
-                    logger.info("OpenAI client is busy, waiting...")
+                    logger.warning("OpenAI client is busy, cancelling previous request")
+                    openai_client.close()
 
                 # Get provider-specific settings
                 api_key = getattr(context.scene, 'vibe4d_provider_api_key', '')

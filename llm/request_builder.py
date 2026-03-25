@@ -11,7 +11,10 @@ class LLMRequestBuilder:
     SOFTWARE_NAME = "blender"
     DEFAULT_HISTORY_MESSAGE_LIMIT = 10
 
-    # Context size limits to prevent freezing with large scenes
+    # Context size limits to prevent freezing with large scenes.
+    # These are character counts (not tokens). With ~4 chars/token average,
+    # 120K chars ≈ 30K tokens which fits within most model context windows.
+    # Local models with smaller contexts will naturally truncate via max_tokens.
     MAX_SCHEMA_SUMMARY_CHARS = 50000
     MAX_MESSAGE_CONTENT_CHARS = 30000
     MAX_TOTAL_CONTEXT_CHARS = 120000
