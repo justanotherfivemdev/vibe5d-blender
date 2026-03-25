@@ -1372,20 +1372,10 @@ class UIManager:
 
             def _handle_auth_submit(self):
 
-                logger.info("Auth submit clicked")
+                logger.info("Auth submit clicked - redirecting to main view")
 
-                current_view = self.factory.views.get(self.factory.current_view)
-                if current_view and hasattr(current_view, 'get_license_key'):
-                    license_key = current_view.get_license_key()
-                else:
-                    license_key = ""
-
-                if license_key:
-                    logger.info(f"Processing license key: {license_key[:10]}...")
-
-                    self._authenticate_success()
-                else:
-                    logger.warning("No license key provided")
+                # In Vibe5D, no license needed - just go to main view
+                self._authenticate_success()
 
             def _handle_get_license(self):
 

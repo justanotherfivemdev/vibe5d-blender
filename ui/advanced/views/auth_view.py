@@ -153,7 +153,7 @@ class AuthView(BaseView):
                               layout_params['logo_height'])
         components['logo'] = logo
 
-        welcome_text = Label("Welcome to Vibe5D! Configure your LLM in Settings.",
+        welcome_text = Label("Welcome to Vibe5D! Enter your API key or skip to Settings.",
                              layout_params['center_x'] - layout_params['welcome_width'] // 2,
                              positions['welcome_y'],
                              layout_params['welcome_width'],
@@ -521,37 +521,31 @@ class AuthView(BaseView):
 
         def _handle_auth_submit(self):
 
-            if self.is_verifying:
-                logger.info("Already verifying license key, ignoring submit")
-                return
-
-            logger.info("Auth submit clicked - validating license key")
+            # In Vibe5D (open source), auth is not required
+            # If the user enters an API key here, save it; otherwise just proceed
+            logger.info("Auth submit clicked - proceeding to main view")
 
             try:
+                api_key = self.get_license_key()  # Reuses same input field
 
-                license_key = self.get_license_key()
+                if api_key:
+                    # Save as OpenAI API key
+                    import bpy
+                    context = bpy.context
+                    context.scene.vibe5d_provider_api_key = api_key
+                    from ....utils.settings_manager import settings_manager
+                    settings_manager.auto_save_settings(context)
+                    logger.info("API key saved from auth view")
 
-                if not license_key:
-                    logger.info("No license key entered")
-                    self._hide_all_messages()
-                    self._show_error(True)
-                    return
-
-                logger.info(f"Verifying license key: {license_key}")
-
-                self._hide_all_messages()
-                self._show_status(True)
-                self.is_verifying = True
-
-                self._verify_license_async(license_key)
+                # Navigate to main view
+                if self.callbacks.get('on_view_change'):
+                    from ..ui_factory import ViewState
+                    self.callbacks['on_view_change'](ViewState.MAIN)
 
             except Exception as e:
                 logger.error(f"Error in auth submit handler: {e}")
                 import traceback
                 logger.error(f"Traceback: {traceback.format_exc()}")
-                self.is_verifying = False
-                self._show_status(False)
-                self._show_error(True)
 
         def validate_layout_consistency(self, viewport_width: int, viewport_height: int) -> bool:
 

@@ -571,7 +571,7 @@ class LLMWebSocketClient:
 
         legacy_messages = {
         :"Request format error. Please try again.",
-        : "Authentication failed. Please check your license key.",
+        : "Authentication failed. Please check your API key.",
         :"Rate limit exceeded. Please wait before making another request.",
         : "You've reached your plan's usage limit for this period.",
         :"A temporary server error occurred. Please try again.",

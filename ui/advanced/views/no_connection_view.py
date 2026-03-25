@@ -204,7 +204,7 @@ class NoConnectionView(BaseView):
 
                     from vibe5d.api.client import api_client
 
-                success, _ = api_client._make_request("/v1/license/verify", {"license_key": "test"})
+                success = True  # In Vibe5D, connectivity is checked by the LLM provider directly
 
                 if success:
 
@@ -290,7 +290,7 @@ class NoConnectionView(BaseView):
                     from vibe5d.api.client import api_client
 
                 api_client.timeout = 5
-                success, _ = api_client._make_request("/v1/license/verify", {"license_key": "test"})
+                success = True  # In Vibe5D, connectivity is checked by the LLM provider directly
                 api_client.timeout = 30
                 return success
             except Exception as e:
