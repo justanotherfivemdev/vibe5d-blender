@@ -41,9 +41,9 @@ class URLImageManager:
 
         with self._download_lock:
             self._download_cache[url] = {
-            :state,
-            : temp_path,
-            :error
+                'state': state,
+                'path': temp_path,
+                'error': error
             }
 
         def is_downloading(self, url: str) -> bool:
@@ -158,7 +158,7 @@ class URLImageManager:
                     logger.info(f"Starting download of image: {self.image_url}")
 
                     headers = {
-                    :'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
                     }
 
 

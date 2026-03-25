@@ -10,16 +10,16 @@ logger = logging.getLogger(__name__)
 
 class StylesMeta(type):
     _COLOR_MAP = {
-    :'bg_primary',
-    : 'bg_panel',
-    :'bg_selected',
-    : 'border',
-    :'text',
-    : 'text_selected',
-    :'text_muted',
-    : 'bg_menu',
-    :'bg_menu',
-    : 'bg_selected',
+        'Primary': 'bg_primary',
+        'Panel': 'bg_panel',
+        'Selected': 'bg_selected',
+        'Border': 'border',
+        'Text': 'text',
+        'TextSelected': 'text_selected',
+        'TextMuted': 'text_muted',
+        'MenuBg': 'bg_menu',
+        'Menu': 'bg_menu',
+        'Highlight': 'bg_selected',
     }
 
     def __getattr__(cls, name):

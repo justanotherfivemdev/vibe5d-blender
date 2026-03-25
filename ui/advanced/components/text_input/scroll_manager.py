@@ -110,11 +110,11 @@ class ScrollManager:
     def get_scroll_info(self) -> dict:
 
         return {
-        :self.is_vertically_scrollable,
-        : self.vertical_offset,
-        :self.max_vertical_offset,
-        : (
-            (self.vertical_offset / self.max_vertical_offset * 100)
-            if self.max_vertical_offset > 0 else 0
-        )
+            'is_scrollable': self.is_vertically_scrollable,
+            'offset': self.vertical_offset,
+            'max_offset': self.max_vertical_offset,
+            'scroll_percentage': (
+                (self.vertical_offset / self.max_vertical_offset * 100)
+                if self.max_vertical_offset > 0 else 0
+            )
         }
