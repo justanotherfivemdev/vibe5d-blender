@@ -73,38 +73,38 @@ class SceneTable(BaseTable):
         render = scene.render
 
         scene_data = {
-        :scene.name,
-        : scene.frame_current,
-        :scene.frame_start,
-        : scene.frame_end,
-        :render.fps,
-        : render.engine,
-        :render.resolution_x,
-        : render.resolution_y,
-        :render.resolution_percentage,
-        : render.filepath,
-        :render.image_settings.file_format,
-        : render.image_settings.color_mode,
-        :render.image_settings.color_depth,
+            'name': scene.name,
+            'frame_current': scene.frame_current,
+            'frame_start': scene.frame_start,
+            'frame_end': scene.frame_end,
+            'fps': render.fps,
+            'render_engine': render.engine,
+            'resolution_x': render.resolution_x,
+            'resolution_y': render.resolution_y,
+            'resolution_percentage': render.resolution_percentage,
+            'filepath': render.filepath,
+            'image_format': render.image_settings.file_format,
+            'color_mode': render.image_settings.color_mode,
+            'color_depth': render.image_settings.color_depth,
         }
 
         if render.engine == 'CYCLES':
             cycles = scene.cycles
             scene_data.update({
-            : getattr(cycles, 'samples', None),
-            :getattr(cycles, 'preview_samples', None),
-            : getattr(cycles, 'use_denoising', None),
-            :getattr(cycles, 'device', None),
-            : getattr(cycles, 'use_adaptive_sampling', None)
+                'samples': getattr(cycles, 'samples', None),
+                'preview_samples': getattr(cycles, 'preview_samples', None),
+                'use_denoising': getattr(cycles, 'use_denoising', None),
+                'device': getattr(cycles, 'device', None),
+                'use_adaptive_sampling': getattr(cycles, 'use_adaptive_sampling', None)
             })
-            elif render.engine in ['BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT']:
+        elif render.engine in ['BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT']:
             eevee = scene.eevee
             scene_data.update({
-            : getattr(eevee, 'taa_render_samples', None),
-            :getattr(eevee, 'taa_samples', None),
-            : getattr(eevee, 'use_bloom', None),
-            :getattr(eevee, 'use_ssr', None),
-            : getattr(eevee, 'use_motion_blur', None),
+                'taa_render_samples': getattr(eevee, 'taa_render_samples', None),
+                'taa_samples': getattr(eevee, 'taa_samples', None),
+                'use_bloom': getattr(eevee, 'use_bloom', None),
+                'use_ssr': getattr(eevee, 'use_ssr', None),
+                'use_motion_blur': getattr(eevee, 'use_motion_blur', None),
             })
 
-            return scene_data
+        return scene_data

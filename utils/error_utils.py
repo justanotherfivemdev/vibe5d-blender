@@ -41,26 +41,26 @@ def get_error_severity(error_code: str) -> str:
     try:
 
         critical_errors = {
-        , 'SYSTEM_MISCONFIGURED',
-        , 'FEATURE_NOT_AVAILABLE'
+            'AUTHORIZATION_FAILED', 'SYSTEM_MISCONFIGURED',
+            'OUTDATED_CLIENT', 'FEATURE_NOT_AVAILABLE'
         }
 
 
         high_errors = {
-        , 'AI_SERVICE_UNAVAILABLE',
-        , 'DB_ERROR'
+            'MAINTENANCE_MODE', 'AI_SERVICE_UNAVAILABLE',
+            'INTERNAL_SERVER_ERROR', 'DB_ERROR'
         }
 
 
         medium_errors = {
-        , 'INVALID_CODE_GENERATED',
-        , 'NO_ACTIONS_GENERATED'
+            'RATE_LIMIT', 'INVALID_CODE_GENERATED',
+            'INVALID_REQUEST', 'NO_ACTIONS_GENERATED'
         }
 
 
         low_errors = {
-        , 'INTERNAL_ERROR', 'LLM_ERROR',
-
+            'TIMEOUT', 'INTERNAL_ERROR', 'LLM_ERROR',
+            'CLIENT_ERROR'
         }
 
         if error_code in critical_errors:
@@ -83,16 +83,16 @@ def should_show_retry_button(error_code: str, retryable: bool) -> bool:
     try:
 
         no_retry_errors = {
-        , 'PLAN_LIMIT_EXCEEDED',
-        , 'SYSTEM_MISCONFIGURED'
+            'FEATURE_NOT_AVAILABLE', 'PLAN_LIMIT_EXCEEDED',
+            'AUTHORIZATION_FAILED', 'SYSTEM_MISCONFIGURED'
         }
 
         if error_code in no_retry_errors:
             return False
 
         always_retry_errors = {
-        , 'AI_SERVICE_UNAVAILABLE',
-        , 'DB_ERROR'
+            'TIMEOUT', 'AI_SERVICE_UNAVAILABLE',
+            'RATE_LIMIT', 'DB_ERROR'
         }
 
         if error_code in always_retry_errors:
@@ -140,29 +140,29 @@ def create_error_context(error_data) -> Dict[str, Any]:
             technical_info = ''
 
         return {
-        :error_code,
-        : user_message,
-        :suggestions,
-        : retryable,
-        :technical_info,
-        : get_error_severity(error_code),
-        :extract_error_type(user_message),
-        : should_show_retry_button(error_code, retryable),
-        :format_error_message(
-            error_code, user_message, suggestions, retryable, technical_info
-        )
+            'code': error_code,
+            'user_message': user_message,
+            'suggestions': suggestions,
+            'retryable': retryable,
+            'technical_info': technical_info,
+            'severity': get_error_severity(error_code),
+            'error_type': extract_error_type(user_message),
+            'show_retry': should_show_retry_button(error_code, retryable),
+            'formatted_message': format_error_message(
+                error_code, user_message, suggestions, retryable, technical_info
+            )
         }
 
-        except Exception as e:
+    except Exception as e:
         logger.error(f"Error creating error context: {e}")
         return {
-        :'UNKNOWN',
-        : 'An unexpected error occurred',
-        :['Try again in a moment'],
-        : True,
-        :str(e),
-        : 'medium',
-        :'general',
-        : True,
-        :'An unexpected error occurred'
+            'code': 'UNKNOWN',
+            'user_message': 'An unexpected error occurred',
+            'suggestions': ['Try again in a moment'],
+            'retryable': True,
+            'technical_info': str(e),
+            'severity': 'medium',
+            'error_type': 'general',
+            'show_retry': True,
+            'formatted_message': 'An unexpected error occurred'
         }

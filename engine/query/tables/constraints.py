@@ -58,11 +58,11 @@ class ConstraintsTable(BaseTable):
 
     def _extract_all_fields(self, obj, con) -> Dict[str, Any]:
         con_data = {
-        :obj.name,
-        : con.name,
-        :con.type,
-        : not con.mute,
-        :con.influence,
+            'object_name': obj.name,
+            'name': con.name,
+            'type': con.type,
+            'enabled': not con.mute,
+            'influence': con.influence,
         }
 
         if hasattr(con, 'target'):

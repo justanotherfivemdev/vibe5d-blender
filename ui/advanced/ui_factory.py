@@ -515,175 +515,120 @@ class ImprovedUIFactory:
     def get_stats(self) -> Dict[str, Any]:
 
         return {
-        :self.current_view.value,
-        : len(component_registry.get_all_components()),
-        :self.typewriter_active,
-        : len(self.views),
+            'current_view': self.current_view.value,
+            'component_count': len(component_registry.get_all_components()),
+            'typewriter_active': self.typewriter_active,
+            'view_count': len(self.views),
         }
 
-        def check_and_handle_connectivity(self) -> bool:
+    def check_and_handle_connectivity(self) -> bool:
 
+        try:
+            from .views.no_connection_view import NoConnectionView
+
+            if NoConnectionView.check_internet_connection():
+                logger.debug("Internet connection is available")
+                return True
+
+            logger.warning("No internet connection detected - switching to no connection view")
+            self.switch_to_view(ViewState.NO_CONNECTION)
+            return False
+
+        except Exception as e:
+            logger.error(f"Error checking connectivity: {e}")
+            self.switch_to_view(ViewState.NO_CONNECTION)
+            return False
+
+    def switch_to_appropriate_view_on_startup(self):
+
+        try:
+            if not self.check_and_handle_connectivity():
+                return
+            self.switch_to_view(ViewState.MAIN)
+        except Exception as e:
+            logger.error(f"Error determining startup view: {e}")
             try:
-                from .views.no_connection_view import NoConnectionView
+                self.switch_to_view(ViewState.MAIN)
+            except Exception as fallback_error:
+                logger.error(f"Failed to switch to main view as fallback: {fallback_error}")
 
-                if NoConnectionView.check_internet_connection():
-                    logger.debug("Internet connection is available")
-                    return True
-                else:
-                    logger.warning("No internet connection detected - switching to no connection view")
-                    self.switch_to_view(ViewState.NO_CONNECTION)
-                    return False
+    def add_image_message_to_scrollview(self, text: str, image_data_uri: str, is_ai_response: bool = False):
 
-            except Exception as e:
-                logger.error(f"Error checking connectivity: {e}")
-                self.switch_to_view(ViewState.NO_CONNECTION)
-                return False
+        message_component = self.add_message_to_scrollview(text, is_ai_response=is_ai_response)
+        if message_component and hasattr(message_component, 'image_data_uri'):
+            message_component.image_data_uri = image_data_uri
+        logger.info("Added image message to scrollview")
+        return message_component
 
-        def switch_to_appropriate_view_on_startup(self):
+    def add_error_message_to_scrollview(self, error_text: str):
 
-            try:
-                import bpy
-                context = bpy.context
+        message_scrollview = self._get_message_scrollview()
+        if not message_scrollview:
+            logger.error("Message scrollview not found")
+            return None
 
-                if not self.check_and_handle_connectivity():
-                    return
+        self._remove_empty_state_if_present(message_scrollview)
 
-                is_authenticated = getattr(context.window_manager, 'vibe4d_authenticated', False)
+        from .components.error_message import ErrorMessageComponent
 
-                if is_authenticated:
-                    self.switch_to_view(ViewState.MAIN)
-                else:
-                    self.switch_to_view(ViewState.AUTH)
+        scaled_padding = CoordinateSystem.scale_int(40)
+        max_width = message_scrollview.bounds.width - scaled_padding
+        if message_scrollview.show_scrollbars:
+            max_width -= message_scrollview.scrollbar_width
 
-            except Exception as e:
-                logger.error(f"Error determining startup view: {e}")
-                import traceback
-                logger.error(traceback.format_exc())
-                try:
-                    self.switch_to_view(ViewState.AUTH)
-                    logger.info("Fallback: Switched to auth view due to error")
-                except Exception as fallback_error:
-                    logger.error(f"Failed to switch to auth view as fallback: {fallback_error}")
+        error_component = ErrorMessageComponent(error_text, 0, 0, 100, 40)
+        error_component.auto_resize_to_content(max_width)
 
-        def add_image_message_to_scrollview(self, text: str, image_data_uri: str, is_ai_response: bool = False):
+        message_gap = self._calculate_message_gap(message_scrollview, False, is_error_message=True)
+        component_height = error_component.bounds.height + message_gap
 
-            message_scrollview = self._get_message_scrollview()
-            if not message_scrollview:
-                logger.error("Message scrollview not found")
+        for existing_child in message_scrollview.children:
+            existing_child.bounds.y += component_height
+
+        error_component.set_position(CoordinateSystem.scale_int(20), 0)
+        message_scrollview.children.insert(0, error_component)
+        error_component.ui_state = message_scrollview.ui_state
+
+        message_scrollview._update_content_bounds()
+        message_scrollview.scroll_to(y=0)
+
+        logger.info("Added error message to scrollview")
+        return error_component
+
+    def _save_unsent_text_before_ui_change(self):
+
+        try:
+            if self.current_view != ViewState.MAIN:
                 return
 
-            self._remove_empty_state_if_present(message_scrollview)
+            context = bpy.context
+            from ...utils.history_manager import history_manager
 
-            from .components.message import MessageComponent
+            current_chat_id = getattr(context.scene, 'vibe5d_current_chat_id', '')
+            if current_chat_id:
+                current_text = self.get_send_text()
+                history_manager.save_unsent_text(context, current_chat_id, current_text)
+        except Exception as e:
+            logger.debug(f"Could not save unsent text before UI change: {e}")
 
-            scaled_padding = CoordinateSystem.scale_int(40)
-            max_width = message_scrollview.bounds.width - scaled_padding
-            if message_scrollview.show_scrollbars:
-                max_width -= message_scrollview.scrollbar_width
+    def _restore_unsent_text_after_ui_change(self):
 
-            text_component = MessageComponent(text, 0, 0, max_width, 40)
-            text_component.auto_resize_to_content(max_width)
-
-            if is_ai_response:
-                text_component.style.border_color = (0, 0, 0, 0)
-                text_component.style.border_width = 0
-            else:
-                text_component.style.border_width = 1
-
-            message_gap = self._calculate_message_gap(message_scrollview, is_ai_response)
-            component_height = text_component.bounds.height + message_gap
-
-            for existing_child in message_scrollview.children:
-                existing_child.bounds.y += component_height
-
-            scaled_message_padding = CoordinateSystem.scale_int(20)
-            if is_ai_response:
-                message_x = scaled_message_padding
-            else:
-                message_x = message_scrollview.bounds.width - text_component.bounds.width - scaled_message_padding
-
-            message_y = 0
-            text_component.set_position(message_x, message_y)
-
-            message_scrollview.children.insert(0, text_component)
-            text_component.ui_state = message_scrollview.ui_state
-
-            message_scrollview._update_content_bounds()
-            message_scrollview.scroll_to(y=0)
-
-            logger.info(
-            )
-
-            return text_component
-
-        def add_error_message_to_scrollview(self, error_text: str):
-
-            message_scrollview = self._get_message_scrollview()
-            if not message_scrollview:
-                logger.error("Message scrollview not found")
+        try:
+            if self.current_view != ViewState.MAIN:
                 return
 
-            self._remove_empty_state_if_present(message_scrollview)
+            context = bpy.context
+            from ...utils.history_manager import history_manager
 
-            from .components.error_message import ErrorMessageComponent
+            current_chat_id = getattr(context.scene, 'vibe5d_current_chat_id', '')
+            if current_chat_id:
+                history_manager.restore_unsent_text(context, current_chat_id)
+        except Exception as e:
+            logger.debug(f"Could not restore unsent text after UI change: {e}")
 
-            scaled_padding = CoordinateSystem.scale_int(40)
-            max_width = message_scrollview.bounds.width - scaled_padding
-            if message_scrollview.show_scrollbars:
-                max_width -= message_scrollview.scrollbar_width
+    def close_settings(self):
 
-            error_component = ErrorMessageComponent(error_text, 0, 0, 100, 40)
-            error_component.auto_resize_to_content(max_width)
+        self.switch_to_view(ViewState.MAIN)
 
-            message_gap = self._calculate_message_gap(message_scrollview, False, is_error_message=True)
-            component_height = error_component.bounds.height + message_gap
 
-            for existing_child in message_scrollview.children:
-                existing_child.bounds.y += component_height
-
-            scaled_message_padding = CoordinateSystem.scale_int(20)
-            message_x = scaled_message_padding
-            message_y = 0
-            error_component.set_position(message_x, message_y)
-
-            message_scrollview.children.insert(0, error_component)
-            error_component.ui_state = message_scrollview.ui_state
-
-            message_scrollview._update_content_bounds()
-            message_scrollview.scroll_to(y=0)
-
-            logger.info(
-            )
-
-            return error_component
-
-        def _save_unsent_text_before_ui_change(self):
-
-            try:
-                if self.current_view == ViewState.MAIN:
-                    import bpy
-                    context = bpy.context
-                    from ...utils.history_manager import history_manager
-                    current_chat_id = getattr(context.scene, 'vibe4d_current_chat_id', '')
-                    if current_chat_id:
-                        current_text = self.get_send_text()
-                        history_manager.save_unsent_text(context, current_chat_id, current_text)
-                        logger.debug(f"Saved unsent text before UI change: '{current_text[:50]}...'")
-            except Exception as e:
-                logger.debug(f"Could not save unsent text before UI change: {e}")
-
-        def _restore_unsent_text_after_ui_change(self):
-
-            try:
-                if self.current_view == ViewState.MAIN:
-                    import bpy
-                    context = bpy.context
-                    from ...utils.history_manager import history_manager
-                    current_chat_id = getattr(context.scene, 'vibe4d_current_chat_id', '')
-                    if current_chat_id:
-                        history_manager.restore_unsent_text(context, current_chat_id)
-                        logger.debug(f"Restored unsent text after UI change for chat: {current_chat_id}")
-            except Exception as e:
-                logger.debug(f"Could not restore unsent text after UI change: {e}")
-
-    improved_ui_factory = ImprovedUIFactory()
+improved_ui_factory = ImprovedUIFactory()

@@ -19,10 +19,10 @@ def get_ui_manager():
     return ui_manager
 
 
-class VIBE4D_OT_ui_modal_handler(Operator):
+class VIBE5D_OT_ui_modal_handler(Operator):
     """Combined modal operator for handling both mouse and keyboard events."""
-    bl_idname = "vibe4d.ui_modal_handler"
-    bl_label = "Vibe4D UI Modal Handler"
+    bl_idname = "vibe5d.ui_modal_handler"
+    bl_label = "Vibe5D UI Modal Handler"
     bl_description = "Handle input events for the advanced UI"
     bl_options = {'REGISTER'}
 
@@ -128,9 +128,9 @@ class VIBE4D_OT_ui_modal_handler(Operator):
         return {'RUNNING_MODAL'}
 
 
-class VIBE4D_OT_show_advanced_ui(Operator):
+class VIBE5D_OT_show_advanced_ui(Operator):
     """Operator for showing/hiding the advanced UI."""
-    bl_idname = "vibe4d.show_advanced_ui"
+    bl_idname = "vibe5d.show_advanced_ui"
     bl_label = "Show Advanced UI"
     bl_description = "Toggle the advanced UI overlay"
     bl_options = {'REGISTER'}
@@ -144,13 +144,13 @@ class VIBE4D_OT_show_advanced_ui(Operator):
             target_area = ui_manager.state.target_area
             ui_manager.disable_overlay()
             self._close_ui(context, ui_manager, target_area)
-            self.report({'INFO'}, "Vibe4D panel closed")
+            self.report({'INFO'}, "Vibe5D panel closed")
         else:
 
             target_area = self._open_ui(context)
             if target_area:
                 ui_manager.enable_overlay(target_area)
-                self.report({'INFO'}, "Vibe4D panel opened")
+                self.report({'INFO'}, "Vibe5D panel opened")
             else:
                 self.report({'ERROR'}, "Failed to create UI viewport")
                 return {'CANCELLED'}
@@ -357,9 +357,9 @@ class VIBE4D_OT_show_advanced_ui(Operator):
             logger.error("All methods to close UI area failed")
 
 
-class VIBE4D_OT_ui_settings_close(Operator):
+class VIBE5D_OT_ui_settings_close(Operator):
     """Operator for closing the settings overlay."""
-    bl_idname = "vibe4d.ui_settings_close"
+    bl_idname = "vibe5d.ui_settings_close"
     bl_label = "Close Settings"
     bl_description = "Close the settings overlay"
     bl_options = {'REGISTER'}
@@ -371,9 +371,9 @@ class VIBE4D_OT_ui_settings_close(Operator):
         return {'FINISHED'}
 
 
-class VIBE4D_OT_test_no_connection_view(Operator):
+class VIBE5D_OT_test_no_connection_view(Operator):
     """Operator to test the no connection view."""
-    bl_idname = "vibe4d.test_no_connection_view"
+    bl_idname = "vibe5d.test_no_connection_view"
     bl_label = "Test No Connection View"
     bl_description = "Test the no connection view functionality"
     bl_options = {'REGISTER'}
@@ -398,9 +398,9 @@ class VIBE4D_OT_test_no_connection_view(Operator):
             return {'CANCELLED'}
 
 
-class VIBE4D_OT_test_connectivity(Operator):
+class VIBE5D_OT_test_connectivity(Operator):
     """Operator to test connectivity and switch views accordingly."""
-    bl_idname = "vibe4d.test_connectivity"
+    bl_idname = "vibe5d.test_connectivity"
     bl_label = "Test Connectivity"
     bl_description = "Test internet connectivity and switch to appropriate view"
     bl_options = {'REGISTER'}
@@ -424,9 +424,9 @@ class VIBE4D_OT_test_connectivity(Operator):
             return {'CANCELLED'}
 
 
-class VIBE4D_OT_ui_mouse_handler(Operator):
+class VIBE5D_OT_ui_mouse_handler(Operator):
     """Modal operator for handling mouse events."""
-    bl_idname = "vibe4d.ui_mouse_handler"
+    bl_idname = "vibe5d.ui_mouse_handler"
     bl_label = "Mouse Handler"
     bl_description = "Handle mouse events for the UI"
     bl_options = {'REGISTER'}
@@ -445,9 +445,9 @@ class VIBE4D_OT_ui_mouse_handler(Operator):
         return {'RUNNING_MODAL'}
 
 
-class VIBE4D_OT_ui_debug_test(Operator):
+class VIBE5D_OT_ui_debug_test(Operator):
     """Debug test operator."""
-    bl_idname = "vibe4d.ui_debug_test"
+    bl_idname = "vibe5d.ui_debug_test"
     bl_label = "Debug Test"
     bl_description = "Run debug tests"
     bl_options = {'REGISTER'}
@@ -501,9 +501,9 @@ class VIBE4D_OT_ui_debug_test(Operator):
         return {'FINISHED'}
 
 
-class VIBE4D_OT_ui_keyboard_handler(Operator):
+class VIBE5D_OT_ui_keyboard_handler(Operator):
     """Modal operator for handling keyboard events."""
-    bl_idname = "vibe4d.ui_keyboard_handler"
+    bl_idname = "vibe5d.ui_keyboard_handler"
     bl_label = "Keyboard Handler"
     bl_description = "Handle keyboard events for the UI"
     bl_options = {'REGISTER'}
@@ -522,9 +522,9 @@ class VIBE4D_OT_ui_keyboard_handler(Operator):
         return {'RUNNING_MODAL'}
 
 
-class VIBE4D_OT_ui_login(Operator):
+class VIBE5D_OT_ui_login(Operator):
     """Operator for handling login submissions."""
-    bl_idname = "vibe4d.ui_login"
+    bl_idname = "vibe5d.ui_login"
     bl_label = "UI Login"
     bl_description = "Handle login form submission"
     bl_options = {'REGISTER'}
@@ -557,15 +557,15 @@ class VIBE4D_OT_ui_login(Operator):
 
 
 classes = [
-    VIBE4D_OT_ui_modal_handler,
-    VIBE4D_OT_show_advanced_ui,
-    VIBE4D_OT_ui_settings_close,
-    VIBE4D_OT_test_no_connection_view,
-    VIBE4D_OT_test_connectivity,
-    VIBE4D_OT_ui_mouse_handler,
-    VIBE4D_OT_ui_debug_test,
-    VIBE4D_OT_ui_keyboard_handler,
-    VIBE4D_OT_ui_login,
+    VIBE5D_OT_ui_modal_handler,
+    VIBE5D_OT_show_advanced_ui,
+    VIBE5D_OT_ui_settings_close,
+    VIBE5D_OT_test_no_connection_view,
+    VIBE5D_OT_test_connectivity,
+    VIBE5D_OT_ui_mouse_handler,
+    VIBE5D_OT_ui_debug_test,
+    VIBE5D_OT_ui_keyboard_handler,
+    VIBE5D_OT_ui_login,
 ]
 
 

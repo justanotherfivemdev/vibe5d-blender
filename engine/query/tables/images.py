@@ -58,11 +58,11 @@ class ImagesTable(BaseTable):
 
     def _extract_all_fields(self, image) -> Dict[str, Any]:
         return {
-        :image.name,
-        : image.filepath,
-        :list(image.size),
-        : image.size[0],
-        :image.size[1],
-        : image.channels,
-        :image.users
+            'name': image.name,
+            'filepath': image.filepath,
+            'size': list(image.size),
+            'width': image.size[0],
+            'height': image.size[1],
+            'channels': image.channels,
+            'users': image.users
         }

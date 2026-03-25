@@ -48,34 +48,33 @@ class VAction(argparse.Action):
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="WebSocket Simple Dump Tool")
     parser.add_argument(
-    , metavar = "ws_url", help = "websocket url. ex. ws://echo.websocket.events/"
+    "url", metavar="ws_url", help="websocket url. ex. ws://echo.websocket.events/"
     )
     parser.add_argument("-p", "--proxy", help="proxy url. ex. http://127.0.0.1:8080")
     parser.add_argument(
-    ,
-    ,
-    default = 0,
-    nargs = "?",
-    action = VAction,
-    dest = "verbose",
-    help = "set verbose mode. If set to 1, show opcode. "
-    ,
+    "-v",
+    "--verbose",
+    default=0,
+    nargs="?",
+    action=VAction,
+    dest="verbose",
+    help="set verbose mode. If set to 1, show opcode.",
     )
     parser.add_argument(
-    , "--nocert", action = "store_true", help = "Ignore invalid SSL cert"
+    "-n", "--nocert", action="store_true", help="Ignore invalid SSL cert"
     )
     parser.add_argument("-r", "--raw", action="store_true", help="raw output")
     parser.add_argument("-s", "--subprotocols", nargs="*", help="Set subprotocols")
     parser.add_argument("-o", "--origin", help="Set origin")
     parser.add_argument(
-    ,
-    default = 0,
-    type = int,
-    help = "wait time(second) after 'EOF' received.",
+    "--eof-wait",
+    default=0,
+    type=int,
+    help="wait time(second) after 'EOF' received.",
     )
     parser.add_argument("-t", "--text", help="Send initial text")
     parser.add_argument(
-    , action = "store_true", help = "Print timings in seconds"
+    "--timings", action="store_true", help="Print timings in seconds"
     )
     parser.add_argument("--headers", help="Set custom headers. Use ',' as separator")
 

@@ -4,7 +4,7 @@ import sys
 
 class AddonLogger:
 
-    def __init__(self, name: str = "Vibe4D"):
+    def __init__(self, name: str = "Vibe5D"):
         self.name = name
         self.logger = logging.getLogger(name)
         self._setup_logger()
@@ -65,18 +65,18 @@ class AddonLogger:
 logger = AddonLogger()
 
 
-def setup_vibe4d_logging():
-    vibe4d_logger = logging.getLogger('vibe4d')
+def setup_vibe5d_logging():
+    vibe5d_logger = logging.getLogger('vibe5d')
 
-    vibe4d_logger.propagate = False
+    vibe5d_logger.propagate = False
 
-    if not vibe4d_logger.handlers:
+    if not vibe5d_logger.handlers:
         handler = logging.StreamHandler(sys.stdout)
         handler.setLevel(logging.INFO)
-        formatter = logging.Formatter('[Vibe4D] %(levelname)s: %(message)s')
+        formatter = logging.Formatter('[Vibe5D] %(levelname)s: %(message)s')
         handler.setFormatter(formatter)
-        vibe4d_logger.addHandler(handler)
-        vibe4d_logger.setLevel(logging.DEBUG)
+        vibe5d_logger.addHandler(handler)
+        vibe5d_logger.setLevel(logging.DEBUG)
 
 
-setup_vibe4d_logging()
+setup_vibe5d_logging()

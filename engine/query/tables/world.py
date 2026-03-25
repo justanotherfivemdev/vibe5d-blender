@@ -55,8 +55,8 @@ class WorldTable(BaseTable):
 
     def _extract_all_fields(self, world) -> Dict[str, Any]:
         world_data = {
-        :world.name,
-        : world.use_nodes,
+            'name': world.name,
+            'use_nodes': world.use_nodes,
         }
 
         if hasattr(world, 'color'):
@@ -73,9 +73,9 @@ class WorldTable(BaseTable):
 
         for node in node_tree.nodes:
             node_data = {
-            :node.name,
-            : node.type,
-            :[round(node.location.x, 2), round(node.location.y, 2)],
+                'name': node.name,
+                'type': node.type,
+                'location': [round(node.location.x, 2), round(node.location.y, 2)],
             }
 
             inputs = {}
@@ -103,13 +103,13 @@ class WorldTable(BaseTable):
         for link in node_tree.links:
             if link.is_valid:
                 connections.append({
-                : link.from_node.name,
-                :link.from_socket.name,
-                : link.to_node.name,
-                :link.to_socket.name,
+                    'from_node': link.from_node.name,
+                    'from_socket': link.from_socket.name,
+                    'to_node': link.to_node.name,
+                    'to_socket': link.to_socket.name,
                 })
 
-            return {
-            :nodes,
-            : connections
-            }
+        return {
+            'nodes': nodes,
+            'connections': connections
+        }

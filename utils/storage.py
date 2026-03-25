@@ -13,7 +13,7 @@ class SecureStorage:
 
     def __init__(self):
 
-        self.config_dir = Path.home() / ".config" / "blender" / "vibe4d"
+        self.config_dir = Path.home() / ".config" / "blender" / "vibe5d"
         self.credentials_file = self.config_dir / "credentials.json"
         self.instructions_file = self.config_dir / "instructions.json"
         self.settings_file = self.config_dir / "settings.json"
@@ -68,10 +68,10 @@ class SecureStorage:
 
         try:
             credentials = {
-            :user_id,
-            : token,
-            :email,
-            : plan
+                "user_id": user_id,
+                "token": token,
+                "email": email,
+                "plan": plan
             }
 
             success = self._atomic_write(self.credentials_file, credentials)
@@ -141,8 +141,8 @@ class SecureStorage:
                     return False
 
                 validated_instruction = {
-                :str(instruction.get("text", "")),
-                : bool(instruction.get("enabled", True))
+                    "text": str(instruction.get("text", "")),
+                    "enabled": bool(instruction.get("enabled", True))
                 }
                 validated_instructions.append(validated_instruction)
 
@@ -168,7 +168,7 @@ class SecureStorage:
                 return False
 
             instruction_data = {
-            :instruction_text.strip()
+                "instruction": instruction_text.strip()
             }
 
 
@@ -209,8 +209,8 @@ class SecureStorage:
                     continue
 
                 validated_instruction = {
-                :str(instruction.get("text", "")),
-                : bool(instruction.get("enabled", True))
+                    "text": str(instruction.get("text", "")),
+                    "enabled": bool(instruction.get("enabled", True))
                 }
                 validated_instructions.append(validated_instruction)
 
@@ -303,18 +303,21 @@ class SecureStorage:
                 return False
 
             normalized_settings = {
-            :str(settings_data.get("agent_model", "gpt-5-mini")),
-            : str(settings_data.get("ask_model", "gpt-5-mini")),
-            :str(settings_data.get("model", "gpt-5-mini")),
-            : str(settings_data.get("mode", "agent"))
+                "agent_model": str(settings_data.get("agent_model", "gpt-5-mini")),
+                "ask_model": str(settings_data.get("ask_model", "gpt-5-mini")),
+                "model": str(settings_data.get("model", "gpt-5-mini")),
+                "mode": str(settings_data.get("mode", "agent")),
+                "provider": str(settings_data.get("provider", "openai")),
+                "provider_api_key": str(settings_data.get("provider_api_key", "")),
+                "provider_base_url": str(settings_data.get("provider_base_url", "")),
+                "provider_model": str(settings_data.get("provider_model", ""))
             }
 
 
             success = self._atomic_write(self.settings_file, normalized_settings)
 
             if success:
-                logger.info(
-                )
+                logger.info("Settings saved successfully")
             else:
                 logger.error("Failed to save settings")
 
@@ -339,10 +342,14 @@ class SecureStorage:
                 return None
 
             settings = {
-            :str(data.get("agent_model", "gpt-5-mini")),
-            : str(data.get("ask_model", "gpt-5-mini")),
-            :str(data.get("model", "gpt-5-mini")),
-            : str(data.get("mode", "agent"))
+                "agent_model": str(data.get("agent_model", "gpt-5-mini")),
+                "ask_model": str(data.get("ask_model", "gpt-5-mini")),
+                "model": str(data.get("model", "gpt-5-mini")),
+                "mode": str(data.get("mode", "agent")),
+                "provider": str(data.get("provider", "openai")),
+                "provider_api_key": str(data.get("provider_api_key", "")),
+                "provider_base_url": str(data.get("provider_base_url", "")),
+                "provider_model": str(data.get("provider_model", ""))
             }
 
             return settings

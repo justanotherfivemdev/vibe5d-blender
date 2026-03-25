@@ -60,12 +60,12 @@ class CamerasTable(BaseTable):
 
     def _extract_all_fields(self, camera) -> Dict[str, Any]:
         return {
-        :camera.name,
-        : camera.type,
-        :camera.lens,
-        : camera.sensor_width,
-        :camera.sensor_height,
-        : camera.clip_start,
-        :camera.clip_end,
-        : camera.users
+            'name': camera.name,
+            'type': camera.type,
+            'focal_length': camera.lens,
+            'sensor_width': camera.sensor_width,
+            'sensor_height': camera.sensor_height,
+            'clip_start': camera.clip_start,
+            'clip_end': camera.clip_end,
+            'users': camera.users
         }

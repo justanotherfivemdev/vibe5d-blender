@@ -93,11 +93,11 @@ class UIStateManager:
                 layout_version=1
             )
 
-            context.scene.vibe4d_ui_active = ui_state.is_active
-            context.scene.vibe4d_ui_viewport_config = json.dumps(asdict(ui_state.viewport_config))
-            context.scene.vibe4d_ui_current_view = current_view
-            context.scene.vibe4d_ui_conversation_state = json.dumps(ui_state.conversation_state)
-            context.scene.vibe4d_ui_layout_version = ui_state.layout_version
+            context.scene.vibe5d_ui_active = ui_state.is_active
+            context.scene.vibe5d_ui_viewport_config = json.dumps(asdict(ui_state.viewport_config))
+            context.scene.vibe5d_ui_current_view = current_view
+            context.scene.vibe5d_ui_conversation_state = json.dumps(ui_state.conversation_state)
+            context.scene.vibe5d_ui_layout_version = ui_state.layout_version
 
             if target_area:
                 self._mark_ui_area(target_area, viewport_config.area_id)
@@ -113,23 +113,23 @@ class UIStateManager:
     def load_ui_state(self, context) -> Optional[UIStateData]:
 
         try:
-            if not getattr(context.scene, 'vibe4d_ui_active', False):
+            if not getattr(context.scene, 'vibe5d_ui_active', False):
                 self.logger.debug("UI was not active in saved state")
                 return None
 
-            viewport_config_json = getattr(context.scene, 'vibe4d_ui_viewport_config', '{}')
+            viewport_config_json = getattr(context.scene, 'vibe5d_ui_viewport_config', '{}')
             viewport_config_dict = json.loads(viewport_config_json) if viewport_config_json else {}
             viewport_config = ViewportConfig(**viewport_config_dict)
 
-            conversation_state_json = getattr(context.scene, 'vibe4d_ui_conversation_state', '{}')
+            conversation_state_json = getattr(context.scene, 'vibe5d_ui_conversation_state', '{}')
             conversation_state = json.loads(conversation_state_json) if conversation_state_json else {}
 
             ui_state = UIStateData(
-                is_active=getattr(context.scene, 'vibe4d_ui_active', False),
+                is_active=getattr(context.scene, 'vibe5d_ui_active', False),
                 viewport_config=viewport_config,
-                current_view=getattr(context.scene, 'vibe4d_ui_current_view', 'main'),
+                current_view=getattr(context.scene, 'vibe5d_ui_current_view', 'main'),
                 conversation_state=conversation_state,
-                layout_version=getattr(context.scene, 'vibe4d_ui_layout_version', 1)
+                layout_version=getattr(context.scene, 'vibe5d_ui_layout_version', 1)
             )
 
             self.logger.info(
@@ -213,10 +213,10 @@ class UIStateManager:
     def clear_ui_state(self, context):
 
         try:
-            context.scene.vibe4d_ui_active = False
-            context.scene.vibe4d_ui_viewport_config = "{}"
-            context.scene.vibe4d_ui_current_view = "main"
-            context.scene.vibe4d_ui_conversation_state = "{}"
+            context.scene.vibe5d_ui_active = False
+            context.scene.vibe5d_ui_viewport_config = "{}"
+            context.scene.vibe5d_ui_current_view = "main"
+            context.scene.vibe5d_ui_conversation_state = "{}"
 
             self._clear_all_area_markers(context)
 
@@ -390,7 +390,7 @@ class UIStateManager:
         try:
             context = bpy.context
 
-            markers_json = getattr(context.scene, 'vibe4d_ui_area_markers', '{}')
+            markers_json = getattr(context.scene, 'vibe5d_ui_area_markers', '{}')
             try:
                 markers = json.loads(markers_json) if markers_json else {}
             except json.JSONDecodeError:
@@ -407,7 +407,7 @@ class UIStateManager:
             markers[area_id] = area_info
             self._area_markers[area_id] = area_info
 
-            context.scene.vibe4d_ui_area_markers = json.dumps(markers)
+            context.scene.vibe5d_ui_area_markers = json.dumps(markers)
 
             self.logger.debug(f"Marked UI area with ID: {area_id} at {area.width}x{area.height}")
 
@@ -417,7 +417,7 @@ class UIStateManager:
     def _find_marked_ui_area(self, context) -> Optional[Any]:
 
         try:
-            markers_json = getattr(context.scene, 'vibe4d_ui_area_markers', '{}')
+            markers_json = getattr(context.scene, 'vibe5d_ui_area_markers', '{}')
             try:
                 markers = json.loads(markers_json) if markers_json else {}
             except json.JSONDecodeError:
@@ -449,7 +449,7 @@ class UIStateManager:
     def _clear_all_area_markers(self, context):
 
         try:
-            context.scene.vibe4d_ui_area_markers = "{}"
+            context.scene.vibe5d_ui_area_markers = "{}"
             self._area_markers.clear()
             self.logger.debug("Cleared all UI area markers")
 

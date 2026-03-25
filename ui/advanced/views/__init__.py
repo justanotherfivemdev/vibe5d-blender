@@ -6,10 +6,10 @@ from .no_connection_view import NoConnectionView
 from .settings_view import SettingsView
 
 __all__ = [
-    ,
-,
-,
-,
-,
-,
+    "AuthView",
+    "BaseView",
+    "HistoryView",
+    "MainView",
+    "NoConnectionView",
+    "SettingsView",
 ]

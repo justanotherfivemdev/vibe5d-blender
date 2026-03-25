@@ -163,16 +163,16 @@ class URLImageManager:
 
 
                     download_url = self.image_url
-                    if 'vibe4d.ai' in self.image_url:
+                    if 'vibe5d.local' in self.image_url:
                         try:
                             context = bpy.context
-                            user_id = getattr(context.window_manager, 'vibe4d_user_id', '')
-                            token = getattr(context.window_manager, 'vibe4d_user_token', '')
+                            user_id = getattr(context.window_manager, 'vibe5d_user_id', '')
+                            token = getattr(context.window_manager, 'vibe5d_user_token', '')
 
                             if user_id and token:
                                 separator = '&' if '?' in self.image_url else '?'
                                 download_url = f"{self.image_url}{separator}user={user_id}&token={token}"
-                                logger.debug(f"Added authentication to vibe4d.ai URL")
+                                logger.debug(f"Added authentication to vibe5d.local URL")
                         except Exception as e:
                             logger.warning(f"Could not add authentication to image URL: {e}")
 

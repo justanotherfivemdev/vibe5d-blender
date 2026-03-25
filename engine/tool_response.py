@@ -43,7 +43,7 @@ class ToolResponse:
 
     def to_llm_format(self) -> Dict[str, Any]:
         result = {
-        :self.status.value,
+            'status': self.status.value,
         }
 
         if self.data is not None:
@@ -63,34 +63,34 @@ class ToolResponse:
 
     def to_storage_format(self) -> str:
         return json.dumps({
-        :self.tool_name,
-        : self.category.value,
-        :self.status.value,
-        : self.display_message,
-        :self.display_hint.value,
-        : self.data,
-        :self.error_message,
-        : self.execution_time_ms,
-        :self.metadata or {}
+            'tool_name': self.tool_name,
+            'category': self.category.value,
+            'status': self.status.value,
+            'display_message': self.display_message,
+            'display_hint': self.display_hint.value,
+            'data': self.data,
+            'error_message': self.error_message,
+            'execution_time_ms': self.execution_time_ms,
+            'metadata': self.metadata or {}
         })
 
-        @classmethod
-        def from_storage_format(cls, json_str: str) -> 'ToolResponse':
-            data = json.loads(json_str)
-            return cls(
-                tool_name=data["tool_name"],
-                category=ToolCategory(data["category"]),
-                status=ToolStatus(data["status"]),
-                display_message=data["display_message"],
-                display_hint=ToolDisplayHint(data.get("display_hint", "compact")),
-                data=data.get("data"),
-                error_message=data.get("error_message"),
-                execution_time_ms=data.get("execution_time_ms"),
-                metadata=data.get("metadata", {})
-            )
+    @classmethod
+    def from_storage_format(cls, json_str: str) -> 'ToolResponse':
+        data = json.loads(json_str)
+        return cls(
+            tool_name=data["tool_name"],
+            category=ToolCategory(data["category"]),
+            status=ToolStatus(data["status"]),
+            display_message=data["display_message"],
+            display_hint=ToolDisplayHint(data.get("display_hint", "compact")),
+            data=data.get("data"),
+            error_message=data.get("error_message"),
+            execution_time_ms=data.get("execution_time_ms"),
+            metadata=data.get("metadata", {})
+        )
 
-        @classmethod
-        def from_legacy_format(cls, legacy_result: Dict[str, Any], tool_name: str = "unknown") -> 'ToolResponse':
+    @classmethod
+    def from_legacy_format(cls, legacy_result: Dict[str, Any], tool_name: str = "unknown") -> 'ToolResponse':
 
             status_str = legacy_result.get("status", "success")
             status = ToolStatus.SUCCESS if status_str == "success" else ToolStatus.ERROR

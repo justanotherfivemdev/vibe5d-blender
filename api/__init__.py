@@ -10,11 +10,10 @@ from .tools_api import (
 classes = []
 
 __all__ = [
-    , 'query', 'execute', 'scene_context', 'get_query_formats',
-, 'viewport', 'add_viewport_render', 'see_viewport', 'see_render',
-
-, 'get_render_result', 'cancel_render', 'list_active_renders',
-, 'screenshot_object'
+    'tools_api', 'query', 'execute', 'scene_context', 'get_query_formats',
+    'table_counts', 'viewport', 'add_viewport_render', 'see_viewport', 'see_render',
+    'render_async', 'get_render_result', 'cancel_render', 'list_active_renders',
+    'render_with_callback', 'screenshot_object'
 ]
 
 def register():

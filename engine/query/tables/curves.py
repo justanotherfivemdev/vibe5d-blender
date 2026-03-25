@@ -58,11 +58,11 @@ class CurvesTable(BaseTable):
 
     def _extract_all_fields(self, curve) -> Dict[str, Any]:
         return {
-        :curve.name,
-        : curve.type,
-        :curve.dimensions,
-        : len(curve.splines),
-        :curve.extrude,
-        : curve.bevel_depth,
-        :curve.users
+            'name': curve.name,
+            'type': curve.type,
+            'dimensions': curve.dimensions,
+            'splines_count': len(curve.splines),
+            'extrude': curve.extrude,
+            'bevel_depth': curve.bevel_depth,
+            'users': curve.users
         }

@@ -9,7 +9,7 @@ from ..utils.logger import logger
 
 
 class APIClient:
-    BASE_URL = "https://api.vibe4d.ai"
+    BASE_URL = "https://api.vibe5d.local"
 
     ERROR_CODES = {
         0: "CLIENT_ERROR",
@@ -36,8 +36,8 @@ class APIClient:
         try:
 
             headers = {
-            :'application/json',
-            : 'Vibe4D-Blender-Addon/0.0.4'
+                'Content-Type': 'application/json',
+                'User-Agent': 'Vibe5D-Blender-Addon/0.0.4'
             }
 
 
@@ -88,7 +88,7 @@ class APIClient:
         try:
 
             headers = {
-            :'Vibe4D-Blender-Addon/0.0.4'
+                'User-Agent': 'Vibe5D-Blender-Addon/0.0.4'
             }
 
 
@@ -160,8 +160,8 @@ class APIClient:
             return False, "auth"
 
         params = {
-        :user_id.strip(),
-        : token.strip()
+            'user_id': user_id.strip(),
+            'token': token.strip()
         }
 
         success, response = self._make_get_request("/api/validateUserToken", params)
@@ -195,8 +195,8 @@ class APIClient:
             return False, {"error": "Missing authentication credentials"}
 
         params = {
-        :user_id.strip(),
-        : token.strip()
+            'user_id': user_id.strip(),
+            'token': token.strip()
         }
 
         success, response = self._make_get_request("/v1/usage", params)
@@ -229,17 +229,17 @@ class APIClient:
 
         try:
             params = {
-            :user_id.strip(),
-            : token.strip()
+                'user_id': user_id.strip(),
+                'token': token.strip()
             }
 
             query_string = urllib.parse.urlencode(params)
             url = f"{self.BASE_URL}/api/images/{chat_id}/upload?{query_string}"
 
             headers = {
-            :'image/png',
-            : source_type,
-            :'Vibe4D-Blender-Addon/0.0.4'
+                'Content-Type': 'image/png',
+                'X-Source-Type': source_type,
+                'User-Agent': 'Vibe5D-Blender-Addon/0.0.4'
             }
 
             req = urllib.request.Request(url, data=image_data, headers=headers, method="POST")
@@ -278,8 +278,8 @@ class APIClient:
             return False, b""
 
         params = {
-        :user_id.strip(),
-        : token.strip()
+            'user_id': user_id.strip(),
+            'token': token.strip()
         }
 
         query_string = urllib.parse.urlencode(params)
@@ -287,7 +287,7 @@ class APIClient:
 
         try:
             headers = {
-            :'Vibe4D-Blender-Addon/0.0.4'
+                'User-Agent': 'Vibe5D-Blender-Addon/0.0.4'
             }
 
             req = urllib.request.Request(url, headers=headers, method="GET")

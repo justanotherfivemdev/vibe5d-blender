@@ -35,7 +35,6 @@ class PerformanceConfig:
         self._configure_for_level()
 
     def _configure_for_level(self):
-
         if self.level == self.CONSERVATIVE:
             self.timer_interval = 0.1
             self.ui_scale_check_interval = 1
@@ -44,7 +43,6 @@ class PerformanceConfig:
             self.animation_fps = 30
             self.cursor_blink_cycle = 1.2
             self.enable_selective_redraw = True
-
         elif self.level == self.BALANCED:
             self.timer_interval = 1.0
             self.ui_scale_check_interval = 5
@@ -53,7 +51,6 @@ class PerformanceConfig:
             self.animation_fps = 15
             self.cursor_blink_cycle = 1.5
             self.enable_selective_redraw = True
-
         elif self.level == self.AGGRESSIVE:
             self.timer_interval = 2.0
             self.ui_scale_check_interval = 10
@@ -64,24 +61,19 @@ class PerformanceConfig:
             self.enable_selective_redraw = True
 
     def get_animation_interval(self) -> float:
-
         return 1.0 / self.animation_fps
 
     def should_check_ui_scale(self, counter: int) -> bool:
-
         return counter >= self.ui_scale_check_interval
 
     def should_check_theme(self, counter: int) -> bool:
-
         return counter >= self.theme_check_interval
 
     def should_enforce_viewport(self, counter: int) -> bool:
-
         return counter >= self.viewport_enforce_interval
 
 
 class UIManager:
-
     def __init__(self):
         self.performance_config = PerformanceConfig(PerformanceConfig.CONSERVATIVE)
 
@@ -101,11 +93,9 @@ class UIManager:
 
         self._mouse_pressed = False
         self._mouse_pressed_component = None
-
         self._last_hovered_component = None
 
         self._theme_check_counter = 0
-
         self._viewport_enforce_counter = 0
 
         self._viewport_resize_debounce_delay = 0.1
@@ -120,20 +110,20 @@ class UIManager:
         self._last_sent_prompt = None
 
         self._tool_completion_blocks_created = set()
-
         self._tool_start_blocks_created = set()
-
         self._active_tool_components = {}
 
-        self._conversation_tracking = {
-        :None,
-        : None,
-        :[],
-        : [],
-        :None,
-        : False
-        }
+        self._attached_image_path = None
+        self._attached_image_data_uri = None
 
+        self._conversation_tracking = {
+            'user_message': None,
+            'final_content': None,
+            'tool_calls': [],
+            'tool_responses': [],
+            'assistant_message_id': None,
+            'conversation_saved': False,
+        }
 
         self.factory.set_view_change_callback(self._recreate_ui_for_view_change)
 
@@ -144,7 +134,6 @@ class UIManager:
         self._ui_recreation_lock_start_time = None
 
     def set_performance_level(self, level: str):
-
         try:
             old_level = self.performance_config.level
             self.performance_config = PerformanceConfig(level)
@@ -154,2446 +143,1239 @@ class UIManager:
                 bpy.app.timers.unregister(self.cursor_redraw_handler)
                 self.cursor_redraw_handler = bpy.app.timers.register(
                     self._enforce_ui_settings,
-                    first_interval=self.performance_config.timer_interval
+                    first_interval=self.performance_config.timer_interval,
                 )
-
         except Exception as e:
             logger.error(f"Error setting performance level: {e}")
 
     def get_performance_level(self) -> str:
-
         return self.performance_config.level
 
     def get_performance_info(self) -> Dict[str, Any]:
-
         config = self.performance_config
         return {
-        :config.level,
-        : config.timer_interval,
-        :config.ui_scale_check_interval,
-        : config.theme_check_interval,
-        :config.viewport_enforce_interval,
-        : config.animation_fps,
-        :config.cursor_blink_cycle,
-        : config.enable_selective_redraw
+            'level': config.level,
+            'timer_interval': config.timer_interval,
+            'ui_scale_check_interval': config.ui_scale_check_interval,
+            'theme_check_interval': config.theme_check_interval,
+            'viewport_enforce_interval': config.viewport_enforce_interval,
+            'animation_fps': config.animation_fps,
+            'cursor_blink_cycle': config.cursor_blink_cycle,
+            'enable_selective_redraw': config.enable_selective_redraw,
         }
 
-        def apply_aggressive_optimizations(self):
+    def apply_aggressive_optimizations(self):
+        self.set_performance_level(PerformanceConfig.AGGRESSIVE)
 
-            self.set_performance_level(PerformanceConfig.AGGRESSIVE)
-            logger.info("Applied aggressive performance optimizations - reduced visual fidelity for better performance")
+    def apply_conservative_optimizations(self):
+        self.set_performance_level(PerformanceConfig.CONSERVATIVE)
 
-        def apply_conservative_optimizations(self):
+    def apply_balanced_optimizations(self):
+        self.set_performance_level(PerformanceConfig.BALANCED)
 
-            self.set_performance_level(PerformanceConfig.CONSERVATIVE)
-            logger.info("Applied conservative performance optimizations - prioritizing visual quality")
+    def _initialize_ui_layout(self):
+        if self.state.viewport_width == 0 or self.state.viewport_height == 0:
+            return
 
-        def apply_balanced_optimizations(self):
+        try:
+            self.ui_layout = self.factory.create_layout(
+                self.state.viewport_width,
+                self.state.viewport_height,
+                on_send=self._handle_send,
+                on_add=self._handle_add,
+                on_history=self._handle_history,
+                on_settings=self._handle_settings,
+                on_model_change=self._handle_model_change,
+                on_auth_submit=self._handle_auth_submit,
+                on_get_license=self._handle_get_license,
+                on_stop_generation=self.factory._handle_stop_generation,
+            )
 
-            self.set_performance_level(PerformanceConfig.BALANCED)
-            logger.info("Applied balanced performance optimizations - good balance of performance and quality")
-
-        def _initialize_ui_layout(self):
-
-            if self.state.viewport_width == 0 or self.state.viewport_height == 0:
-                logger.warning("Cannot initialize UI layout: viewport dimensions are zero")
-                return
-
-            try:
-                self.ui_layout = self.factory.create_layout(
-                    self.state.viewport_width,
-                    self.state.viewport_height,
-                    on_send=self._handle_send,
-                    on_add=self._handle_add,
-                    on_history=self._handle_history,
-                    on_settings=self._handle_settings,
-                    on_model_change=self._handle_model_change,
-                    on_auth_submit=self._handle_auth_submit,
-                    on_get_license=self._handle_get_license,
-                    on_stop_generation=self.factory._handle_stop_generation
-                )
-
-                if not self.ui_layout:
-                    logger.error("Factory failed to create UI layout")
-                    return
-
-                self.components = self.ui_layout.get('components', {})
-
-                self.state.components.clear()
-                all_components = self.ui_layout.get('all_components', [])
-
-                for component in all_components:
-                    self.state.add_component(component)
-
-                for component in self.state.components:
-                    if hasattr(component, 'update_layout'):
-                        component.update_layout()
-
-                for component in self.state.components:
-                    if hasattr(component, '_dimension_cache') and hasattr(component, 'invalidate'):
-                        component._dimension_cache.clear()
-                        component.invalidate()
-                        logger.debug(f"Cleared dimension cache for {type(component).__name__}")
-
-                focused_component = self.factory.get_focused_component()
-                if focused_component:
-                    self.state.set_focus(focused_component)
-
-            except Exception as e:
-                logger.error(f"Error initializing UI layout: {e}")
-                import traceback
-                logger.error(traceback.format_exc())
-
-                self.ui_layout = None
+            if not self.ui_layout:
                 self.components = {}
-
-        def _update_layout(self):
-
-            if not self.ui_layout or self.state.viewport_width == 0 or self.state.viewport_height == 0:
                 return
 
-            self.factory._handle_viewport_change(self.state.viewport_width, self.state.viewport_height)
-
-            logger.debug(f"Updated layout for viewport size: {self.state.viewport_width}x{self.state.viewport_height}")
-
-        def _on_viewport_resize_finished(self):
-
-            try:
-                if self._pending_viewport_size is None:
-                    return
-
-                if self._is_ui_recreation_locked():
-                    logger.debug("Viewport resize postponed - UI recreation in progress")
-
-                    self._resize_timer = bpy.app.timers.register(
-                        self._on_viewport_resize_finished,
-                        first_interval=0.2
-                    )
-                    return
-
-                width, height = self._pending_viewport_size
-                logger.debug(f"Viewport resize finished: {width}x{height}")
-
-                self.state.update_viewport_size(width, height)
-
-                if self.ui_layout is None:
-                    self._initialize_ui_layout()
-                else:
-                    self._update_layout()
-
-                for component in self.state.components:
-                    if hasattr(component, '_render_dirty'):
-                        component._render_dirty = True
-
-                if self.state.target_area:
-                    self.state.target_area.tag_redraw()
-
-                self._pending_viewport_size = None
-
-            except Exception as e:
-                logger.error(f"Error in viewport resize finished callback: {e}")
-            finally:
-
-                self._resize_timer = None
-
-        def _handle_send(self):
-
-            if not self.components:
-                return
-
-            if self._is_generating:
-                logger.warning("Generation already in progress")
-                return
-
-            text = self.factory.get_send_text()
-            if not text.strip():
-                logger.info("No text to send")
-                return
-
-            try:
-
-                try:
-                    context = bpy.context
-                    from ...utils.history_manager import history_manager
-                    current_chat_id = getattr(context.scene, 'vibe4d_current_chat_id', '')
-                    if current_chat_id:
-                        history_manager.clear_unsent_text(context, current_chat_id)
-                except Exception as e:
-                    logger.debug(f"Could not clear unsent text: {e}")
-
-                self.factory.add_message_to_scrollview(text.strip(), is_ai_response=False)
-
-                self.factory.clear_send_text()
-
-                self._is_generating = True
-                self._last_content_length = 0
-                self._last_tool_call_state = None
-                self._content_after_tool_call = False
-                self.factory._set_send_button_mode(False)
-
-                self._current_ai_component = self.factory.add_markdown_message_to_scrollview("",
-                                                                                             is_ai_response=True)
-
-                self._start_real_api_generation(text.strip())
-
-                if self.state.target_area:
-                    self.state.target_area.tag_redraw()
-
-            except Exception as e:
-                logger.error(f"Error in _handle_send: {e}")
-                self._reset_generation_state()
-
-        def _start_real_api_generation(self, prompt: str):
-
-            try:
-
-                self._start_conversation_tracking(prompt)
-
-                self._last_sent_prompt = prompt
-
-                from ...llm.request_builder import LLMRequestBuilder
-                from ...api.websocket_client import llm_websocket_client
-
-                if not llm_websocket_client.is_ready_for_new_request():
-                    logger.info("WebSocket client is busy or has active connection, waiting...")
-
-                context = bpy.context
-
-                if not getattr(context.window_manager, 'vibe4d_authenticated', False):
-                    logger.error("Not authenticated")
-                    self._handle_api_error("Please authenticate first")
-                    return
-
-                user_id = getattr(context.window_manager, 'vibe4d_user_id', '')
-                token = getattr(context.window_manager, 'vibe4d_user_token', '')
-
-                if not user_id or not token:
-                    logger.error("Authentication credentials missing")
-                    self._handle_api_error("Authentication credentials missing")
-                    return
-
-                selected_model = getattr(context.scene, 'vibe4d_model', 'gpt-5-mini')
-
-                request = LLMRequestBuilder.build_chat_request(
-                    context=context,
-                    prompt=prompt,
-                    user_id=user_id,
-                    token=token,
-                    model=selected_model
-                )
-
-                self._websocket_client = llm_websocket_client
-
-                success = llm_websocket_client.send_prompt_request(
-                    request_data=request,
-                    on_progress=self._handle_api_progress,
-                    on_complete=self._handle_api_complete,
-                    on_error=self._handle_api_error
-                )
-
-                if not success:
-                    logger.error("Failed to start API generation")
-                    self._handle_api_error("Failed to start generation")
-                    return
-
-                logger.info(f"Chat request. Prompt: '{prompt[:200]}' using model: {selected_model}")
-
-            except Exception as e:
-                logger.error(f"Error starting real API generation: {e}")
-                self._handle_api_error(f"Failed to start generation: {str(e)}")
-
-        def _handle_api_progress(self, response):
-
-            bpy.app.timers.register(lambda: self._update_ui_from_progress(response), first_interval=0.0)
-
-        def _update_ui_from_progress(self, response):
-
-            try:
-                if not self._is_generating:
-                    return None
-
-                current_tool_call_state = None
-                if hasattr(response, 'tool_call_started') and hasattr(response, 'tool_call_completed'):
-                    if response.tool_call_started and not response.tool_call_completed:
-                        current_tool_call_state = "started"
-                    elif response.tool_call_completed:
-                        current_tool_call_state = "completed"
-
-                if current_tool_call_state != self._last_tool_call_state:
-                    logger.info(f"Tool call state changed: {self._last_tool_call_state} -> {current_tool_call_state}")
-
-                if hasattr(response, 'current_tool_status') and hasattr(response, 'current_tool_name'):
-                    tool_status = getattr(response, 'current_tool_status', None)
-                    tool_name = getattr(response, 'current_tool_name', None)
-
-                    if tool_status == "started" and tool_name:
-                        call_id = getattr(response, 'current_tool_call_id',
-                                          )
-
-                        logger.info(
-                        )
-
-                        tool_call_data = {
-                        :call_id,
-                        : {
-                        :tool_name,
-                        : getattr(response, 'current_tool_arguments', '{}')
-                        },
-                        :'started'
-                        }
-                        self._track_tool_call(tool_call_data)
-
-                        if call_id not in self._tool_start_blocks_created:
-                            status_block = self._get_tool_status_block(tool_name, "started")
-
-                            if status_block:
-                                status_component = self.factory.add_markdown_message_to_scrollview(
-                                    status_block, is_ai_response=True
-                                )
-                                self._current_ai_component = status_component
-                                self._active_tool_components[call_id] = status_component
-                                self._tool_start_blocks_created.add(call_id)
-                                logger.info(f"Created tool start component for {call_id}: '{status_block}'")
-
-                    elif tool_status == "completed" and tool_name:
-                        success = getattr(response, 'current_tool_success', False)
-                        call_id = getattr(response, 'current_tool_call_id',
-                                          )
-
-                        tool_response_data = {
-                        :call_id,
-                        : getattr(response, 'current_tool_result', '{}'),
-                        :success
-                        }
-                        self._track_tool_response(tool_response_data)
-
-                        completion_block = self._get_tool_status_block(tool_name, "completed", success)
-                        if completion_block:
-                            if self._update_tool_component(call_id, completion_block):
-                                self._cleanup_completed_tool_component(call_id)
-                                self._tool_completion_blocks_created.add(call_id)
-                                self._content_after_tool_call = True
-                            else:
-                                if call_id not in self._tool_completion_blocks_created:
-                                    status_component = self.factory.add_markdown_message_to_scrollview(
-                                        completion_block, is_ai_response=True
-                                    )
-                                    self._current_ai_component = status_component
-
-                                    self._tool_completion_blocks_created.add(call_id)
-
-                                    self._content_after_tool_call = True
-
-                if hasattr(response, 'current_search_status') and hasattr(response, 'current_search_query'):
-                    search_status = getattr(response, 'current_search_status', None)
-                    search_query = getattr(response, 'current_search_query', None)
-
-                    if search_status == "started" and search_query:
-                        search_call_id = f"websearch_{hashlib.md5(search_query.encode()).hexdigest()[:8]}"
-
-                        web_search_tool_call = {
-                        :search_call_id,
-                        : {
-                        :'web_search',
-                        : f'{{"query": "{search_query}"}}'
-                        },
-                        :'started'
-                        }
-                        self._track_tool_call(web_search_tool_call)
-
-                        status_block = f"[Searching web: {search_query}]"
-                        status_component = self.factory.add_markdown_message_to_scrollview(
-                            status_block, is_ai_response=True
-                        )
-                        self._current_ai_component = status_component
-
-                    elif search_status == "completed" and search_query:
-                        success = getattr(response, 'current_search_success', False)
-                        result_count = getattr(response, 'current_search_result_count', 0)
-
-                        if success and result_count > 0:
-                            status_block = f"[Found {result_count} results for: {search_query}]"
-                            ui_message = f"Found {result_count} results"
-                        elif success:
-                            status_block = f"[Web search completed: {search_query}]"
-                            ui_message = "Web search completed"
-                        else:
-                            status_block = f"[Web search failed: {search_query}]"
-                            ui_message = "Web search failed"
-
-                        status_component = self.factory.add_markdown_message_to_scrollview(
-                            status_block, is_ai_response=True
-                        )
-                        self._current_ai_component = status_component
-                        logger.info(f"Added web search completed status block: {status_block}")
-
-                        search_call_id = f"websearch_{hashlib.md5(search_query.encode()).hexdigest()[:8]}"
-
-                        web_search_response_data = {
-                        :search_call_id,
-                        : f'{{"status": "success", "result": "{ui_message}", "query": "{search_query}", "result_count": {result_count}}}',
-                        :success,
-                        : ui_message,
-                        :'web_search'
-                        }
-
-                        self._track_tool_response(web_search_response_data)
-
-                if hasattr(response, 'response_events') and response.response_events:
-                    for event in response.response_events:
-                        if event.get('type') == 'response_in_progress':
-                            logger.debug("Response in progress event received")
-
-                if hasattr(response, 'content_events') and response.content_events:
-                    for event in response.content_events:
-                        event_type = event.get('type')
-                        if event_type == 'content_part_added':
-                            content_index = event.get('content_index', 0)
-                            logger.debug(f"Content part added at index {content_index}")
-                        elif event_type == 'content_part_done':
-                            content_index = event.get('content_index', 0)
-                            logger.debug(f"Content part done at index {content_index}")
-
-                if hasattr(response, 'output_events') and response.output_events:
-                    for event in response.output_events:
-                        event_type = event.get('type')
-                        if event_type == 'output_text_done':
-                            item_id = event.get('item_id', '')
-                            logger.debug(f"Output text done for item: {item_id}")
-                        elif event_type == 'output_item_done':
-                            item_type = event.get('item_type', '')
-                            logger.debug(f"Output item done: {item_type}")
-
-                if hasattr(response, 'output_content') and response.output_content:
-                    content = response.output_content
-
-                    if hasattr(response, 'message_id'):
-                        self._track_assistant_message(response.message_id, content)
-
-                    logger.debug(
-                    )
-
-                    if self._content_after_tool_call and len(content) > self._last_content_length:
-                        new_content = content[self._last_content_length:].strip()
-                        if new_content:
-                            self._current_ai_component = self.factory.add_markdown_message_to_scrollview(
-                                new_content, is_ai_response=True
-                            )
-                            self._last_content_length = len(content)
-                            self._content_after_tool_call = False
-                            logger.info(f"Created new message for post-tool-call content: '{new_content[:50]}...'")
-                        else:
-                            logger.debug("No new content for post-tool-call, resetting flag")
-                            self._content_after_tool_call = False
-
-                    elif self._current_ai_component and len(content) > self._last_content_length:
-                        new_content = content[self._last_content_length:]
-
-                        logger.debug(
-                        )
-
-                        current_content = ""
-                        if hasattr(self._current_ai_component, 'get_message'):
-                            current_content = self._current_ai_component.get_message()
-                        elif hasattr(self._current_ai_component, 'markdown_text'):
-                            current_content = self._current_ai_component.markdown_text
-
-                        if current_content.strip() and not current_content.startswith('['):
-                            updated_content = current_content + new_content
-                            logger.debug(
-                            )
-                        elif current_content.startswith('['):
-                            if current_content.endswith(']'):
-                                updated_content = current_content + new_content
-                                logger.debug(
-                                )
-                            else:
-                                block_start = content.find('[')
-                                if block_start != -1:
-                                    block_portion = content[block_start:]
-                                    block_end = block_portion.find(']')
-                                    if block_end != -1:
-                                        complete_block = block_portion[:block_end + 1]
-                                        remaining_content = block_portion[block_end + 1:]
-                                        updated_content = complete_block + remaining_content
-                                    else:
-                                        updated_content = block_portion
-                                    logger.debug(f"Building status block: '{updated_content[:30]}...'")
-                                else:
-                                    updated_content = current_content + new_content
-                                    logger.debug(
-                                        f"Fallback append: '{new_content[:30]}...' to '{current_content[:30]}...'")
-                        else:
-                            updated_content = content.strip()
-                            logger.debug(f"Setting content on empty component: '{content[:30]}...'")
-
-                        if hasattr(self._current_ai_component, 'set_markdown'):
-                            self._current_ai_component.set_markdown(updated_content)
-                        else:
-                            self._current_ai_component.set_message(updated_content)
-
-                        self._last_content_length = len(content)
-
-                    elif not self._current_ai_component and content.strip():
-                        self._current_ai_component = self.factory.add_markdown_message_to_scrollview(
-                            content.strip(), is_ai_response=True
-                        )
-                        self._last_content_length = len(content)
-                        logger.info(f"Created initial AI message component: '{content[:50]}...'")
-
-                    if self._current_ai_component and hasattr(self._current_ai_component, 'auto_resize_to_content'):
-                        view = self.factory.views.get(self.factory.current_view)
-                        if view and hasattr(view, 'get_message_scrollview'):
-                            message_scrollview = view.get_message_scrollview()
-                            if message_scrollview:
-                                scaled_padding = CoordinateSystem.scale_int(40)
-                                max_width = message_scrollview.bounds.width - scaled_padding
-                                if message_scrollview.show_scrollbars:
-                                    max_width -= message_scrollview.scrollbar_width
-
-                                old_height = self._current_ai_component.bounds.height
-                                self._current_ai_component.auto_resize_to_content(max_width)
-                                new_height = self._current_ai_component.bounds.height
-
-                                if new_height != old_height:
-                                    height_diff = new_height - old_height
-                                    for child in message_scrollview.children:
-                                        if child != self._current_ai_component:
-                                            child.bounds.y += height_diff
-
-                                message_scrollview._update_content_bounds()
-
-                    if self.state.target_area:
-                        self.state.target_area.tag_redraw()
-
-                logger.debug(f"API progress update: {getattr(response, 'progress', 0)}%")
-                self._last_tool_call_state = current_tool_call_state
-
-            except Exception as e:
-                logger.error(f"Error in API progress update: {e}")
-
-            return None
-
-        def _handle_api_complete(self, response):
-
-            bpy.app.timers.register(lambda: self._complete_generation(response), first_interval=0.0)
-
-        def _complete_generation(self, response):
-
-            try:
-                if hasattr(response, '_completion_processed') and response._completion_processed:
-                    logger.debug("Completion already processed for this response, skipping duplicate")
-                    return None
-
-                response._completion_processed = True
-
-                self._is_generating = False
-                self.factory._set_send_button_mode(True)
-
-                if hasattr(response, 'output_content') and response.output_content:
-                    final_content = response.output_content
-
-                    self._track_assistant_message(
-                        getattr(response, 'message_id', None) or f"msg_{int(time.time() * 1000)}",
-                        final_content
-                    )
-
-                    if self._current_ai_component:
-                        current_content = ""
-                        if hasattr(self._current_ai_component, 'get_message'):
-                            current_content = self._current_ai_component.get_message()
-                        elif hasattr(self._current_ai_component, 'markdown_text'):
-                            current_content = self._current_ai_component.markdown_text
-
-                        if current_content != final_content:
-                            if hasattr(self._current_ai_component, 'set_markdown'):
-                                self._current_ai_component.set_markdown(final_content)
-                            else:
-                                self._current_ai_component.set_message(final_content)
-
-                        if hasattr(self._current_ai_component, 'auto_resize_to_content'):
-                            view = self.factory.views.get(self.factory.current_view)
-                            if view and hasattr(view, 'get_message_scrollview'):
-                                message_scrollview = view.get_message_scrollview()
-                                if message_scrollview:
-                                    scaled_padding = CoordinateSystem.scale_int(40)
-                                    max_width = message_scrollview.bounds.width - scaled_padding
-                                    if message_scrollview.show_scrollbars:
-                                        max_width -= message_scrollview.scrollbar_width
-
-                                    old_height = self._current_ai_component.bounds.height
-                                    self._current_ai_component.auto_resize_to_content(max_width)
-                                    new_height = self._current_ai_component.bounds.height
-
-                                    if new_height != old_height:
-                                        height_diff = new_height - old_height
-                                        for child in message_scrollview.children:
-                                            if child != self._current_ai_component:
-                                                child.bounds.y += height_diff
-
-                                    message_scrollview._update_content_bounds()
-
-                    elif not self._current_ai_component and len(final_content) > self._last_content_length:
-                        new_content = final_content[self._last_content_length:].strip()
-                        if new_content:
-                            if self._content_after_tool_call:
-                                final_component = self.factory.add_markdown_message_to_scrollview(
-                                    new_content, is_ai_response=True
-                                )
-
-                                if hasattr(final_component, 'auto_resize_to_content'):
-                                    view = self.factory.views.get(self.factory.current_view)
-                                    if view and hasattr(view, 'get_message_scrollview'):
-                                        message_scrollview = view.get_message_scrollview()
-                                        if message_scrollview:
-                                            scaled_padding = CoordinateSystem.scale_int(40)
-                                            max_width = message_scrollview.bounds.width - scaled_padding
-                                            if message_scrollview.show_scrollbars:
-                                                max_width -= message_scrollview.scrollbar_width
-
-                                            final_component.auto_resize_to_content(max_width)
-                                            message_scrollview._update_content_bounds()
-
-                                logger.info("Added final message component")
-                            else:
-                                logger.info(
-                                )
-                        else:
-                            logger.debug("No new content in final completion")
-                else:
-                    self._track_assistant_message(
-                        getattr(response, 'message_id', None) or f"msg_{int(time.time() * 1000)}",
-
-                    )
-
-                if not self._conversation_tracking.get('conversation_saved', False):
-                    self._save_conversation_to_history()
-                else:
-                    logger.debug("Conversation already saved to history, skipping duplicate save")
-
-                if hasattr(response, 'usage_info') and response.usage_info:
-                    context = bpy.context
-                    usage = response.usage_info
-                    current = usage.get('current_usage', 0)
-                    limit = usage.get('limit', 0)
-                    context.window_manager.vibe4d_current_usage = current
-                    context.window_manager.vibe4d_usage_limit = limit
-                    logger.debug(f"Updated usage info: {current}/{limit}")
-
-                self._reset_generation_state()
-
-                if self.state.target_area:
-                    self.state.target_area.tag_redraw()
-
-                if response.success:
-                    pass
-                else:
-                    error = getattr(response, 'error', 'Generation failed')
-                    logger.error(f"API generation failed: {error}")
-
-            except Exception as e:
-                logger.error(f"Error in API completion: {e}")
-                if self._conversation_tracking and not self._conversation_tracking['conversation_saved']:
-                    try:
-                        user_message = self._conversation_tracking.get('user_message')
-                        if user_message:
-                            history_manager.add_message(bpy.context, "user", user_message)
-                        final_content = self._conversation_tracking.get('final_content')
-                        tool_calls = self._conversation_tracking.get('tool_calls', [])
-                        if final_content or tool_calls:
-                            openai_tool_calls = None
-                            if tool_calls:
-                                sorted_tool_calls = sorted(tool_calls, key=lambda x: x.get('call_id', ''))
-                                openai_tool_calls = []
-                                for tool_call in sorted_tool_calls:
-                                    openai_tool_calls.append({
-                                    : tool_call.get('call_id', f"call_{len(openai_tool_calls)}"),
-                                    :"function",
-                                    : {
-                                    :tool_call.get('function', {}).get('name', 'unknown'),
-                                    : tool_call.get('function', {}).get('arguments', '{}')
-                                    }
-                                    })
-                                history_manager.add_message(
-                                    bpy.context,
-                                ,
-                                final_content or "",
-                                tool_calls = openai_tool_calls
-                                )
-                                logger.info(
-                                )
-                            tool_responses = self._conversation_tracking.get('tool_responses', [])
-                            if tool_responses:
-                                sorted_tool_responses = sorted(tool_responses, key=lambda x: x.get('call_id', ''))
-                                for tool_response in sorted_tool_responses:
-                                    simple_response_text = tool_response.get("ui_message") or tool_response.get(
-                                        "content",
-                                        )
-                                    history_manager.add_message(
-                                        bpy.context,
-                                    ,
-                                    simple_response_text,
-                                    tool_call_id = tool_response.get("call_id")
-                                    )
-                                    logger.debug(
-                                    )
-                        except Exception as save_error:
-                        logger.error(f"Failed to save conversation data on completion error: {str(save_error)}")
-                self._reset_generation_state()
-            return None
-
-        def _handle_api_error(self, error):
-            bpy.app.timers.register(lambda: self._handle_error_ui_update(error), first_interval=0.0)
-
-        def _handle_error_ui_update(self, error):
-            try:
-                logger.error(f"API error: {error}")
-
-                if self._conversation_tracking and not self._conversation_tracking['conversation_saved']:
-                    try:
-                        user_message = self._conversation_tracking.get('user_message')
-                        if user_message:
-                            history_manager.add_message(bpy.context, "user", user_message)
-
-                        final_content = self._conversation_tracking.get('final_content')
-                        tool_calls = self._conversation_tracking.get('tool_calls', [])
-                        if final_content or tool_calls:
-                            openai_tool_calls = None
-                            if tool_calls:
-                                sorted_tool_calls = sorted(tool_calls, key=lambda x: x.get('call_id', ''))
-                                openai_tool_calls = []
-                                for tool_call in sorted_tool_calls:
-                                    openai_tool_calls.append({
-                                    : tool_call.get('call_id', f"call_{len(openai_tool_calls)}"),
-                                    :"function",
-                                    : {
-                                    :tool_call.get('function', {}).get('name', 'unknown'),
-                                    : tool_call.get('function', {}).get('arguments', '{}')
-                                    }
-                                    })
-
-                                history_manager.add_message(
-                                    bpy.context,
-                                ,
-                                final_content or "",
-                                tool_calls = openai_tool_calls
-                                )
-                                logger.info(
-                                )
-
-                            tool_responses = self._conversation_tracking.get('tool_responses', [])
-                            if tool_responses:
-                                sorted_tool_responses = sorted(tool_responses, key=lambda x: x.get('call_id', ''))
-                                for tool_response in sorted_tool_responses:
-                                    simple_response_text = tool_response.get("ui_message") or tool_response.get(
-                                        "content",
-                                        )
-                                    history_manager.add_message(
-                                        bpy.context,
-                                    ,
-                                    simple_response_text,
-                                    tool_call_id = tool_response.get("call_id")
-                                    )
-                                    logger.debug(
-                                        f"✓ Saved TOOL response on error for call_id: {tool_response.get('call_id')}")
-
-                        except Exception as save_error:
-                        logger.error(f"Failed to save conversation data on error: {str(save_error)}")
-
-                error_data = None
-                if hasattr(self, 'api_client') and self.api_client and self.api_client.response:
-                    if hasattr(self.api_client.response, 'error_code'):
-                        error_data = {
-                        :getattr(self.api_client.response, 'error_code', 'UNKNOWN'),
-                        : str(error),
-                        :getattr(self.api_client.response, 'error_retryable', True),
-                        : getattr(self.api_client.response, 'technical_info', '')
-                        }
-
-                    if not error_data:
-                        error_data = str(error)
-
-                    error_context = create_error_context(error_data)
-
-                    error_content = error_context['formatted_message']
-
-                    if self.components:
-                        self.factory.add_error_message_to_scrollview(error_content)
-
-                        try:
-                            history_manager.add_error_message(bpy.context, error_content)
-                            logger.debug("Saved error message to chat history")
-                        except Exception as e:
-                            logger.warning(f"Failed to save error message to history: {str(e)}")
-                    else:
-                        if self._current_ai_component:
-                            if hasattr(self._current_ai_component, 'set_markdown'):
-                                self._current_ai_component.set_markdown(error_content)
-                            else:
-                                self._current_ai_component.set_message(error_content)
-
-                    self._reset_generation_state()
-
-                    if self.state.target_area:
-                        self.state.target_area.tag_redraw()
-
-                except Exception as e:
-                logger.error(f"Error handling API error: {e}")
-
-                fallback_content = f"❌ **Error:** {error}"
-
-                try:
-                    if self.components:
-                        self.factory.add_error_message_to_scrollview(fallback_content)
-                    elif self._current_ai_component:
-                        if hasattr(self._current_ai_component, 'set_markdown'):
-                            self._current_ai_component.set_markdown(fallback_content)
-                        else:
-                            self._current_ai_component.set_message(fallback_content)
-                except Exception as fallback_error:
-                    logger.error(f"Fallback error handling failed: {fallback_error}")
-
-                self._reset_generation_state()
-                if self.state.target_area:
-                    self.state.target_area.tag_redraw()
-
-            return None
-
-        def _reset_generation_state(self):
-            self._is_generating = False
+            self.components = self.ui_layout.get('components', {})
+            self.state.components.clear()
+            for component in self.ui_layout.get('all_components', []):
+                self.state.add_component(component)
+
+            for component in self.state.components:
+                if hasattr(component, 'update_layout'):
+                    component.update_layout()
+                if hasattr(component, '_dimension_cache') and hasattr(component, 'invalidate'):
+                    component._dimension_cache.clear()
+                    component.invalidate()
+
+            focused_component = self.factory.get_focused_component()
+            if focused_component:
+                self.state.set_focus(focused_component)
+        except Exception as e:
+            logger.error(f"Error initializing UI layout: {e}")
+            self.ui_layout = None
+            self.components = {}
+
+    def _update_layout(self):
+        if not self.ui_layout or self.state.viewport_width == 0 or self.state.viewport_height == 0:
+            return
+
+        self.factory._handle_viewport_change(self.state.viewport_width, self.state.viewport_height)
+
+    def _on_viewport_resize_finished(self):
+        try:
+            if self._pending_viewport_size is None:
+                return None
+
+            width, height = self._pending_viewport_size
+            self.state.update_viewport_size(width, height)
+
+            if self.ui_layout is None:
+                self._initialize_ui_layout()
+            else:
+                self._update_layout()
+
+            self._pending_viewport_size = None
+            self._request_redraw()
+        except Exception as e:
+            logger.error(f"Error in viewport resize finished callback: {e}")
+        finally:
+            self._resize_timer = None
+        return None
+
+    def attach_image_reference(self, filepath: str):
+        import base64
+        import os
+
+        try:
+            ext = os.path.splitext(filepath)[1].lower()
+            mime_map = {
+                '.png': 'image/png',
+                '.jpg': 'image/jpeg',
+                '.jpeg': 'image/jpeg',
+                '.bmp': 'image/bmp',
+                '.tiff': 'image/tiff',
+                '.webp': 'image/webp',
+            }
+            mime_type = mime_map.get(ext, 'image/png')
+
+            with open(filepath, 'rb') as f:
+                image_bytes = f.read()
+
+            encoded = base64.b64encode(image_bytes).decode('utf-8')
+            self._attached_image_path = filepath
+            self._attached_image_data_uri = f"data:{mime_type};base64,{encoded}"
+
+            if self.factory and hasattr(self.factory, 'show_image_attachment_indicator'):
+                self.factory.show_image_attachment_indicator(os.path.basename(filepath))
+
+            self._request_redraw()
+            logger.info(f"Image reference attached: {os.path.basename(filepath)}")
+        except Exception as e:
+            logger.error(f"Failed to attach image reference: {e}")
+            self._attached_image_path = None
+            self._attached_image_data_uri = None
+
+    def clear_image_reference(self):
+        self._attached_image_path = None
+        self._attached_image_data_uri = None
+
+        if self.factory and hasattr(self.factory, 'hide_image_attachment_indicator'):
+            self.factory.hide_image_attachment_indicator()
+
+        self._request_redraw()
+
+    def handle_message_send(self, text: str):
+        if text.strip():
+            self._handle_send_with_text(text.strip())
+
+    def _handle_send(self):
+        text = self.factory.get_send_text() if self.factory else ""
+        if not text.strip():
+            return
+        self.factory.clear_send_text()
+        self._handle_send_with_text(text.strip())
+
+    def _handle_send_with_text(self, text: str):
+        if self.components is None or self._is_generating:
+            return
+
+        try:
+            current_chat_id = getattr(bpy.context.scene, 'vibe5d_current_chat_id', '')
+            if current_chat_id:
+                history_manager.clear_unsent_text(bpy.context, current_chat_id)
+        except Exception:
+            pass
+
+        try:
+            import os
+
+            display_text = text
+            if self._attached_image_path:
+                filename = os.path.basename(self._attached_image_path)
+                display_text = f"{text}\n\n📎 {filename}"
+
+            self.factory.add_message_to_scrollview(display_text, is_ai_response=False)
+            self._is_generating = True
             self._last_content_length = 0
             self._last_tool_call_state = None
             self._content_after_tool_call = False
-            self._current_ai_component = None
-            self._websocket_client = None
+            self.factory._set_send_button_mode(False)
+            self._current_ai_component = self.factory.add_markdown_message_to_scrollview("", is_ai_response=True)
 
-            self._cleanup_websocket_connection()
+            image_data_uri = self._attached_image_data_uri
+            self.clear_image_reference()
 
-            self.factory._set_send_button_mode(True)
+            self._start_real_api_generation(text, image_data_uri=image_data_uri)
+            self._request_redraw()
+        except Exception as e:
+            logger.error(f"Error sending message: {e}")
+            self._reset_generation_state()
 
-            self._reset_conversation_tracking()
+    def _start_real_api_generation(self, prompt: str, image_data_uri: str = None):
+        try:
+            self._start_conversation_tracking(prompt)
+            self._last_sent_prompt = prompt
 
-            if self.state.target_area:
-                self.state.target_area.tag_redraw()
+            context = bpy.context
+            provider = getattr(context.scene, 'vibe5d_provider', 'openai')
+            if provider in {'openai', 'local'}:
+                self._start_openai_generation(prompt, context, provider, image_data_uri=image_data_uri)
+            else:
+                self._start_vibe5d_generation(prompt, context)
+        except Exception as e:
+            logger.error(f"Error starting generation: {e}")
+            self._handle_api_error(f"Failed to start generation: {e}")
 
-        def _cleanup_websocket_connection(self):
-            try:
-                from ...api.websocket_client import llm_websocket_client
+    def _start_openai_generation(self, prompt: str, context, provider: str, image_data_uri: str = None):
+        try:
+            from ...llm.request_builder import LLMRequestBuilder
+            from ...api.openai_client import openai_client
 
-                if not llm_websocket_client.is_ready_for_new_request():
-                    llm_websocket_client.close()
+            if not openai_client.is_ready_for_new_request():
+                openai_client.close()
 
-            except Exception as e:
-                logger.debug(f"Error during WebSocket cleanup: {e}")
+            api_key = getattr(context.scene, 'vibe5d_provider_api_key', '')
+            base_url = getattr(context.scene, 'vibe5d_provider_base_url', '')
+            provider_model = getattr(context.scene, 'vibe5d_provider_model', '')
 
-        def cleanup(self):
-            if self._is_generating:
-                if hasattr(self, '_conversation_tracking') and self._conversation_tracking:
-                    if not self._conversation_tracking.get('conversation_saved', False):
-                        try:
-                            self._save_conversation_to_history()
-                        except Exception as save_error:
-                            logger.error(f"Failed to save conversation data before cleanup: {str(save_error)}")
+            if provider == 'local':
+                base_url = base_url or 'http://localhost:11434/v1'
+                provider_model = provider_model or 'llama3'
+            else:
+                base_url = base_url or 'https://api.openai.com/v1'
+                provider_model = provider_model or 'gpt-4o-mini'
 
-                self._reset_generation_state()
+            request = LLMRequestBuilder.build_openai_chat_request(
+                context=context,
+                prompt=prompt,
+                api_key=api_key,
+                base_url=base_url,
+                model=provider_model,
+                image_data_uri=image_data_uri,
+            )
 
-            self._cleanup_websocket_connection()
+            self._websocket_client = openai_client
+            success = openai_client.send_prompt_request(
+                request_data=request,
+                on_progress=self._handle_api_progress,
+                on_complete=self._handle_api_complete,
+                on_error=self._handle_api_error,
+            )
+            if not success:
+                self._handle_api_error("Failed to start generation")
+        except Exception as e:
+            logger.error(f"Error starting OpenAI generation: {e}")
+            self._handle_api_error(f"Failed to start generation: {e}")
 
-            if self.components:
-                self.components.clear()
+    def _start_vibe5d_generation(self, prompt: str, context):
+        try:
+            from ...llm.request_builder import LLMRequestBuilder
+            from ...api.websocket_client import llm_websocket_client
 
-            self.state.reset()
+            user_id = getattr(context.window_manager, 'vibe5d_user_id', '')
+            token = getattr(context.window_manager, 'vibe5d_user_token', '')
+            request = LLMRequestBuilder.build_chat_request(
+                context=context,
+                prompt=prompt,
+                user_id=user_id,
+                token=token,
+                model=getattr(context.scene, 'vibe5d_model', 'gpt-5-mini'),
+            )
 
-        def _start_conversation_tracking(self, user_prompt: str):
-            self._conversation_tracking = {
-            :user_prompt,
-            : None,
-            :[],
-            : [],
-            :None,
-            : False
-            }
-            self._tool_completion_blocks_created.clear()
-            self._tool_start_blocks_created.clear()
-            self._active_tool_components.clear()
+            self._websocket_client = llm_websocket_client
+            success = llm_websocket_client.send_prompt_request(
+                request_data=request,
+                on_progress=self._handle_api_progress,
+                on_complete=self._handle_api_complete,
+                on_error=self._handle_api_error,
+            )
+            if not success:
+                self._handle_api_error("Failed to start generation")
+        except Exception as e:
+            logger.error(f"Error starting Vibe5D generation: {e}")
+            self._handle_api_error(f"Failed to start generation: {e}")
 
-        def _reset_conversation_tracking(self):
-            self._conversation_tracking = {
-            :None,
-            : None,
-            :[],
-            : [],
-            :None,
-            : False
-            }
+    def _handle_api_progress(self, response):
+        bpy.app.timers.register(lambda: self._update_ui_from_progress(response), first_interval=0.0)
 
-            self._tool_completion_blocks_created.clear()
-            self._tool_start_blocks_created.clear()
+    def _update_ui_from_progress(self, response):
+        try:
+            if not self._is_generating:
+                return None
 
-            self._active_tool_components.clear()
+            tool_status = getattr(response, 'current_tool_status', None)
+            tool_name = getattr(response, 'current_tool_name', None)
+            call_id = getattr(response, 'current_tool_call_id', None)
 
-            self._last_sent_prompt = None
-            logger.debug("Reset conversation tracking state")
+            if tool_status == 'started' and tool_name and call_id:
+                tool_call_data = {
+                    'call_id': call_id,
+                    'function': {
+                        'name': tool_name,
+                        'arguments': getattr(response, 'current_tool_arguments', '{}'),
+                    },
+                    'status': 'started',
+                }
+                self._track_tool_call(tool_call_data)
+                if call_id not in self._tool_start_blocks_created:
+                    status_block = self._get_tool_status_block(tool_name, 'started')
+                    if status_block:
+                        component = self.factory.add_markdown_message_to_scrollview(status_block, is_ai_response=True)
+                        self._active_tool_components[call_id] = component
+                        self._current_ai_component = component
+                        self._tool_start_blocks_created.add(call_id)
 
-        def _track_assistant_message(self, message_id: str, content: str = ""):
+            if tool_status == 'completed' and tool_name and call_id:
+                success = getattr(response, 'current_tool_success', False)
+                tool_response_data = {
+                    'call_id': call_id,
+                    'content': getattr(response, 'current_tool_result', '{}'),
+                    'success': success,
+                }
+                self._track_tool_response(tool_response_data)
+                completion_block = self._get_tool_status_block(tool_name, 'completed', success)
+                if completion_block:
+                    if not self._update_tool_component(call_id, completion_block):
+                        self._current_ai_component = self.factory.add_markdown_message_to_scrollview(
+                            completion_block,
+                            is_ai_response=True,
+                        )
+                    self._cleanup_completed_tool_component(call_id)
+                    self._tool_completion_blocks_created.add(call_id)
+                    self._content_after_tool_call = True
 
-            self._conversation_tracking['assistant_message_id'] = message_id
+            search_status = getattr(response, 'current_search_status', None)
+            search_query = getattr(response, 'current_search_query', None)
+            if search_status == 'started' and search_query:
+                search_call_id = f"websearch_{hashlib.md5(search_query.encode()).hexdigest()[:8]}"
+                self._track_tool_call({
+                    'call_id': search_call_id,
+                    'function': {'name': 'web_search', 'arguments': f'{{"query": "{search_query}"}}'},
+                    'status': 'started',
+                })
+                self._current_ai_component = self.factory.add_markdown_message_to_scrollview(
+                    f"[Searching web: {search_query}]",
+                    is_ai_response=True,
+                )
+            elif search_status == 'completed' and search_query:
+                result_count = getattr(response, 'current_search_result_count', 0)
+                success = getattr(response, 'current_search_success', False)
+                ui_message = f"Found {result_count} results" if success and result_count else (
+                    "Web search completed" if success else "Web search failed"
+                )
+                self._track_tool_response({
+                    'call_id': f"websearch_{hashlib.md5(search_query.encode()).hexdigest()[:8]}",
+                    'content': ui_message,
+                    'success': success,
+                    'ui_message': ui_message,
+                    'tool_name': 'web_search',
+                })
+                self._current_ai_component = self.factory.add_markdown_message_to_scrollview(
+                    f"[{ui_message}: {search_query}]",
+                    is_ai_response=True,
+                )
+
+            content = getattr(response, 'output_content', '') or ''
             if content:
-                self._conversation_tracking['final_content'] = content
-            logger.debug(f"Tracked assistant message: {message_id}")
+                message_id = getattr(response, 'message_id', None)
+                if message_id:
+                    self._track_assistant_message(message_id, content)
 
-        def _track_tool_call(self, tool_call_data: dict):
-
-            call_id = tool_call_data.get('call_id')
-
-            for existing_call in self._conversation_tracking['tool_calls']:
-                if existing_call.get('call_id') == call_id:
-                    return
-
-            self._conversation_tracking['tool_calls'].append(tool_call_data)
-
-        def _track_tool_response(self, tool_response_data: dict):
-
-            call_id = tool_response_data.get('call_id')
-
-            for existing_response in self._conversation_tracking['tool_responses']:
-                if existing_response.get('call_id') == call_id:
-                    return
-
-            self._conversation_tracking['tool_responses'].append(tool_response_data)
-            logger.debug(f"Tracked tool response for call_id: {call_id}")
-
-        def _save_conversation_to_history(self):
-
-            if self._conversation_tracking['conversation_saved']:
-                logger.debug("Conversation already saved to history")
-                return
-
-            try:
-                import bpy
-                context = bpy.context
-
-                from ...utils.history_manager import history_manager
-
-                user_message = self._conversation_tracking['user_message']
-                if user_message:
-                    history_manager.add_message(context, "user", user_message)
-
-                final_content = self._conversation_tracking['final_content']
-                assistant_message_id = self._conversation_tracking['assistant_message_id']
-                tool_calls = self._conversation_tracking['tool_calls']
-
-                if final_content or tool_calls:
-
-                    openai_tool_calls = None
-                    if tool_calls:
-
-                        sorted_tool_calls = sorted(tool_calls, key=lambda x: x.get('call_id', ''))
-                        openai_tool_calls = []
-                        for tool_call in sorted_tool_calls:
-                            openai_tool_calls.append({
-                            : tool_call.get('call_id', f"call_{len(openai_tool_calls)}"),
-                            :"function",
-                            : {
-                            :tool_call.get('function', {}).get('name', 'unknown'),
-                            : tool_call.get('function', {}).get('arguments', '{}')
-                            }
-                            })
-
-                        history_manager.add_message(
-                            context,
-                        ,
-                        final_content or "",
-                        tool_calls = openai_tool_calls
+                if self._content_after_tool_call and len(content) > self._last_content_length:
+                    new_content = content[self._last_content_length:].strip()
+                    if new_content:
+                        self._current_ai_component = self.factory.add_markdown_message_to_scrollview(
+                            new_content,
+                            is_ai_response=True,
                         )
-
-                        if self._conversation_tracking['tool_responses']:
-                            sorted_tool_responses = sorted(
-                                self._conversation_tracking['tool_responses'],
-                                key=lambda x: x.get('call_id', '')
-                            )
-                            for tool_response in sorted_tool_responses:
-                                full_content = tool_response.get("content") or tool_response.get("ui_message",
-                                                                                                 "Tool response")
-
-                                history_manager.add_message(
-                                    context,
-                                ,
-                                full_content,
-                                tool_call_id = tool_response.get("call_id")
-                                )
-
-                                ui_hint = tool_response.get("ui_message", full_content)
-
-                        if self._conversation_tracking['tool_responses']:
-                            for tool_response in sorted_tool_responses:
-
-                                if 'image_data' in tool_response and tool_response['image_data']:
-                                    image_data_info = tool_response['image_data']
-                                    data_uri = image_data_info.get('data_uri')
-                                    message_text = image_data_info.get('message_text')
-                                    call_id = tool_response.get('call_id')
-
-                                    if data_uri and message_text and call_id:
-
-                                        success = history_manager.add_message_after_tool_response(
-                                            context,
-                                        ,
-                                        message_text,
-                                        call_id,
-                                        image_data = data_uri
-                                        )
-
-                                        if success:
-
-                                            pass
-                                        else:
-                                            logger.warning(
-                                                f"Failed to create image message after tool response {call_id}")
-
-                        self._conversation_tracking['conversation_saved'] = True
-
-                        msg_count = (1 if user_message else 0) + (1 if final_content or tool_calls else 0) + len(
-                            self._conversation_tracking['tool_responses'])
-
-                    except Exception as e:
-                    logger.error(f"❌ Failed to save conversation to history: {str(e)}")
-                    import traceback
-                    logger.error(traceback.format_exc())
-
-            def handle_message_send(self, text: str):
-
-                if text.strip():
-                    self._handle_send_with_text(text.strip())
-
-            def _handle_send_with_text(self, text: str):
-
-                if not self.components:
-                    return
-
-                if self._is_generating:
-                    logger.warning("Generation already in progress")
-                    return
-
-                try:
-
-                    try:
-                        context = bpy.context
-                        from ...utils.history_manager import history_manager
-                        current_chat_id = getattr(context.scene, 'vibe4d_current_chat_id', '')
-                        if current_chat_id:
-                            history_manager.clear_unsent_text(context, current_chat_id)
-                    except Exception as e:
-                        logger.debug(f"Could not clear unsent text: {e}")
-
-                    self.factory.add_message_to_scrollview(text, is_ai_response=False)
-
-                    self._is_generating = True
-                    self._last_content_length = 0
-                    self._last_tool_call_state = None
-                    self._content_after_tool_call = False
-                    self.factory._set_send_button_mode(False)
-
-                    self._current_ai_component = self.factory.add_markdown_message_to_scrollview("",
-                                                                                                 is_ai_response=True)
-
-                    self._start_real_api_generation(text)
-
-                    if self.state.target_area:
-                        self.state.target_area.tag_redraw()
-
-                except Exception as e:
-                    logger.error(f"Error in _handle_send_with_text: {e}")
-                    self._reset_generation_state()
-
-            def _handle_add(self):
-
-                try:
-
-                    self._reset_generation_state()
-
-                    message_scrollview = None
-                    try:
-                        current_view = self.factory.get_current_view()
-                        if current_view and hasattr(current_view, 'get_message_scrollview'):
-                            message_scrollview = current_view.get_message_scrollview()
-                            if message_scrollview:
-                                message_scrollview.children.clear()
-                                message_scrollview._update_content_bounds()
-                                logger.info("Cleared message scrollview UI")
-                    except Exception as e:
-                        logger.error(f"Error clearing message scrollview: {e}")
-
-                    try:
-                        context = bpy.context
-
-                        from ...utils.history_manager import history_manager
-                        new_chat_id = history_manager.create_new_chat(context)
-
-                    except Exception as e:
-                        logger.error(f"Failed to start new chat: {str(e)}")
-
-                    try:
-                        context = bpy.context
-                        context.scene.vibe4d_output_content = ""
-                        context.scene.vibe4d_final_code = ""
-                        context.scene.vibe4d_guide_content = ""
-                        context.scene.vibe4d_last_error = ""
-                        context.scene.vibe4d_console_output = ""
-                        context.scene.vibe4d_is_generating = False
-                        logger.info("Cleared scene-level chat state")
-                    except Exception as e:
-                        logger.error(f"Error clearing scene state: {e}")
-
-                    if self.state.target_area:
-                        self.state.target_area.tag_redraw()
-
-                except Exception as e:
-                    logger.error(f"Error in _handle_add: {e}")
-
-                    self._reset_generation_state()
-
-            def _handle_history(self):
-
-                logger.info("History button clicked")
-
-                self.factory.switch_to_view(ViewState.HISTORY)
-
-            def _handle_settings(self):
-
-                logger.info("Settings button clicked")
-
-                self.factory.switch_to_view(ViewState.SETTINGS)
-
-            def _handle_model_change(self, selected_model: str):
-
-                logger.info(f"Model changed to: {selected_model}")
-
-                try:
-
-                    context = bpy.context
-
-                    model_mapping = {
-                    :"claude-sonnet-4-5",
-                    : "gpt-5",
-                    :"gpt-5-mini"
-                    }
-
-
-                    internal_model = model_mapping.get(selected_model, selected_model.lower().replace(" ", "-"))
-
-                    context.scene.vibe4d_model = internal_model
-
-                    logger.info(f"Updated unified model to: {internal_model}")
-
-                except Exception as e:
-                    logger.error(f"Error updating model selection: {e}")
-
-            def _handle_auth_submit(self):
-
-                logger.info("Auth submit clicked")
-
-                current_view = self.factory.views.get(self.factory.current_view)
-                if current_view and hasattr(current_view, 'get_license_key'):
-                    license_key = current_view.get_license_key()
+                        self._content_after_tool_call = False
+                elif self._current_ai_component:
+                    if hasattr(self._current_ai_component, 'set_markdown'):
+                        self._current_ai_component.set_markdown(content)
+                    elif hasattr(self._current_ai_component, 'set_message'):
+                        self._current_ai_component.set_message(content)
                 else:
-                    license_key = ""
-
-                if license_key:
-                    logger.info(f"Processing license key: {license_key[:10]}...")
-
-                    self._authenticate_success()
-                else:
-                    logger.warning("No license key provided")
-
-            def _handle_get_license(self):
-
-                logger.info("Get license clicked")
-
-            def _authenticate_success(self):
-
-                logger.info("Authentication successful")
-
-                self.factory.switch_to_view(ViewState.MAIN)
-
-            def _delayed_init_check(self):
-
-                try:
-                    if self.state.is_enabled and self.state.target_area:
-                        if not self.ui_layout or not self.state.components:
-                            logger.warning("UI not fully initialized, attempting reinitialization")
-                            success = self.force_ui_reinitialization()
-                            if not success:
-                                logger.error("UI reinitialization failed")
-                                bpy.app.timers.register(self._retry_init, first_interval=1.0)
-                    return None
-                except Exception as e:
-                    logger.error(f"Error in delayed init check: {e}")
-                    return None
-
-            def _retry_init(self):
-
-                try:
-                    if self.state.is_enabled and self.state.target_area:
-                        if not self.ui_layout or not self.state.components:
-                            logger.warning("Retrying UI initialization...")
-                            self.force_ui_reinitialization()
-                    return None
-                except Exception as e:
-                    logger.error(f"Error in retry init: {e}")
-                    return None
-
-            def enable_overlay(self, target_area=None):
-
-                try:
-                    self.state.target_area = target_area
-                    self.state.is_enabled = True
-
-                    self._original_workspace = bpy.context.window.workspace
-                    self._original_screen = bpy.context.window.screen
-
-                    self._current_ui_scale = CoordinateSystem.get_ui_scale()
-                    self._ui_scale_check_counter = 0
-
-                    try:
-                        ui_state_manager.save_ui_state(bpy.context, self, target_area)
-                    except Exception as e:
-                        logger.debug(f"Could not save UI state: {e}")
-
-                    self.factory.switch_to_appropriate_view_on_startup()
-
-                    if self.draw_handler is None:
-                        self.draw_handler = SpaceView3D.draw_handler_add(
-                            self._draw_callback, (), 'WINDOW', 'POST_PIXEL'
-                        )
-
-                    if self.cursor_redraw_handler is None:
-                        self.cursor_redraw_handler = bpy.app.timers.register(self._enforce_ui_settings,
-                                                                             first_interval=self.performance_config.timer_interval)
-                    try:
-                        bpy.ops.vibe4d.ui_modal_handler('INVOKE_DEFAULT')
-                    except Exception as e:
-                        logger.warning(f"Failed to start modal handler: {e}")
-
-                    self._redraw_viewports()
-
-                    bpy.app.timers.register(self._delayed_init_check, first_interval=0.5)
-
-                except Exception as e:
-                    logger.error(f"Error enabling overlay: {e}")
-                    import traceback
-                    logger.error(traceback.format_exc())
-                    raise
-
-            def disable_overlay(self):
-
-                if not self.state.is_enabled:
-                    return
-
-                try:
-                    ui_state_manager.clear_ui_state(bpy.context)
-                except Exception as e:
-                    logger.debug(f"Could not clear UI state: {e}")
-
-                if self.draw_handler:
-                    bpy.types.SpaceView3D.draw_handler_remove(self.draw_handler, 'WINDOW')
-                    self.draw_handler = None
-
-                if self._resize_timer is not None:
-                    try:
-                        bpy.app.timers.unregister(self._resize_timer)
-                    except:
-                        pass
-                    self._resize_timer = None
-                    self._pending_viewport_size = None
-
-                if hasattr(self, '_cursor_timer'):
-                    try:
-                        bpy.app.timers.unregister(self._cursor_timer)
-                    except:
-                        pass
-                    del self._cursor_timer
-
-                if hasattr(self, '_animation_timer'):
-                    try:
-                        bpy.app.timers.unregister(self._animation_timer)
-                    except:
-                        pass
-                    del self._animation_timer
-
-                if self.cursor_redraw_handler:
-                    bpy.app.timers.unregister(self.cursor_redraw_handler)
-                    self.cursor_redraw_handler = None
-
-                self.state.is_enabled = False
-                self.state.target_area = None
-                self.state.components.clear()
-                self.state.focused_component = None
-
-                if hasattr(self, '_original_workspace'):
-                    del self._original_workspace
-                if hasattr(self, '_original_screen'):
-                    del self._original_screen
-
-                self._current_ui_scale = None
-                self._ui_scale_check_counter = 0
-
-                self._ui_recreation_in_progress = False
-                self._ui_recreation_lock_start_time = None
-
-                self.reset_cursor_to_default()
-
-                self.factory.cleanup()
-
-                self._redraw_viewports()
-
-            def _draw_callback(self):
-
-                try:
-                    if not self.state.is_enabled or not self.state.target_area:
-                        logger.debug("Draw callback: UI not enabled or no target area")
-                        return
-
-                    context = bpy.context
-                    region = context.region
-                    area = context.area
-
-                    if not region or area != self.state.target_area:
-                        return
-
-                    new_width, new_height = region.width, region.height
-                    viewport_changed = False
-                    if (self.state.viewport_width != new_width or
-                            self.state.viewport_height != new_height):
-
-                        is_initial_draw = (self.state.viewport_width == 0 or self.state.viewport_height == 0)
-
-                        if is_initial_draw:
-
-                            self.state.update_viewport_size(new_width, new_height)
-
-                            if self.ui_layout is None:
-                                self._initialize_ui_layout()
-                            else:
-                                self._update_layout()
-
-                            viewport_changed = True
-                        else:
-
-                            self._pending_viewport_size = (new_width, new_height)
-
-                            if self._resize_timer is not None:
-                                bpy.app.timers.unregister(self._resize_timer)
-                                self._resize_timer = None
-
-                            self._resize_timer = bpy.app.timers.register(
-                                self._on_viewport_resize_finished,
-                                first_interval=self._viewport_resize_debounce_delay
-                            )
-
-                            viewport_changed = True
-
-                        for component in self.state.components:
-                            if hasattr(component, '_render_dirty'):
-                                component._render_dirty = True
-
-                    if self.ui_layout is None:
-                        logger.info("No UI layout, trying to initialize")
-                        self._initialize_ui_layout()
-                        if self.ui_layout is None:
-                            logger.warning("Failed to initialize UI layout, skipping drawing")
-                            self._draw_error_message(region)
-                            return
-
-                    if not self.state.components:
-                        self._initialize_ui_layout()
-                        if not self.state.components:
-                            logger.error("Still no components after reinitialization")
-                            self._draw_error_message(region)
-                            return
-
-                    bg_bounds = Bounds(0, 0, region.width, region.height)
-                    bg_color = Styles.Panel
-                    self.renderer.draw_rect(bg_bounds, bg_color)
-
-                    visible_components = [c for c in self.state.components if c.is_visible()]
-
-                    if not visible_components:
-                        logger.warning("No visible components to draw")
-                        self._draw_error_message(region)
-                        return
-
-                    has_animations = False
-
-                    for component in visible_components:
-                        try:
-                            component.render(self.renderer)
-
-                            if hasattr(component, 'elements'):
-                                for element in component.elements:
-                                    if hasattr(element, 'is_animated') and element.is_animated:
-                                        has_animations = True
-                                        break
-
-                            if hasattr(component, 'is_animated') and component.is_animated:
-                                has_animations = True
-                        except Exception as e:
-                            logger.error(f"Error rendering component {type(component).__name__}: {e}")
-                            continue
-
-                    if self.state.focused_component and isinstance(self.state.focused_component, TextInput):
-                        self._schedule_cursor_redraw()
-
-                    if has_animations:
-                        self._schedule_animation_redraw()
-
-                except Exception as e:
-                    logger.error(f"Error in draw callback: {e}")
-                    import traceback
-                    logger.error(traceback.format_exc())
-                    try:
-                        if region:
-                            self._draw_error_message(region)
-                    except:
-                        pass
-
-            def _draw_error_message(self, region):
-
-                try:
-
-                    bg_bounds = Bounds(0, 0, region.width, region.height)
-                    bg_color = (0.1, 0.1, 0.1, 0.9)
-                    self.renderer.draw_rect(bg_bounds, bg_color)
-
-                    error_text = "UI Loading Error - Please try reopening"
-                    text_bounds = Bounds(10, region.height // 2, region.width - 20, 30)
-
-                    from .components import Label
-                    error_label = Label(error_text, text_bounds.x, text_bounds.y, text_bounds.width, text_bounds.height)
-                    error_label.style.text_color = (1.0, 0.3, 0.3, 1.0)
-                    error_label.render(self.renderer)
-
-                except Exception as e:
-                    logger.error(f"Error drawing error message: {e}")
-
-            def _schedule_animation_redraw(self):
-
-                import time
-                current_time = time.time()
-
-                animation_interval = self.performance_config.get_animation_interval()
-
-                if not hasattr(self, '_animation_timer'):
-
-                    has_active_animations = self._check_for_active_animations()
-                    if has_active_animations:
-                        self._animation_timer = bpy.app.timers.register(
-                            lambda: self._animation_redraw_callback(),
-                            first_interval=animation_interval
-                        )
-
-            def _check_for_active_animations(self) -> bool:
-
-                try:
-                    if not self.state.components:
-                        return False
-
-                    visible_components = [c for c in self.state.components if c.is_visible()]
-
-                    for component in visible_components:
-
-                        if hasattr(component, 'elements'):
-                            for element in component.elements:
-                                if hasattr(element, 'is_animated') and element.is_animated:
-                                    return True
-
-                        if hasattr(component, 'is_animated') and component.is_animated:
-                            return True
-
-                    return False
-                except Exception:
-                    return False
-
-            def _animation_redraw_callback(self):
-
-                try:
-
-                    if hasattr(self, '_animation_timer'):
-                        del self._animation_timer
-
-                    if self._is_ui_recreation_locked():
-                        logger.debug("Animation redraw skipped - UI recreation in progress")
-                        return None
-
-                    if self.state.is_enabled and self.state.target_area:
-
-                        has_animations = self._check_for_active_animations()
-
-                        if has_animations:
-                            self._selective_redraw()
-
-                            return self.performance_config.get_animation_interval()
-
-                    return None
-                except Exception as e:
-                    logger.error(f"Error in animation redraw callback: {e}")
-                    if hasattr(self, '_animation_timer'):
-                        del self._animation_timer
-                    return None
-
-            def _schedule_cursor_redraw(self):
-
-                import time
-                current_time = time.time()
-
-                cursor_cycle_time = self.performance_config.cursor_blink_cycle
-                time_in_cycle = current_time % cursor_cycle_time
-
-                visible_time = cursor_cycle_time * 0.67
-
-                if time_in_cycle < visible_time:
-
-                    next_redraw = visible_time - time_in_cycle
-                else:
-
-                    next_redraw = cursor_cycle_time - time_in_cycle
-
-                if (next_redraw > 0.01 and not hasattr(self, '_cursor_timer') and
-                        self.state.focused_component and
-                        hasattr(self.state.focused_component, '__class__') and
-                        in str (self.state.focused_component.__class__)):
-                    self._cursor_timer = bpy.app.timers.register(
-                        lambda: self._cursor_redraw_callback(),
-                        first_interval=next_redraw
+                    self._current_ai_component = self.factory.add_markdown_message_to_scrollview(
+                        content,
+                        is_ai_response=True,
                     )
 
-            def _cursor_redraw_callback(self):
-
-                try:
-
-                    if hasattr(self, '_cursor_timer'):
-                        del self._cursor_timer
-
-                    if self._is_ui_recreation_locked():
-                        logger.debug("Cursor redraw skipped - UI recreation in progress")
-                        return None
-
-                    if (self.state.is_enabled and self.state.target_area and
-                            self.state.focused_component and
-                            hasattr(self.state.focused_component, '__class__') and
-                            in str (self.state.focused_component.__class__)):
-
-                        self._selective_redraw()
-
-                        return None
-
-                    return None
-                except Exception as e:
-                    logger.error(f"Error in cursor redraw callback: {e}")
-                    if hasattr(self, '_cursor_timer'):
-                        del self._cursor_timer
-                    return None
-
-            def _enforce_ui_settings(self):
-
-                try:
-
-                    if not self.state.is_enabled or not self.state.target_area:
-                        return self.performance_config.timer_interval
-
-                    if self._is_ui_recreation_locked():
-                        return self.performance_config.timer_interval
-
-                    needs_redraw = False
-
-                    if self.performance_config.should_check_ui_scale(self._ui_scale_check_counter):
-                        if self._check_ui_scale_changes():
-                            self._handle_ui_scale_change()
-
-                            return self.performance_config.timer_interval
-                        self._ui_scale_check_counter = 0
-                    else:
-                        self._ui_scale_check_counter += 1
-
-                    if self.performance_config.should_check_theme(self._theme_check_counter):
-                        if self._check_theme_changes():
-                            self._refresh_all_component_themes()
-                            needs_redraw = True
-                        self._theme_check_counter = 0
-                    else:
-                        self._theme_check_counter += 1
-
-                    if not self._verify_target_area_exists():
-                        self._cleanup_on_area_closure()
-                        return None
-
-                    if self.performance_config.should_enforce_viewport(self._viewport_enforce_counter):
-                        if self._enforce_view3d_settings():
-                            needs_redraw = True
-                        self._viewport_enforce_counter = 0
-                    else:
-                        self._viewport_enforce_counter += 1
-
-                    if needs_redraw:
-                        self._request_redraw()
-
-                    return self.performance_config.timer_interval
-
-                except Exception as e:
-                    logger.error(f"Error enforcing UI settings: {e}")
-                    self._handle_enforcement_error()
-                    return None
-
-            def _check_theme_changes(self) -> bool:
-
-                try:
-                    from .blender_theme_integration import check_theme_changes
-                    return check_theme_changes()
-                except Exception as e:
-                    logger.error(f"Error checking theme changes: {e}")
-                    return False
-
-            def _refresh_all_component_themes(self):
-
-                try:
-
-                    for component in self.state.components:
-                        if hasattr(component, 'refresh_theme'):
-                            component.refresh_theme()
-
-                    logger.debug("Refreshed themes for all components")
-
-                except Exception as e:
-                    logger.error(f"Error refreshing component themes: {e}")
-
-            def _verify_target_area_exists(self) -> bool:
-
-                try:
-
-                    current_screen = bpy.context.screen
-                    if current_screen and any(area == self.state.target_area for area in current_screen.areas):
-                        return True
-
-                    for screen in bpy.data.screens:
-                        if any(area == self.state.target_area for area in screen.areas):
-                            return True
-
-                    return False
-
-                except Exception as e:
-                    logger.error(f"Error verifying target area exists: {e}")
-                    return False
-
-            def _cleanup_on_area_closure(self):
-
-                try:
-
-                    bpy.context.window_manager.vibe4d_ui_was_active = False
-                except Exception as e:
-                    logger.debug(f"Could not clear UI state tracking: {e}")
-                finally:
-                    self.disable_overlay()
-
-            def _enforce_view3d_settings(self) -> bool:
-
-                try:
-                    settings_applied = False
-
-                    for space in self.state.target_area.spaces:
-                        if space.type == 'VIEW_3D':
-
-                            space.show_gizmo = False
-                            space.show_region_ui = False
-                            space.show_region_toolbar = False
-                            space.show_region_header = False
-                            space.show_region_hud = False
-                            space.overlay.show_overlays = False
-
-                            space.shading.show_xray = False
-                            space.shading.show_shadows = False
-                            space.shading.show_cavity = False
-                            space.shading.show_object_outline = False
-                            space.shading.show_specular_highlight = False
-                            space.shading.show_backface_culling = True
-                            space.shading.use_world_space_lighting = False
-
-                            if hasattr(space.shading, 'show_cavity_edge'):
-                                space.shading.show_cavity_edge = False
-                            if hasattr(space.shading, 'show_cavity_ridge'):
-                                space.shading.show_cavity_ridge = False
-                            if hasattr(space.shading, 'show_cavity_valley'):
-                                space.shading.show_cavity_valley = False
-
-                            if hasattr(space, 'show_region_tool_header'):
-                                space.show_region_tool_header = False
-                            if hasattr(space, 'show_region_asset_shelf'):
-                                space.show_region_asset_shelf = False
-
-                            if space.shading.type not in ['SOLID']:
-                                pass
-
-                            space.shading.use_dof = False
-                            if hasattr(space.shading, 'use_world_space_lighting'):
-                                space.shading.use_world_space_lighting = False
-
-                            space.clip_start = max(space.clip_start, 0.1)
-                            space.clip_end = min(space.clip_end, 100.0)
-
-                            settings_applied = True
-                            break
-
-                    return settings_applied
-
-                except Exception as e:
-                    logger.error(f"Error enforcing VIEW_3D settings: {e}")
-                    return False
-
-            def _request_redraw(self):
-
-                try:
-                    if self.state.target_area:
-                        self._selective_redraw()
-                except Exception as e:
-                    logger.error(f"Error requesting redraw: {e}")
-
-            def _selective_redraw(self):
-
-                try:
-
-                    if self.state.target_area:
-
-                        if hasattr(self.state.target_area, 'tag_redraw'):
-                            self.state.target_area.tag_redraw()
-
-                except Exception as e:
-                    logger.error(f"Error in selective redraw: {e}")
-
-                    if self.state.target_area:
-                        self.state.target_area.tag_redraw()
-
-            def _handle_enforcement_error(self):
-
-                try:
-                    logger.info("Attempting cleanup due to enforcement error")
-                    self.disable_overlay()
-                except Exception as cleanup_error:
-                    logger.error(f"Error during cleanup: {cleanup_error}")
-
-            def is_ui_active(self) -> bool:
-
-                if not self.state.is_enabled or not self.state.target_area:
-                    return False
-
-                try:
-
-                    if bpy.context.screen:
-                        return any(area == self.state.target_area for area in bpy.context.screen.areas)
-                except:
-                    pass
-
-                return False
-
-            def _redraw_viewports(self):
-
-                try:
-                    for area in bpy.context.screen.areas:
-                        if area.type == 'VIEW_3D':
-                            area.tag_redraw()
-                except Exception as e:
-                    logger.error(f"Error redrawing viewports: {e}")
-
-            def handle_mouse_event(self, context, event) -> str:
-
-                try:
-
-                    if not self.state.is_enabled or not self.state.target_area:
-                        return 'PASS_THROUGH'
-
-                    if (hasattr(self, '_original_workspace') and hasattr(self, '_original_screen') and
-                            (bpy.context.window.workspace != self._original_workspace or
-                             bpy.context.window.screen != self._original_screen)):
-                        return 'PASS_THROUGH'
-
-                    if not self._mouse_in_target_area(event):
-
-                        if self._last_hovered_component:
-                            from .types import UIEvent, EventType
-                            leave_event = UIEvent(EventType.MOUSE_LEAVE, event.mouse_x, event.mouse_y)
-                            self._last_hovered_component.handle_event(leave_event)
-                            self._last_hovered_component = None
-
-                            self.state.target_area.tag_redraw()
-
-                        self.reset_cursor_to_default()
-                        return 'PASS_THROUGH'
-
-                    mouse_x, mouse_y = self._screen_to_region_coords(event, self.state.target_area)
-
-                    if mouse_x is None or mouse_y is None:
-                        return 'PASS_THROUGH'
-
-                    self.state.mouse_x = mouse_x
-                    self.state.mouse_y = mouse_y
-
-                    self._update_cursor_for_mouse_position(mouse_x, mouse_y)
-
-                    if event.type == 'LEFTMOUSE' and event.value == 'PRESS':
-
-                        component = self.state.get_component_at_point(mouse_x, mouse_y)
-
-                        if component:
-
-                            self._mouse_pressed = True
-                            self._mouse_pressed_component = component
-
-                            from .types import UIEvent, EventType
-                            ui_event = UIEvent(EventType.MOUSE_PRESS, mouse_x, mouse_y)
-                            result = component.handle_event(ui_event)
-                        else:
-
-                            self.state.set_focus(None)
-                            self._mouse_pressed = False
-                            self._mouse_pressed_component = None
-
-                        self.state.target_area.tag_redraw()
-                        return 'RUNNING_MODAL'
-
-                    elif event.type == 'LEFTMOUSE' and event.value == 'RELEASE':
-
-                        if self._mouse_pressed and self._mouse_pressed_component:
-                            from .types import UIEvent, EventType
-                            ui_event = UIEvent(EventType.MOUSE_RELEASE, mouse_x, mouse_y)
-                            result = self._mouse_pressed_component.handle_event(ui_event)
-
-                            current_component = self.state.get_component_at_point(mouse_x, mouse_y)
-                            if current_component == self._mouse_pressed_component:
-                                click_event = UIEvent(EventType.MOUSE_CLICK, mouse_x, mouse_y)
-                                click_result = self._mouse_pressed_component.handle_event(click_event)
-
-                                if click_result:
-                                    result = click_result
-
-                        self._mouse_pressed = False
-                        self._mouse_pressed_component = None
-
-                        self.state.target_area.tag_redraw()
-                        return 'RUNNING_MODAL'
-
-                    elif event.type == 'MOUSEMOVE' and self._mouse_pressed and self._mouse_pressed_component:
-
-                        from .types import UIEvent, EventType
-                        ui_event = UIEvent(EventType.MOUSE_DRAG, mouse_x, mouse_y)
-                        result = self._mouse_pressed_component.handle_event(ui_event)
-
-                        self.state.target_area.tag_redraw()
-                        return 'RUNNING_MODAL'
-
-                    elif event.type == 'MOUSEMOVE' and not self._mouse_pressed:
-                        component = self.state.get_component_at_point(mouse_x, mouse_y)
-
-                        if self._last_hovered_component and self._last_hovered_component != component:
-                            from .types import UIEvent, EventType
-                            leave_event = UIEvent(EventType.MOUSE_LEAVE, mouse_x, mouse_y)
-                            self._last_hovered_component.handle_event(leave_event)
-
-                        if component and component != self._last_hovered_component:
-                            from .types import UIEvent, EventType
-                            enter_event = UIEvent(EventType.MOUSE_ENTER, mouse_x, mouse_y)
-                            component.handle_event(enter_event)
-
-                        if component:
-                            from .types import UIEvent, EventType
-                            ui_event = UIEvent(EventType.MOUSE_MOVE, mouse_x, mouse_y)
-                            result = component.handle_event(ui_event)
-
-                            if result:
-                                self.state.target_area.tag_redraw()
-
-                        self._last_hovered_component = component
-
-                        return 'RUNNING_MODAL'
-
-                    elif event.type in {'WHEELUPMOUSE', 'WHEELDOWNMOUSE'} and event.value == 'PRESS':
-
-                        component = self.state.get_component_at_point(mouse_x, mouse_y)
-                        if component:
-                            from .types import UIEvent, EventType
-
-                            wheel_direction = 'UP' if event.type == 'WHEELUPMOUSE' else 'DOWN'
-                            ui_event = UIEvent(
-                                EventType.MOUSE_WHEEL,
-                                mouse_x,
-                                mouse_y,
-                                data={'wheel_direction': wheel_direction}
-                            )
-
-                            result = component.handle_event(ui_event)
-
-                            if result:
-                                self.state.target_area.tag_redraw()
-                                return 'RUNNING_MODAL'
-
-                    if event.type in {'LEFTMOUSE', 'RIGHTMOUSE', 'MIDDLEMOUSE', 'WHEELUPMOUSE', 'WHEELDOWNMOUSE',
-                                      'MOUSEMOVE',
-                                      }:
-                        return 'RUNNING_MODAL'
-
-                    return 'PASS_THROUGH'
-                except Exception as e:
-                    logger.error(f"Error handling mouse event: {e}")
-                    return 'PASS_THROUGH'
-
-            def handle_keyboard_event(self, context, event) -> str:
-                try:
-                    if not self.state.is_enabled or not self.state.target_area:
-                        return 'PASS_THROUGH'
-
-                    if (hasattr(self, '_original_workspace') and hasattr(self, '_original_screen') and
-                            (bpy.context.window.workspace != self._original_workspace or
-                             bpy.context.window.screen != self._original_screen)):
-                        return 'PASS_THROUGH'
-
-                    if self.state.focused_component:
-                        consumed = False
-
-                        from .types import UIEvent, EventType
-
-                        if event.value == 'PRESS':
-                            key_name = event.type
-
-                            modifiers = []
-                            if event.ctrl:
-                                modifiers.append('CTRL')
-                            if event.shift:
-                                modifiers.append('SHIFT')
-                            if event.alt:
-                                modifiers.append('ALT')
-
-                            if modifiers:
-                                key_name = '_'.join(modifiers) + '_' + event.type
-
-                            if (not modifiers or (len(modifiers) == 1 and 'SHIFT' in modifiers)) and len(
-                                    event.unicode) == 1 and event.unicode.isprintable():
-                                ui_event = UIEvent(EventType.TEXT_INPUT, unicode=event.unicode)
-                                consumed = self.state.focused_component.handle_event(ui_event)
-                            else:
-                                ui_event = UIEvent(EventType.KEY_PRESS, key=key_name)
-                                consumed = self.state.focused_component.handle_event(ui_event)
-
-                            if event.type == 'SPACE' and not modifiers and (
-                                    len(event.unicode) != 1 or not event.unicode.isprintable()):
-                                ui_event = UIEvent(EventType.TEXT_INPUT, unicode=' ')
-                                consumed = self.state.focused_component.handle_event(ui_event)
-
-                        if consumed:
-                            self.state.target_area.tag_redraw()
-                            return 'RUNNING_MODAL'
-                        else:
-                            from .components import TextInput
-                            if isinstance(self.state.focused_component, TextInput):
-                                return 'RUNNING_MODAL'
-
-                    return 'PASS_THROUGH'
-                except Exception as e:
-                    logger.error(f"Error handling keyboard event: {e}")
-                    return 'PASS_THROUGH'
-
-            def _mouse_in_target_area(self, event) -> bool:
-                if not self.state.target_area:
-                    return False
-
-                return (
-                            self.state.target_area.x <= event.mouse_x <= self.state.target_area.x + self.state.target_area.width and
-                            self.state.target_area.y <= event.mouse_y <= self.state.target_area.y + self.state.target_area.height)
-
-            def _screen_to_region_coords(self, event, area) -> Tuple[Optional[int], Optional[int]]:
-                if not area:
-                    return None, None
-
-                for region in area.regions:
-                    if region.type == 'WINDOW':
-                        region_x, region_y = CoordinateSystem.screen_to_region(
-                            event.mouse_x, event.mouse_y, area, region
+                self._last_content_length = len(content)
+                self._request_redraw()
+        except Exception as e:
+            logger.error(f"Error updating progress UI: {e}")
+        return None
+
+    def _handle_api_complete(self, response):
+        bpy.app.timers.register(lambda: self._complete_generation(response), first_interval=0.0)
+
+    def _complete_generation(self, response):
+        try:
+            self._is_generating = False
+            self.factory._set_send_button_mode(True)
+
+            final_content = getattr(response, 'output_content', '') or ''
+            message_id = getattr(response, 'message_id', None) or f"msg_{int(time.time() * 1000)}"
+            self._track_assistant_message(message_id, final_content)
+
+            if final_content:
+                if self._current_ai_component:
+                    if hasattr(self._current_ai_component, 'set_markdown'):
+                        self._current_ai_component.set_markdown(final_content)
+                    elif hasattr(self._current_ai_component, 'set_message'):
+                        self._current_ai_component.set_message(final_content)
+                else:
+                    self._current_ai_component = self.factory.add_markdown_message_to_scrollview(
+                        final_content,
+                        is_ai_response=True,
+                    )
+
+            if not self._conversation_tracking.get('conversation_saved', False):
+                self._save_conversation_to_history()
+
+            usage = getattr(response, 'usage_info', None) or {}
+            if usage:
+                bpy.context.window_manager.vibe5d_current_usage = usage.get('current_usage', 0)
+                bpy.context.window_manager.vibe5d_usage_limit = usage.get('limit', 0)
+
+            if not getattr(response, 'success', True):
+                logger.error(f"API generation failed: {getattr(response, 'error', 'Generation failed')}")
+        except Exception as e:
+            logger.error(f"Error completing generation: {e}")
+        finally:
+            self._reset_generation_state()
+            self._request_redraw()
+        return None
+
+    def _handle_api_error(self, error):
+        bpy.app.timers.register(lambda: self._handle_error_ui_update(error), first_interval=0.0)
+
+    def _handle_error_ui_update(self, error):
+        try:
+            if self._conversation_tracking and not self._conversation_tracking.get('conversation_saved', False):
+                self._save_conversation_to_history()
+
+            error_context = create_error_context(str(error))
+            error_content = error_context['formatted_message']
+
+            if self.components:
+                self.factory.add_error_message_to_scrollview(error_content)
+            elif self._current_ai_component:
+                if hasattr(self._current_ai_component, 'set_markdown'):
+                    self._current_ai_component.set_markdown(error_content)
+                elif hasattr(self._current_ai_component, 'set_message'):
+                    self._current_ai_component.set_message(error_content)
+
+            try:
+                history_manager.add_error_message(bpy.context, error_content)
+            except Exception as save_error:
+                logger.debug(f"Failed to save error message: {save_error}")
+        except Exception as e:
+            logger.error(f"Error handling API error: {e}")
+        finally:
+            self._reset_generation_state()
+            self._request_redraw()
+        return None
+
+    def _reset_generation_state(self):
+        self._is_generating = False
+        self._last_content_length = 0
+        self._last_tool_call_state = None
+        self._content_after_tool_call = False
+        self._current_ai_component = None
+        self._websocket_client = None
+        self._cleanup_websocket_connection()
+        if self.factory:
+            self.factory._set_send_button_mode(True)
+        self._reset_conversation_tracking()
+
+    def _cleanup_websocket_connection(self):
+        try:
+            from ...api.websocket_client import llm_websocket_client
+            if not llm_websocket_client.is_ready_for_new_request():
+                llm_websocket_client.close()
+        except Exception:
+            pass
+
+        try:
+            from ...api.openai_client import openai_client
+            if not openai_client.is_ready_for_new_request():
+                openai_client.close()
+        except Exception:
+            pass
+
+    def cleanup(self):
+        if self._is_generating and self._conversation_tracking and not self._conversation_tracking.get('conversation_saved', False):
+            try:
+                self._save_conversation_to_history()
+            except Exception as e:
+                logger.error(f"Failed to save conversation during cleanup: {e}")
+
+        self._cleanup_websocket_connection()
+
+        if self.draw_handler:
+            bpy.types.SpaceView3D.draw_handler_remove(self.draw_handler, 'WINDOW')
+            self.draw_handler = None
+
+        if self.cursor_redraw_handler:
+            try:
+                bpy.app.timers.unregister(self.cursor_redraw_handler)
+            except Exception:
+                pass
+            self.cursor_redraw_handler = None
+
+        if self._resize_timer is not None:
+            try:
+                bpy.app.timers.unregister(self._resize_timer)
+            except Exception:
+                pass
+            self._resize_timer = None
+
+        if self.components:
+            self.components.clear()
+        self.state.reset()
+        self.factory.cleanup()
+
+    def _start_conversation_tracking(self, user_prompt: str):
+        self._conversation_tracking = {
+            'user_message': user_prompt,
+            'final_content': None,
+            'tool_calls': [],
+            'tool_responses': [],
+            'assistant_message_id': None,
+            'conversation_saved': False,
+        }
+        self._tool_completion_blocks_created.clear()
+        self._tool_start_blocks_created.clear()
+        self._active_tool_components.clear()
+
+    def _reset_conversation_tracking(self):
+        self._conversation_tracking = {
+            'user_message': None,
+            'final_content': None,
+            'tool_calls': [],
+            'tool_responses': [],
+            'assistant_message_id': None,
+            'conversation_saved': False,
+        }
+        self._tool_completion_blocks_created.clear()
+        self._tool_start_blocks_created.clear()
+        self._active_tool_components.clear()
+        self._last_sent_prompt = None
+
+    def _track_assistant_message(self, message_id: str, content: str = ""):
+        self._conversation_tracking['assistant_message_id'] = message_id
+        if content:
+            self._conversation_tracking['final_content'] = content
+
+    def _track_tool_call(self, tool_call_data: dict):
+        call_id = tool_call_data.get('call_id')
+        if any(existing.get('call_id') == call_id for existing in self._conversation_tracking['tool_calls']):
+            return
+        self._conversation_tracking['tool_calls'].append(tool_call_data)
+
+    def _track_tool_response(self, tool_response_data: dict):
+        call_id = tool_response_data.get('call_id')
+        if any(existing.get('call_id') == call_id for existing in self._conversation_tracking['tool_responses']):
+            return
+        self._conversation_tracking['tool_responses'].append(tool_response_data)
+
+    def _save_conversation_to_history(self):
+        if self._conversation_tracking.get('conversation_saved'):
+            return
+
+        try:
+            context = bpy.context
+            user_message = self._conversation_tracking.get('user_message')
+            if user_message:
+                history_manager.add_message(context, 'user', user_message)
+
+            final_content = self._conversation_tracking.get('final_content') or ''
+            tool_calls = self._conversation_tracking.get('tool_calls', [])
+            openai_tool_calls = None
+            if tool_calls:
+                openai_tool_calls = []
+                for tool_call in sorted(tool_calls, key=lambda item: item.get('call_id', '')):
+                    openai_tool_calls.append({
+                        'id': tool_call.get('call_id', f"call_{len(openai_tool_calls)}"),
+                        'type': 'function',
+                        'function': {
+                            'name': tool_call.get('function', {}).get('name', 'unknown'),
+                            'arguments': tool_call.get('function', {}).get('arguments', '{}'),
+                        },
+                    })
+
+            if final_content or openai_tool_calls:
+                history_manager.add_message(
+                    context,
+                    'assistant',
+                    final_content,
+                    tool_calls=openai_tool_calls,
+                )
+
+            for tool_response in sorted(self._conversation_tracking.get('tool_responses', []), key=lambda item: item.get('call_id', '')):
+                full_content = tool_response.get('content') or tool_response.get('ui_message', 'Tool response')
+                history_manager.add_message(
+                    context,
+                    'tool',
+                    full_content,
+                    tool_call_id=tool_response.get('call_id'),
+                )
+
+                image_data = tool_response.get('image_data')
+                if image_data and isinstance(image_data, dict):
+                    data_uri = image_data.get('data_uri')
+                    message_text = image_data.get('message_text')
+                    call_id = tool_response.get('call_id')
+                    if data_uri and message_text and call_id:
+                        history_manager.add_message_after_tool_response(
+                            context,
+                            'assistant',
+                            message_text,
+                            call_id,
+                            image_data=data_uri,
                         )
 
-                        if 0 <= region_x <= area.width and 0 <= region_y <= area.height:
-                            return region_x, region_y
+            self._conversation_tracking['conversation_saved'] = True
+        except Exception as e:
+            logger.error(f"Failed to save conversation to history: {e}")
 
-                return None, None
+    def _handle_add(self):
+        try:
+            self._reset_generation_state()
+            view = self.factory.views.get(self.factory.current_view)
+            if view and hasattr(view, 'get_message_scrollview'):
+                message_scrollview = view.get_message_scrollview()
+                if message_scrollview:
+                    message_scrollview.children.clear()
+                    message_scrollview._update_content_bounds()
 
-            def _check_ui_scale_changes(self) -> bool:
-                try:
-                    current_scale = CoordinateSystem.get_ui_scale()
+            history_manager.create_new_chat(bpy.context)
+            bpy.context.scene.vibe5d_output_content = ""
+            bpy.context.scene.vibe5d_final_code = ""
+            bpy.context.scene.vibe5d_guide_content = ""
+            if view and hasattr(view, '_show_empty_chat_message'):
+                view._show_empty_chat_message()
+            self._request_redraw()
+        except Exception as e:
+            logger.error(f"Error starting new chat: {e}")
 
-                    if self._current_ui_scale is None:
-                        self._current_ui_scale = current_scale
-                        return False
+    def _handle_history(self):
+        self.factory.switch_to_view(ViewState.HISTORY)
 
-                    if abs(current_scale - self._current_ui_scale) > 0.01:
-                        logger.info(f"UI scale changed: {self._current_ui_scale} -> {current_scale}")
-                        self._current_ui_scale = current_scale
-                        return True
+    def _handle_settings(self):
+        self.factory.switch_to_view(ViewState.SETTINGS)
 
-                    return False
-                except Exception as e:
-                    logger.error(f"Error checking UI scale changes: {e}")
-                    return False
+    def _handle_model_change(self, selected_model: str):
+        try:
+            model_mapping = {
+                'Claude Sonnet 4.5': 'claude-sonnet-4-5',
+                'GPT 5': 'gpt-5',
+                'GPT 5 Mini': 'gpt-5-mini',
+            }
+            bpy.context.scene.vibe5d_model = model_mapping.get(
+                selected_model,
+                selected_model.lower().replace(' ', '-'),
+            )
+        except Exception as e:
+            logger.error(f"Error updating model selection: {e}")
 
-            def _handle_ui_scale_change(self):
+    def _handle_auth_submit(self):
+        self._authenticate_success()
 
-                try:
-                    logger.info("Handling UI scale change - triggering complete UI recreation")
+    def _handle_get_license(self):
+        logger.info("Get license clicked")
 
-                    self._set_ui_recreation_lock(True)
+    def authenticate_success(self):
+        self._authenticate_success()
 
-                    current_focused_component = self.state.focused_component
+    def _authenticate_success(self):
+        self.factory.switch_to_view(ViewState.MAIN)
 
-                    if self.state.viewport_width > 0 and self.state.viewport_height > 0:
-                        self._recreate_ui_for_view_change(is_view_change=False)
-                        logger.info("UI completely recreated for scale change")
+    def _delayed_init_check(self):
+        try:
+            if self.state.is_enabled and self.state.target_area and (not self.ui_layout or not self.state.components):
+                if not self.force_ui_reinitialization():
+                    bpy.app.timers.register(self._retry_init, first_interval=1.0)
+        except Exception as e:
+            logger.error(f"Error in delayed init check: {e}")
+        return None
 
-                        if current_focused_component is not None:
+    def _retry_init(self):
+        try:
+            if self.state.is_enabled and self.state.target_area and (not self.ui_layout or not self.state.components):
+                self.force_ui_reinitialization()
+        except Exception as e:
+            logger.error(f"Error retrying UI initialization: {e}")
+        return None
 
-                            for component in self.state.components:
-                                if type(component) == type(current_focused_component):
-                                    self.state.set_focus(component)
-                                    logger.info(f"Restored focus to {type(component).__name__} after UI scale change")
-                                    break
-                            else:
-                                logger.info(
-                                    "Could not restore focus after UI scale change - no matching component found")
+    def enable_overlay(self, target_area=None):
+        try:
+            self.state.target_area = target_area
+            self.state.is_enabled = True
+            self._original_workspace = bpy.context.window.workspace
+            self._original_screen = bpy.context.window.screen
+            self._current_ui_scale = CoordinateSystem.get_ui_scale()
+            ui_state_manager.save_ui_state(bpy.context, self, target_area)
+            self.factory.switch_to_appropriate_view_on_startup()
+            if self.draw_handler is None:
+                self.draw_handler = SpaceView3D.draw_handler_add(self._draw_callback, (), 'WINDOW', 'POST_PIXEL')
+            try:
+                bpy.ops.vibe5d.ui_modal_handler('INVOKE_DEFAULT')
+            except Exception as e:
+                logger.warning(f"Failed to start modal handler: {e}")
+            self._redraw_viewports()
+            bpy.app.timers.register(self._delayed_init_check, first_interval=0.5)
+            self.cursor_redraw_handler = bpy.app.timers.register(
+                self._enforce_ui_settings,
+                first_interval=self.performance_config.timer_interval,
+            )
+        except Exception as e:
+            logger.error(f"Error enabling overlay: {e}")
+            raise
+
+    def disable_overlay(self):
+        if not self.state.is_enabled:
+            return
+
+        try:
+            ui_state_manager.clear_ui_state(bpy.context)
+        except Exception:
+            pass
+
+        if self.draw_handler:
+            bpy.types.SpaceView3D.draw_handler_remove(self.draw_handler, 'WINDOW')
+            self.draw_handler = None
+
+        if self.cursor_redraw_handler:
+            try:
+                bpy.app.timers.unregister(self.cursor_redraw_handler)
+            except Exception:
+                pass
+            self.cursor_redraw_handler = None
+
+        self.state.is_enabled = False
+        self.state.target_area = None
+        self.state.components.clear()
+        self.state.focused_component = None
+        self._current_ui_scale = None
+        self._ui_scale_check_counter = 0
+        self._ui_recreation_in_progress = False
+        self._ui_recreation_lock_start_time = None
+        self.reset_cursor_to_default()
+        self.factory.cleanup()
+        self._redraw_viewports()
+
+    def _draw_callback(self):
+        region = None
+        try:
+            if not self.state.is_enabled or not self.state.target_area:
+                return
+
+            context = bpy.context
+            region = context.region
+            area = context.area
+            if not region or area != self.state.target_area:
+                return
+
+            new_width, new_height = region.width, region.height
+            if self.state.viewport_width != new_width or self.state.viewport_height != new_height:
+                if self.state.viewport_width == 0 or self.state.viewport_height == 0:
+                    self.state.update_viewport_size(new_width, new_height)
+                    if self.ui_layout is None:
+                        self._initialize_ui_layout()
                     else:
-                        logger.warning("Cannot recreate UI for scale change - invalid viewport dimensions")
-
-                except Exception as e:
-                    logger.error(f"Error handling UI scale change: {e}")
-
-                    try:
-                        if self.ui_layout and self.state.viewport_width > 0 and self.state.viewport_height > 0:
-                            self._update_layout()
-                            logger.info("Fallback: Updated layout after UI recreation failed")
-
-                        if self.state.target_area:
-                            self.state.target_area.tag_redraw()
-                    except Exception as fallback_error:
-                        logger.error(f"Fallback layout update also failed: {fallback_error}")
-                finally:
-
-                    self._set_ui_recreation_lock(False)
-
-            def _set_ui_recreation_lock(self, locked: bool):
-                self._ui_recreation_in_progress = locked
-                if locked:
-                    self._ui_recreation_lock_start_time = time.time()
-                    logger.debug("UI recreation lock SET - blocking conflicting timers")
+                        self._update_layout()
                 else:
-                    lock_duration = time.time() - (self._ui_recreation_lock_start_time or 0)
-                    self._ui_recreation_lock_start_time = None
-                    logger.debug(f"UI recreation lock CLEARED after {lock_duration:.3f}s")
+                    self._pending_viewport_size = (new_width, new_height)
+                    if self._resize_timer is not None:
+                        try:
+                            bpy.app.timers.unregister(self._resize_timer)
+                        except Exception:
+                            pass
+                    self._resize_timer = bpy.app.timers.register(
+                        self._on_viewport_resize_finished,
+                        first_interval=self._viewport_resize_debounce_delay,
+                    )
 
-            def _is_ui_recreation_locked(self) -> bool:
+            if self.ui_layout is None:
+                self._initialize_ui_layout()
+            if not self.state.components:
+                self._initialize_ui_layout()
+            if not self.state.components:
+                self._draw_error_message(region)
+                return
 
-                if (self._ui_recreation_in_progress and self._ui_recreation_lock_start_time and
-                        time.time() - self._ui_recreation_lock_start_time > 5.0):
-                    logger.warning("UI recreation lock timeout - forcing unlock")
-                    self._set_ui_recreation_lock(False)
-                    return False
-                return self._ui_recreation_in_progress
+            self.renderer.draw_rect(Bounds(0, 0, region.width, region.height), Styles.Panel)
+            visible_components = [component for component in self.state.components if component.is_visible()]
+            if not visible_components:
+                self._draw_error_message(region)
+                return
 
-            def set_cursor(self, cursor_type: CursorType, is_override: bool = False):
+            for component in visible_components:
                 try:
-                    self._cursor_requests.append({
-                    : 'set',
-                    :cursor_type,
-                    : is_override
-                    })
-                    except Exception as e:
-                    logger.error(f"Failed to request cursor change to {cursor_type.value}: {e}")
-
-            def clear_cursor_override(self):
-
-                self._cursor_requests.append({
-                : 'clear_override'
-                })
-
-                def reset_cursor_to_default(self):
-
-                    self._cursor_requests.append({
-                    : 'reset'
-                    })
-
-                    def request_cursor_change(self, cursor_type: CursorType):
-                        self.set_cursor(cursor_type)
-
-                    def _update_cursor_for_mouse_position(self, mouse_x: int, mouse_y: int):
-                        try:
-                            component = self.state.get_component_at_point(mouse_x, mouse_y)
-
-                            if component:
-                                desired_cursor = component.get_cursor_type()
-                                self.request_cursor_change(desired_cursor)
-                            else:
-                                self.request_cursor_change(CursorType.DEFAULT)
-                        except Exception as e:
-                            logger.error(f"Error updating cursor for mouse position: {e}")
-
-                    def _recreate_ui_for_view_change(self, is_view_change: bool = True):
-                        if self.state.viewport_width == 0 or self.state.viewport_height == 0:
-                            return
-
-                        try:
-                            reason = "view change" if is_view_change else "UI scale change"
-
-                            if is_view_change:
-                                try:
-                                    from ...utils.scene_handler import scene_handler
-                                    scene_handler.set_view_change_flag(True)
-                                except Exception as e:
-                                    logger.error(f"Error setting view change flag: {e}")
-
-                            lock_was_already_set = self._is_ui_recreation_locked()
-                            if not lock_was_already_set:
-                                self._set_ui_recreation_lock(True)
-
-                            for component in self.state.components:
-                                if hasattr(component, 'cleanup'):
-                                    try:
-                                        component.cleanup()
-                                    except Exception as e:
-                                        logger.debug(f"Error cleaning up component during {reason}: {e}")
-
-                            self.state.components.clear()
-
-                            if hasattr(layout_manager, 'containers'):
-                                layout_manager.containers.clear()
-                                layout_manager.layouts.clear()
-                                layout_manager.constraints.clear()
-                                if hasattr(layout_manager, 'container_bounds'):
-                                    layout_manager.container_bounds.clear()
-
-                            self.ui_layout = self.factory.create_layout(
-                                self.state.viewport_width,
-                                self.state.viewport_height,
-                                on_send=self._handle_send,
-                                on_add=self._handle_add,
-                                on_history=self._handle_history,
-                                on_settings=self._handle_settings,
-                                on_model_change=self._handle_model_change,
-                                on_auth_submit=self._handle_auth_submit,
-                                on_get_license=self._handle_get_license,
-                                on_stop_generation=self.factory._handle_stop_generation
-                            )
-
-                            self.components = self.ui_layout['components']
-
-                            for component in self.ui_layout['all_components']:
-                                self.state.add_component(component)
-
-                            for component in self.state.components:
-                                component.update_layout()
-
-                            for component in self.state.components:
-                                if hasattr(component, '_dimension_cache') and hasattr(component, 'invalidate'):
-                                    component._dimension_cache.clear()
-                                    component.invalidate()
-                                    logger.debug(f"Cleared dimension cache for {type(component).__name__}")
-
-                            if is_view_change:
-                                focused_component = self.factory.get_focused_component()
-                                if focused_component:
-                                    self.state.set_focus(focused_component)
-                            else:
-                                logger.info("Skipping initial focus setting for UI scale change")
-
-                            if self.state.target_area:
-                                self.state.target_area.tag_redraw()
-
-                            logger.info(f"Recreated UI for {reason}")
-                        except Exception as e:
-                            logger.error(f"Error in _recreate_ui_for_view_change: {e}")
-                            raise
-                        finally:
-
-                            if is_view_change:
-                                try:
-                                    from ...utils.scene_handler import scene_handler
-                                    scene_handler.set_view_change_flag(False)
-                                except Exception as e:
-                                    logger.error(f"Error clearing view change flag: {e}")
-
-                            if not lock_was_already_set:
-                                self._set_ui_recreation_lock(False)
-
-                    def demo_no_connection_view(self):
-
-                        logger.info("Demo: Switching to no connection view")
-                        self.factory.switch_to_view(ViewState.NO_CONNECTION)
-
-                    def test_connectivity_and_update_view(self):
-
-                        logger.info("Testing connectivity and updating view")
-                        if self.factory.check_and_handle_connectivity():
-                            logger.info("Connectivity test passed - connection is available")
-                        else:
-                            logger.info("Connectivity test failed - switched to no connection view")
-
-                    def _get_tool_status_block(self, tool_name: str, status: str, success: bool = True) -> str:
-
-                        try:
-                            if status == "started":
-                                if tool_name == "execute":
-                                    return "[Writing code]"
-                                elif tool_name == "query":
-                                    return "[Reading scene]"
-                                elif tool_name == "web_search_preview":
-                                    return "[Searching web]"
-                                elif tool_name == "custom_props":
-                                    return "[Reading properties]"
-                                elif tool_name == "render_settings":
-                                    return "[Reading render settings]"
-                                elif tool_name == "scene_graph":
-                                    return "[Analyzing scene]"
-                                elif tool_name == "nodes_graph":
-                                    return "[Analyzing nodes]"
-                                elif tool_name in ["viewport", "see_viewport", "add_viewport_render"]:
-                                    return "[Capturing viewport]"
-                                elif tool_name == "see_render":
-                                    return "[Rendering scene]"
-                                elif "image" in tool_name.lower():
-                                    return "[Analyzing image]"
-                                else:
-                                    return f"[Using tool]"
-
-                            elif status == "completed":
-                                if tool_name == "execute":
-                                    return "[Code executed]" if success else "[Code execution failed]"
-                                elif tool_name == "query":
-                                    return "[Scene read]" if success else "[Scene reading failed]"
-                                elif tool_name == "web_search_preview":
-                                    return "[Found results]" if success else "[Web search failed]"
-                                elif tool_name == "custom_props":
-                                    return "[Properties read]" if success else "[Properties reading failed]"
-                                elif tool_name == "render_settings":
-                                    return "[Render settings read]" if success else "[Render settings reading failed]"
-                                elif tool_name == "scene_graph":
-                                    return "[Scene analyzed]" if success else "[Scene analysis failed]"
-                                elif tool_name == "nodes_graph":
-                                    return "[Nodes analyzed]" if success else "[Nodes analysis failed]"
-                                elif tool_name in ["viewport", "see_viewport", "add_viewport_render"]:
-                                    if success:
-                                        return "[Viewport captured]"
-                                    else:
-                                        return "[Viewport capture failed]"
-                                elif tool_name == "see_render":
-                                    if success:
-                                        return "[Render captured]"
-                                    else:
-                                        return "[Render failed]"
-                                elif "image" in tool_name.lower():
-                                    return "[Image analyzed]" if success else "[Image analysis failed]"
-                                else:
-                                    return f"[Tool completed]" if success else f"[Tool failed]"
-
-                            return None
-
-                        except Exception as e:
-                            logger.error(f"Error generating tool status block: {str(e)}")
-                            return None
-
-                    def _update_tool_component(self, call_id: str, new_content: str):
-
-                        try:
-                            if call_id in self._active_tool_components:
-                                component = self._active_tool_components[call_id]
-                                if hasattr(component, 'set_markdown'):
-                                    component.set_markdown(new_content)
-
-                                    self._stop_animations_for_completed_tool(component, new_content)
-
-                                    logger.info(f"Updated tool component for {call_id}: '{new_content}'")
-                                    return True
-                                else:
-                                    logger.warning(f"Tool component for {call_id} doesn't have set_markdown method")
-                            else:
-                                logger.debug(f"No active tool component found for {call_id}")
-                            return False
-                        except Exception as e:
-                            logger.error(f"Error updating tool component for {call_id}: {str(e)}")
-                            return False
-
-                    def _stop_animations_for_completed_tool(self, component, content: str):
-                        try:
-                            if hasattr(component, 'elements'):
-                                for element in component.elements:
-                                    if hasattr(element, 'is_animated') and element.is_animated:
-
-                                        if self._is_completed_tool_block(element.text):
-                                            element.stop_animation()
-                                            logger.debug(f"Stopped animation for completed tool: {element.text}")
-                        except Exception as e:
-                            logger.error(f"Error stopping animations for completed tool: {e}")
-
-                    def _is_completed_tool_block(self, text: str) -> bool:
-                        text_lower = text.lower()
-
-                        completed_indicators = [
-                            , 'execution complete', 'executed successfully',
-                        , 'scene analyzed', 'analysis complete',
-                        , 'search completed', 'search finished',
-                        , 'image processing complete',
-                        , 'viewport capture complete', 'screenshot captured',
-                        , 'render finished', 'rendered successfully',
-                        , 'settings read',
-                        , 'tool finished', 'execution done',
-                        , 'scene updated', 'objects created',
-                        , 'modification complete', 'update complete'
-                        ]
-
-                        return any(indicator in text_lower for indicator in completed_indicators)
-
-                    def _cleanup_completed_tool_component(self, call_id: str):
-                        try:
-                            if call_id in self._active_tool_components:
-                                del self._active_tool_components[call_id]
-                                return True
-                            return False
-                        except Exception as e:
-                            logger.error(f"Error cleaning up tool component for {call_id}: {str(e)}")
-                            return False
-
-                    def handle_external_tool_call(self, tool_call_data: dict):
-                        try:
-                            call_id = tool_call_data.get('call_id')
-                            tool_name = tool_call_data.get('tool_name')
-                            arguments = tool_call_data.get('arguments', '{}')
-
-                            tracked_data = {
-                            :call_id,
-                            : {
-                            :tool_name,
-                            : arguments
-                            },
-                            :'executed'
-                            }
-                            self._track_tool_call(tracked_data)
-
-                        except Exception as e:
-                            logger.error(f"Failed to handle external tool call: {str(e)}")
-
-                    def handle_external_tool_response(self, tool_response_data: dict):
-                        try:
-                            call_id = tool_response_data.get('call_id')
-
-                            history_content = tool_response_data.get('content', '{}')
-
-                            ui_message = tool_response_data.get('ui_message')
-                            if not ui_message:
-                                try:
-                                    import json
-                                    original_result = json.loads(history_content) if isinstance(history_content,
-                                                                                                str) else history_content
-                                    if isinstance(original_result, dict):
-                                        if original_result.get('status') == 'success':
-                                            result_data = original_result.get('result', {})
-                                            if isinstance(result_data, str):
-                                                ui_message = result_data.strip() if result_data.strip() else "Tool executed successfully"
-                                            else:
-                                                ui_message = "Tool executed successfully"
-                                        else:
-                                            ui_message = str(original_result.get('result', 'Tool execution failed'))
-                                    else:
-                                        ui_message = str(original_result)
-                                except:
-                                    ui_message = "Tool response received"
-
-                            success = tool_response_data.get('success', True)
-
-                            tracked_data = {
-                            :call_id,
-                            : history_content,
-                            :success,
-                            : ui_message
-                            }
-
-                            image_data = tool_response_data.get('image_data')
-                            if image_data and isinstance(image_data, dict):
-                                tracked_data['image_data'] = image_data
-
-                            self._track_tool_response(tracked_data)
-
-                        except Exception as e:
-                            logger.error(f"Failed to handle external tool response: {str(e)}")
-                            import traceback
-                            logger.error(traceback.format_exc())
-
-                    def save_current_ui_state(self):
-
-                        try:
-                            if self.state.is_enabled and self.state.target_area:
-                                ui_state_manager.save_ui_state(bpy.context, self, self.state.target_area)
-                        except Exception as e:
-                            logger.debug(f"Could not save current UI state: {e}")
-
-                    def force_ui_reinitialization(self):
-
-                        try:
-                            logger.info("Forcing UI reinitialization")
-
-                            self.state.components.clear()
-                            self.ui_layout = None
-                            self.components = {}
-
-                            if hasattr(layout_manager, 'containers'):
-                                layout_manager.containers.clear()
-                                layout_manager.layouts.clear()
-                                layout_manager.constraints.clear()
-                                if hasattr(layout_manager, 'container_bounds'):
-                                    layout_manager.container_bounds.clear()
-
-                            if self.state.viewport_width > 0 and self.state.viewport_height > 0:
-                                self._initialize_ui_layout()
-
-                                if self.ui_layout and self.state.components:
-
-                                    if self.state.target_area:
-                                        self.state.target_area.tag_redraw()
-                                    return True
-                                else:
-                                    logger.error("UI reinitialization failed - no layout or components created")
-                                    return False
-                            else:
-                                logger.warning("Cannot reinitialize UI - no valid viewport dimensions")
-                                return False
-
-                        except Exception as e:
-                            logger.error(f"Error during UI reinitialization: {e}")
-                            import traceback
-                            logger.error(traceback.format_exc())
-                            return False
-
-                    def save_current_unsent_text(self):
-
-                        try:
-                            from ...utils.history_manager import history_manager
-                            context = bpy.context
-                            current_chat_id = getattr(context.scene, 'vibe4d_current_chat_id', '')
-                            if current_chat_id:
-                                current_text = self.factory.get_send_text() if self.factory else ""
-                                history_manager.save_unsent_text(context, current_chat_id, current_text)
-                                logger.debug(f"Saved unsent text before UI change: '{current_text[:50]}...'")
-                        except Exception as e:
-                            logger.debug(f"Could not save unsent text: {e}")
-
-                    def restore_current_unsent_text(self):
-
-                        try:
-                            from ...utils.history_manager import history_manager
-                            context = bpy.context
-                            current_chat_id = getattr(context.scene, 'vibe4d_current_chat_id', '')
-                            if current_chat_id:
-                                history_manager.restore_unsent_text(context, current_chat_id)
-                                logger.debug(f"Restored unsent text after UI change for chat: {current_chat_id}")
-                        except Exception as e:
-                            logger.debug(f"Could not restore unsent text: {e}")
-
-                ui_manager = UIManager()
+                    component.render(self.renderer)
+                except Exception as e:
+                    logger.error(f"Error rendering {type(component).__name__}: {e}")
+
+            if self.state.focused_component and isinstance(self.state.focused_component, TextInput):
+                self._schedule_cursor_redraw()
+        except Exception as e:
+            logger.error(f"Error in draw callback: {e}")
+            if region:
+                self._draw_error_message(region)
+
+    def _draw_error_message(self, region):
+        try:
+            self.renderer.draw_rect(Bounds(0, 0, region.width, region.height), (0.1, 0.1, 0.1, 0.9))
+            from .components import Label
+            error_label = Label(
+                "UI Loading Error - Please try reopening",
+                10,
+                region.height // 2,
+                region.width - 20,
+                30,
+            )
+            error_label.style.text_color = (1.0, 0.3, 0.3, 1.0)
+            error_label.render(self.renderer)
+        except Exception as e:
+            logger.error(f"Error drawing error message: {e}")
+
+    def _schedule_animation_redraw(self):
+        self._request_redraw()
+
+    def _schedule_cursor_redraw(self):
+        self._request_redraw()
+
+    def _enforce_ui_settings(self):
+        try:
+            if not self.state.is_enabled or not self.state.target_area:
+                return self.performance_config.timer_interval
+
+            if self._check_ui_scale_changes():
+                self._handle_ui_scale_change()
+
+            return self.performance_config.timer_interval
+        except Exception as e:
+            logger.error(f"Error enforcing UI settings: {e}")
+            return None
+
+    def _redraw_viewports(self):
+        try:
+            for area in bpy.context.screen.areas:
+                if area.type == 'VIEW_3D':
+                    area.tag_redraw()
+        except Exception as e:
+            logger.error(f"Error redrawing viewports: {e}")
+
+    def _request_redraw(self):
+        self._selective_redraw()
+
+    def _selective_redraw(self):
+        if self.state.target_area and hasattr(self.state.target_area, 'tag_redraw'):
+            self.state.target_area.tag_redraw()
+
+    def is_ui_active(self) -> bool:
+        if not self.state.is_enabled or not self.state.target_area:
+            return False
+        try:
+            return any(area == self.state.target_area for area in bpy.context.screen.areas)
+        except Exception:
+            return False
+
+    def handle_mouse_event(self, context, event) -> str:
+        try:
+            if not self.state.is_enabled or not self.state.target_area:
+                return 'PASS_THROUGH'
+
+            if not self._mouse_in_target_area(event):
+                if self._last_hovered_component:
+                    from .types import UIEvent, EventType
+                    self._last_hovered_component.handle_event(UIEvent(EventType.MOUSE_LEAVE, event.mouse_x, event.mouse_y))
+                    self._last_hovered_component = None
+                self.reset_cursor_to_default()
+                return 'PASS_THROUGH'
+
+            mouse_x, mouse_y = self._screen_to_region_coords(event, self.state.target_area)
+            if mouse_x is None or mouse_y is None:
+                return 'PASS_THROUGH'
+
+            self.state.mouse_x = mouse_x
+            self.state.mouse_y = mouse_y
+            self._update_cursor_for_mouse_position(mouse_x, mouse_y)
+
+            from .types import UIEvent, EventType
+            if event.type == 'LEFTMOUSE' and event.value == 'PRESS':
+                component = self.state.get_component_at_point(mouse_x, mouse_y)
+                if component:
+                    self._mouse_pressed = True
+                    self._mouse_pressed_component = component
+                    component.handle_event(UIEvent(EventType.MOUSE_PRESS, mouse_x, mouse_y))
+                    self.state.set_focus(component)
+                else:
+                    self.state.set_focus(None)
+                    self._mouse_pressed = False
+                    self._mouse_pressed_component = None
+                self._request_redraw()
+                return 'RUNNING_MODAL'
+
+            if event.type == 'LEFTMOUSE' and event.value == 'RELEASE':
+                if self._mouse_pressed_component:
+                    self._mouse_pressed_component.handle_event(UIEvent(EventType.MOUSE_RELEASE, mouse_x, mouse_y))
+                    current_component = self.state.get_component_at_point(mouse_x, mouse_y)
+                    if current_component == self._mouse_pressed_component:
+                        self._mouse_pressed_component.handle_event(UIEvent(EventType.MOUSE_CLICK, mouse_x, mouse_y))
+                self._mouse_pressed = False
+                self._mouse_pressed_component = None
+                self._request_redraw()
+                return 'RUNNING_MODAL'
+
+            if event.type == 'MOUSEMOVE' and self._mouse_pressed and self._mouse_pressed_component:
+                self._mouse_pressed_component.handle_event(UIEvent(EventType.MOUSE_DRAG, mouse_x, mouse_y))
+                self._request_redraw()
+                return 'RUNNING_MODAL'
+
+            if event.type == 'MOUSEMOVE':
+                component = self.state.get_component_at_point(mouse_x, mouse_y)
+                if self._last_hovered_component and self._last_hovered_component != component:
+                    self._last_hovered_component.handle_event(UIEvent(EventType.MOUSE_LEAVE, mouse_x, mouse_y))
+                if component and component != self._last_hovered_component:
+                    component.handle_event(UIEvent(EventType.MOUSE_ENTER, mouse_x, mouse_y))
+                if component:
+                    component.handle_event(UIEvent(EventType.MOUSE_MOVE, mouse_x, mouse_y))
+                self._last_hovered_component = component
+                return 'RUNNING_MODAL'
+
+            if event.type in {'WHEELUPMOUSE', 'WHEELDOWNMOUSE'} and event.value == 'PRESS':
+                component = self.state.get_component_at_point(mouse_x, mouse_y)
+                if component:
+                    component.handle_event(UIEvent(
+                        EventType.MOUSE_WHEEL,
+                        mouse_x,
+                        mouse_y,
+                        data={'wheel_direction': 'UP' if event.type == 'WHEELUPMOUSE' else 'DOWN'},
+                    ))
+                    self._request_redraw()
+                    return 'RUNNING_MODAL'
+
+            if event.type in {'LEFTMOUSE', 'RIGHTMOUSE', 'MIDDLEMOUSE', 'WHEELUPMOUSE', 'WHEELDOWNMOUSE', 'MOUSEMOVE'}:
+                return 'RUNNING_MODAL'
+        except Exception as e:
+            logger.error(f"Error handling mouse event: {e}")
+        return 'PASS_THROUGH'
+
+    def handle_keyboard_event(self, context, event) -> str:
+        try:
+            if not self.state.is_enabled or not self.state.target_area or not self.state.focused_component:
+                return 'PASS_THROUGH'
+
+            from .types import UIEvent, EventType
+            consumed = False
+            if event.value == 'PRESS':
+                key_name = event.type
+                modifiers = []
+                if event.ctrl:
+                    modifiers.append('CTRL')
+                if event.shift:
+                    modifiers.append('SHIFT')
+                if event.alt:
+                    modifiers.append('ALT')
+                if modifiers:
+                    key_name = '_'.join(modifiers) + '_' + event.type
+
+                if (not modifiers or modifiers == ['SHIFT']) and len(event.unicode) == 1 and event.unicode.isprintable():
+                    consumed = self.state.focused_component.handle_event(UIEvent(EventType.TEXT_INPUT, unicode=event.unicode))
+                else:
+                    consumed = self.state.focused_component.handle_event(UIEvent(EventType.KEY_PRESS, key=key_name))
+
+                if event.type == 'SPACE' and not modifiers and (len(event.unicode) != 1 or not event.unicode.isprintable()):
+                    consumed = self.state.focused_component.handle_event(UIEvent(EventType.TEXT_INPUT, unicode=' ')) or consumed
+
+            if consumed:
+                self._request_redraw()
+                return 'RUNNING_MODAL'
+
+            if isinstance(self.state.focused_component, TextInput):
+                return 'RUNNING_MODAL'
+        except Exception as e:
+            logger.error(f"Error handling keyboard event: {e}")
+        return 'PASS_THROUGH'
+
+    def _mouse_in_target_area(self, event) -> bool:
+        if not self.state.target_area:
+            return False
+        return (
+            self.state.target_area.x <= event.mouse_x <= self.state.target_area.x + self.state.target_area.width
+            and self.state.target_area.y <= event.mouse_y <= self.state.target_area.y + self.state.target_area.height
+        )
+
+    def _screen_to_region_coords(self, event, area) -> Tuple[Optional[int], Optional[int]]:
+        if not area:
+            return None, None
+        for region in area.regions:
+            if region.type == 'WINDOW':
+                region_x, region_y = CoordinateSystem.screen_to_region(event.mouse_x, event.mouse_y, area, region)
+                if 0 <= region_x <= area.width and 0 <= region_y <= area.height:
+                    return region_x, region_y
+        return None, None
+
+    def _check_ui_scale_changes(self) -> bool:
+        try:
+            current_scale = CoordinateSystem.get_ui_scale()
+            if self._current_ui_scale is None:
+                self._current_ui_scale = current_scale
+                return False
+            if abs(current_scale - self._current_ui_scale) > 0.01:
+                self._current_ui_scale = current_scale
+                return True
+        except Exception as e:
+            logger.error(f"Error checking UI scale changes: {e}")
+        return False
+
+    def _handle_ui_scale_change(self):
+        try:
+            self._set_ui_recreation_lock(True)
+            if self.state.viewport_width > 0 and self.state.viewport_height > 0:
+                self._recreate_ui_for_view_change(is_view_change=False)
+        except Exception as e:
+            logger.error(f"Error handling UI scale change: {e}")
+        finally:
+            self._set_ui_recreation_lock(False)
+
+    def _set_ui_recreation_lock(self, locked: bool):
+        self._ui_recreation_in_progress = locked
+        self._ui_recreation_lock_start_time = time.time() if locked else None
+
+    def _is_ui_recreation_locked(self) -> bool:
+        if self._ui_recreation_in_progress and self._ui_recreation_lock_start_time:
+            if time.time() - self._ui_recreation_lock_start_time > 5.0:
+                self._set_ui_recreation_lock(False)
+                return False
+        return self._ui_recreation_in_progress
+
+    def set_cursor(self, cursor_type: CursorType, is_override: bool = False):
+        self._cursor_requests.append({
+            'action': 'set',
+            'cursor_type': cursor_type,
+            'is_override': is_override,
+        })
+
+    def clear_cursor_override(self):
+        self._cursor_requests.append({'action': 'clear_override'})
+
+    def reset_cursor_to_default(self):
+        self._cursor_requests.append({'action': 'reset'})
+
+    def request_cursor_change(self, cursor_type: CursorType):
+        self.set_cursor(cursor_type)
+
+    def _update_cursor_for_mouse_position(self, mouse_x: int, mouse_y: int):
+        try:
+            component = self.state.get_component_at_point(mouse_x, mouse_y)
+            self.request_cursor_change(component.get_cursor_type() if component else CursorType.DEFAULT)
+        except Exception as e:
+            logger.error(f"Error updating cursor: {e}")
+
+    def _recreate_ui_for_view_change(self, is_view_change: bool = True):
+        if self.state.viewport_width == 0 or self.state.viewport_height == 0:
+            return
+
+        lock_was_already_set = self._is_ui_recreation_locked()
+        if not lock_was_already_set:
+            self._set_ui_recreation_lock(True)
+
+        try:
+            self.state.components.clear()
+            if hasattr(layout_manager, 'containers'):
+                layout_manager.containers.clear()
+                layout_manager.layouts.clear()
+                layout_manager.constraints.clear()
+                if hasattr(layout_manager, 'container_bounds'):
+                    layout_manager.container_bounds.clear()
+
+            self.ui_layout = self.factory.create_layout(
+                self.state.viewport_width,
+                self.state.viewport_height,
+                on_send=self._handle_send,
+                on_add=self._handle_add,
+                on_history=self._handle_history,
+                on_settings=self._handle_settings,
+                on_model_change=self._handle_model_change,
+                on_auth_submit=self._handle_auth_submit,
+                on_get_license=self._handle_get_license,
+                on_stop_generation=self.factory._handle_stop_generation,
+            )
+            self.components = self.ui_layout.get('components', {})
+            for component in self.ui_layout.get('all_components', []):
+                self.state.add_component(component)
+            focused_component = self.factory.get_focused_component()
+            if focused_component and is_view_change:
+                self.state.set_focus(focused_component)
+            self._request_redraw()
+        finally:
+            if not lock_was_already_set:
+                self._set_ui_recreation_lock(False)
+
+    def demo_no_connection_view(self):
+        self.factory.switch_to_view(ViewState.NO_CONNECTION)
+
+    def test_connectivity_and_update_view(self):
+        self.factory.check_and_handle_connectivity()
+
+    def _get_tool_status_block(self, tool_name: str, status: str, success: bool = True) -> str:
+        started = {
+            'execute': '[Writing code]',
+            'query': '[Reading scene]',
+            'web_search_preview': '[Searching web]',
+            'viewport': '[Capturing viewport]',
+            'see_viewport': '[Capturing viewport]',
+            'add_viewport_render': '[Capturing viewport]',
+            'see_render': '[Rendering scene]',
+        }
+        completed = {
+            'execute': '[Code executed]' if success else '[Code execution failed]',
+            'query': '[Scene read]' if success else '[Scene reading failed]',
+            'web_search_preview': '[Found results]' if success else '[Web search failed]',
+            'viewport': '[Viewport captured]' if success else '[Viewport capture failed]',
+            'see_viewport': '[Viewport captured]' if success else '[Viewport capture failed]',
+            'add_viewport_render': '[Viewport captured]' if success else '[Viewport capture failed]',
+            'see_render': '[Render captured]' if success else '[Render failed]',
+        }
+        if status == 'started':
+            return started.get(tool_name, '[Using tool]')
+        if status == 'completed':
+            return completed.get(tool_name, '[Tool completed]' if success else '[Tool failed]')
+        return ''
+
+    def _update_tool_component(self, call_id: str, new_content: str):
+        try:
+            component = self._active_tool_components.get(call_id)
+            if component and hasattr(component, 'set_markdown'):
+                component.set_markdown(new_content)
+                return True
+        except Exception as e:
+            logger.error(f"Error updating tool component for {call_id}: {e}")
+        return False
+
+    def _stop_animations_for_completed_tool(self, component, content: str):
+        return None
+
+    def _is_completed_tool_block(self, text: str) -> bool:
+        text_lower = text.lower()
+        indicators = [
+            'code executed',
+            'scene read',
+            'found results',
+            'viewport captured',
+            'render captured',
+            'tool completed',
+        ]
+        return any(indicator in text_lower for indicator in indicators)
+
+    def _cleanup_completed_tool_component(self, call_id: str):
+        if call_id in self._active_tool_components:
+            del self._active_tool_components[call_id]
+            return True
+        return False
+
+    def handle_external_tool_call(self, tool_call_data: dict):
+        try:
+            self._track_tool_call({
+                'call_id': tool_call_data.get('call_id'),
+                'function': {
+                    'name': tool_call_data.get('tool_name'),
+                    'arguments': tool_call_data.get('arguments', '{}'),
+                },
+                'status': 'executed',
+            })
+        except Exception as e:
+            logger.error(f"Failed to handle external tool call: {e}")
+
+    def handle_external_tool_response(self, tool_response_data: dict):
+        try:
+            call_id = tool_response_data.get('call_id')
+            history_content = tool_response_data.get('content', '{}')
+            ui_message = tool_response_data.get('ui_message') or 'Tool response received'
+            tracked_data = {
+                'call_id': call_id,
+                'content': history_content,
+                'success': tool_response_data.get('success', True),
+                'ui_message': ui_message,
+            }
+            image_data = tool_response_data.get('image_data')
+            if image_data and isinstance(image_data, dict):
+                tracked_data['image_data'] = image_data
+            self._track_tool_response(tracked_data)
+        except Exception as e:
+            logger.error(f"Failed to handle external tool response: {e}")
+
+    def save_current_ui_state(self):
+        try:
+            if self.state.is_enabled and self.state.target_area:
+                ui_state_manager.save_ui_state(bpy.context, self, self.state.target_area)
+        except Exception as e:
+            logger.debug(f"Could not save current UI state: {e}")
+
+    def force_ui_reinitialization(self):
+        try:
+            self.state.components.clear()
+            self.ui_layout = None
+            self.components = {}
+            if hasattr(layout_manager, 'containers'):
+                layout_manager.containers.clear()
+                layout_manager.layouts.clear()
+                layout_manager.constraints.clear()
+                if hasattr(layout_manager, 'container_bounds'):
+                    layout_manager.container_bounds.clear()
+
+            if self.state.viewport_width > 0 and self.state.viewport_height > 0:
+                self._initialize_ui_layout()
+                if self.ui_layout and self.state.components:
+                    self._request_redraw()
+                    return True
+            return False
+        except Exception as e:
+            logger.error(f"Error during UI reinitialization: {e}")
+            return False
+
+    def save_current_unsent_text(self):
+        try:
+            context = bpy.context
+            current_chat_id = getattr(context.scene, 'vibe5d_current_chat_id', '')
+            if current_chat_id:
+                current_text = self.factory.get_send_text() if self.factory else ''
+                history_manager.save_unsent_text(context, current_chat_id, current_text)
+        except Exception as e:
+            logger.debug(f"Could not save unsent text: {e}")
+
+    def restore_current_unsent_text(self):
+        try:
+            context = bpy.context
+            current_chat_id = getattr(context.scene, 'vibe5d_current_chat_id', '')
+            if current_chat_id:
+                history_manager.restore_unsent_text(context, current_chat_id)
+        except Exception as e:
+            logger.debug(f"Could not restore unsent text: {e}")
+
+
+ui_manager = UIManager()

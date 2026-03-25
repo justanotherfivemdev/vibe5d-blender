@@ -5,10 +5,10 @@ from bpy.types import Operator
 from ..utils.logger import logger
 
 
-class VIBE4D_OT_authenticate(Operator):
-    bl_idname = "vibe4d.authenticate"
+class VIBE5D_OT_authenticate(Operator):
+    bl_idname = "vibe5d.authenticate"
     bl_label = "Authenticate"
-    bl_description = "Authenticate with Vibe4D service"
+    bl_description = "Authenticate with Vibe5D service"
     bl_options = {'REGISTER'}
 
     def execute(self, context):
@@ -25,7 +25,7 @@ class VIBE4D_OT_authenticate(Operator):
 
 
 classes = [
-    VIBE4D_OT_authenticate,
+    VIBE5D_OT_authenticate,
 ]
 
 

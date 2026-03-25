@@ -1,3 +1,4 @@
+import builtins
 import sys
 import traceback
 from typing import Dict, Any, Optional, Tuple
@@ -37,12 +38,12 @@ class PrintCapture:
         if text.strip():
             self.outputs.append(text.strip())
             try:
-                current_output = getattr(self.context.scene, 'vibe4d_console_output', '')
+                current_output = getattr(self.context.scene, 'vibe5d_console_output', '')
                 if current_output:
                     new_output = current_output + '\n' + text.strip()
                 else:
                     new_output = text.strip()
-                self.context.scene.vibe4d_console_output = new_output
+                self.context.scene.vibe5d_console_output = new_output
             except Exception as e:
                 logger.error(f"Failed to update console output: {str(e)}")
 
@@ -64,216 +65,217 @@ class CodeExecutor:
     def _create_restricted_globals(self) -> Dict[str, Any]:
 
         return {
-        :builtins,
-        : bpy,
-        :None,
-        : None,
+            '__builtins__': builtins,
+            'bpy': bpy,
+            '__name__': None,
+            '__file__': None,
         }
 
-        def prepare_execution(self, code: str) -> Tuple[bool, Optional[str]]:
+    def prepare_execution(self, code: str) -> Tuple[bool, Optional[str]]:
+        try:
+            python_code = script_guard.extract_python_code(code)
+
+            if not python_code.strip():
+                return False, "No Python code found to execute"
+
+            is_safe, error_msg = script_guard.validate_code(python_code)
+            if not is_safe:
+                return False, f"Security check failed: {error_msg}"
+
+            self.execution_state.execution_content = python_code
+            self.execution_state.is_executing = True
+            self.execution_state.execution_id = self._generate_execution_id()
+            return True, None
+
+        except Exception as e:
+            error_msg = f"Failed to prepare code execution: {str(e)}"
+            logger.error(error_msg)
+            return False, error_msg
+
+    def execute_code(self, context) -> Tuple[bool, Optional[str]]:
+        if not self.execution_state.is_executing:
+            return False, "No code prepared for execution"
+
+        original_stdout = sys.stdout
+
+        try:
+            context.scene.vibe5d_console_output = ""
+
+            bpy.ops.ed.undo_push(message="Before AI Code Execution")
+            self.execution_state.undo_steps = 1
+
+            safe_globals = self._prepare_safe_globals()
+            print_capture = PrintCapture(context)
+
             try:
-                python_code = script_guard.extract_python_code(code)
-
-                if not python_code.strip():
-                    return False, "No Python code found to execute"
-
-                is_safe, error_msg = script_guard.validate_code(python_code)
-                if not is_safe:
-                    return False, f"Security check failed: {error_msg}"
-
-                self.execution_state.execution_content = python_code
-                self.execution_state.is_executing = True
-                self.execution_state.execution_id = self._generate_execution_id()
-                return True, None
-
-            except Exception as e:
-                error_msg = f"Failed to prepare code execution: {str(e)}"
-                logger.error(error_msg)
-                return False, error_msg
-
-        def execute_code(self, context) -> Tuple[bool, Optional[str]]:
-            if not self.execution_state.is_executing:
-                return False, "No code prepared for execution"
-
-            original_stdout = sys.stdout
-
-            try:
-                context.scene.vibe4d_console_output = ""
-
-                bpy.ops.ed.undo_push(message="Before AI Code Execution")
-                self.execution_state.undo_steps = 1
-
-                safe_globals = self._prepare_safe_globals()
-                print_capture = PrintCapture(context)
-
-                try:
-                    sys.stdout = print_capture
-                    exec(self.execution_state.execution_content, safe_globals, safe_globals)
-                finally:
-                    sys.stdout = original_stdout
-
-                context.view_layer.update()
-                bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1)
-
-                return True, None
-
-            except Exception as e:
+                sys.stdout = print_capture
+                exec(self.execution_state.execution_content, safe_globals, safe_globals)
+            finally:
                 sys.stdout = original_stdout
 
-                error_msg = str(e)
-                error_traceback = traceback.format_exc()
+            context.view_layer.update()
+            bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1)
 
-                self.execution_state.error_info = {
-                :error_msg,
-                : error_traceback,
-                :self.execution_state.execution_id
-                }
+            return True, None
 
-                logger.error(f"Code execution failed: {error_msg}")
-                logger.debug(f"Full traceback: {error_traceback}")
+        except Exception as e:
+            sys.stdout = original_stdout
 
-                return self._handle_execution_error(context, error_msg, error_traceback)
+            error_msg = str(e)
+            error_traceback = traceback.format_exc()
 
-        def _rollback_changes(self, context) -> bool:
-            try:
-                logger.debug("Rolling back changes using Blender undo")
+            self.execution_state.error_info = {
+                'error': error_msg,
+                'traceback': error_traceback,
+                'execution_id': self.execution_state.execution_id
+            }
 
-                if self.execution_state.undo_steps == 0:
-                    logger.warning("No undo steps to rollback")
-                    return False
+            logger.error(f"Code execution failed: {error_msg}")
+            logger.debug(f"Full traceback: {error_traceback}")
 
-                for _ in range(self.execution_state.undo_steps):
-                    bpy.ops.ed.undo()
+            return self._handle_execution_error(context, error_msg, error_traceback)
 
-                context.view_layer.update()
-                bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1)
+    def _rollback_changes(self, context) -> bool:
+        try:
+            logger.debug("Rolling back changes using Blender undo")
 
-                logger.info("Successfully rolled back changes using undo")
-                return True
-
-            except Exception as e:
-                logger.error(f"Rollback failed: {str(e)}")
+            if self.execution_state.undo_steps == 0:
+                logger.warning("No undo steps to rollback")
                 return False
 
-        def _prepare_safe_globals(self) -> Dict[str, Any]:
-            safe_globals = self.restricted_globals.copy()
+            for _ in range(self.execution_state.undo_steps):
+                bpy.ops.ed.undo()
 
-            try:
-                import bmesh
-                safe_globals['bmesh'] = bmesh
-            except ImportError:
-                pass
+            context.view_layer.update()
+            bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1)
 
-            try:
-                import mathutils
-                safe_globals['mathutils'] = mathutils
-            except ImportError:
-                pass
+            logger.info("Successfully rolled back changes using undo")
+            return True
 
-            return safe_globals
+        except Exception as e:
+            logger.error(f"Rollback failed: {str(e)}")
+            return False
 
-        def _generate_execution_id(self) -> str:
-            import time
-            return f"exec_{int(time.time() * 1000)}"
+    def _prepare_safe_globals(self) -> Dict[str, Any]:
+        safe_globals = self.restricted_globals.copy()
 
-        def _handle_execution_error(self, context, error_msg: str, traceback_str: str) -> Tuple[bool, Optional[str]]:
-            try:
-                clean_error_msg = self._extract_clean_error_message(error_msg)
+        try:
+            import bmesh
+            safe_globals['bmesh'] = bmesh
+        except ImportError:
+            pass
 
-                logger.info("Rolling back changes due to execution error")
-                rollback_success = self._rollback_changes(context)
+        try:
+            import mathutils
+            safe_globals['mathutils'] = mathutils
+        except ImportError:
+            pass
 
-                context.scene.vibe4d_console_output = ""
-                self.execution_state.clear()
+        return safe_globals
 
-                if not rollback_success:
-                    logger.error("Rollback failed")
-                    return False, f"Execution failed and rollback unsuccessful: {clean_error_msg}"
+    def _generate_execution_id(self) -> str:
+        import time
+        return f"exec_{int(time.time() * 1000)}"
 
-                return False, clean_error_msg
+    def _handle_execution_error(self, context, error_msg: str, traceback_str: str) -> Tuple[bool, Optional[str]]:
+        try:
+            clean_error_msg = self._extract_clean_error_message(error_msg)
 
-            except Exception as e:
-                logger.error(f"Error in _handle_execution_error: {str(e)}")
-                return False, f"Error handling failed: {str(e)}"
+            logger.info("Rolling back changes due to execution error")
+            rollback_success = self._rollback_changes(context)
 
-        def _extract_clean_error_message(self, error_msg: str) -> str:
-            try:
-                import re
-                clean_msg = error_msg
+            context.scene.vibe5d_console_output = ""
+            self.execution_state.clear()
 
-                clean_msg = re.sub(r'File "[^"]*", line \d+, in [^\n]*\n', '', clean_msg)
-                clean_msg = re.sub(r'^\s*File "[^"]*", line \d+', '', clean_msg, flags=re.MULTILINE)
+            if not rollback_success:
+                logger.error("Rollback failed")
+                return False, f"Execution failed and rollback unsuccessful: {clean_error_msg}"
 
-                lines = clean_msg.strip().split('\n')
-                if lines:
-                    for line in reversed(lines):
-                        if line.strip():
-                            clean_msg = line.strip()
-                            break
+            return False, clean_error_msg
 
-                return "ERROR: " + clean_msg
+        except Exception as e:
+            logger.error(f"Error in _handle_execution_error: {str(e)}")
+            return False, f"Error handling failed: {str(e)}"
 
-            except Exception as e:
-                logger.error(f"Failed to extract clean error message: {str(e)}")
-                return error_msg
+    def _extract_clean_error_message(self, error_msg: str) -> str:
+        try:
+            import re
+            clean_msg = error_msg
 
-        def accept_execution(self, context) -> bool:
-            try:
-                if not self.execution_state.is_executing:
-                    logger.warning("No execution to accept")
-                    return False
+            clean_msg = re.sub(r'File "[^"]*", line \d+, in [^\n]*\n', '', clean_msg)
+            clean_msg = re.sub(r'^\s*File "[^"]*", line \d+', '', clean_msg, flags=re.MULTILINE)
 
-                logger.info(f"Accepting execution (ID: {self.execution_state.execution_id})")
+            lines = clean_msg.strip().split('\n')
+            if lines:
+                for line in reversed(lines):
+                    if line.strip():
+                        clean_msg = line.strip()
+                        break
 
-                self.execution_state.clear()
+            return "ERROR: " + clean_msg
 
-                context.scene.vibe4d_final_code = ""
-                context.scene.vibe4d_last_error = ""
-                context.scene.vibe4d_console_output = ""
-                context.scene.vibe4d_prompt = ""
+        except Exception as e:
+            logger.error(f"Failed to extract clean error message: {str(e)}")
+            return error_msg
 
-                for area in bpy.context.screen.areas:
-                    if area.type == 'VIEW_3D':
-                        area.tag_redraw()
-
-                logger.info("Execution accepted successfully")
-                return True
-
-            except Exception as e:
-                logger.error(f"Failed to accept execution: {str(e)}")
+    def accept_execution(self, context) -> bool:
+        try:
+            if not self.execution_state.is_executing:
+                logger.warning("No execution to accept")
                 return False
 
-        def reject_execution(self, context) -> bool:
-            try:
-                if not self.execution_state.is_executing:
-                    logger.warning("No execution to reject")
-                    return False
+            logger.info(f"Accepting execution (ID: {self.execution_state.execution_id})")
 
-                logger.info(f"Rejecting execution (ID: {self.execution_state.execution_id})")
+            self.execution_state.clear()
 
-                rollback_success = self._rollback_changes(context)
+            context.scene.vibe5d_final_code = ""
+            context.scene.vibe5d_last_error = ""
+            context.scene.vibe5d_console_output = ""
+            context.scene.vibe5d_prompt = ""
 
-                if not rollback_success:
-                    logger.error("Rollback failed during rejection")
-                    return False
+            for area in bpy.context.screen.areas:
+                if area.type == 'VIEW_3D':
+                    area.tag_redraw()
 
-                self.execution_state.clear()
+            logger.info("Execution accepted successfully")
+            return True
 
-                context.scene.vibe4d_final_code = ""
-                context.scene.vibe4d_last_error = ""
-                context.scene.vibe4d_console_output = ""
-                context.scene.vibe4d_execution_pending = False
-                context.scene.vibe4d_prompt = ""
+        except Exception as e:
+            logger.error(f"Failed to accept execution: {str(e)}")
+            return False
 
-                for area in bpy.context.screen.areas:
-                    if area.type == 'VIEW_3D':
-                        area.tag_redraw()
-
-                logger.info("Execution rejected and changes rolled back successfully")
-                return True
-
-            except Exception as e:
-                logger.error(f"Failed to reject execution: {str(e)}")
+    def reject_execution(self, context) -> bool:
+        try:
+            if not self.execution_state.is_executing:
+                logger.warning("No execution to reject")
                 return False
 
-    code_executor = CodeExecutor()
+            logger.info(f"Rejecting execution (ID: {self.execution_state.execution_id})")
+
+            rollback_success = self._rollback_changes(context)
+
+            if not rollback_success:
+                logger.error("Rollback failed during rejection")
+                return False
+
+            self.execution_state.clear()
+
+            context.scene.vibe5d_final_code = ""
+            context.scene.vibe5d_last_error = ""
+            context.scene.vibe5d_console_output = ""
+            context.scene.vibe5d_execution_pending = False
+            context.scene.vibe5d_prompt = ""
+
+            for area in bpy.context.screen.areas:
+                if area.type == 'VIEW_3D':
+                    area.tag_redraw()
+
+            logger.info("Execution rejected and changes rolled back successfully")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to reject execution: {str(e)}")
+            return False
+
+
+code_executor = CodeExecutor()

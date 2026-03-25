@@ -26,10 +26,10 @@ class DEBUG_OT_print_agent_request(Operator):
         """Build and print agent request."""
         try:
 
-            user_id = getattr(context.window_manager, 'vibe4d_user_id', 'debug_user')
-            token = getattr(context.window_manager, 'vibe4d_token', 'debug_token')
+            user_id = getattr(context.window_manager, 'vibe5d_user_id', 'debug_user')
+            token = getattr(context.window_manager, 'vibe5d_token', 'debug_token')
 
-            prompt = getattr(context.scene, 'vibe4d_prompt', 'Debug test prompt')
+            prompt = getattr(context.scene, 'vibe5d_prompt', 'Debug test prompt')
             if not prompt.strip():
                 prompt = "Create a debug cube"
 

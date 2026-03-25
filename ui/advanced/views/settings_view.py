@@ -481,21 +481,23 @@ class SettingsView(BaseView):
         components = {}
 
         context = bpy.context
-        is_authenticated = getattr(context.window_manager, 'vibe4d_authenticated', False)
-        user_email = getattr(context.window_manager, 'vibe4d_user_email', '')
-        user_plan = getattr(context.window_manager, 'vibe4d_user_plan', '')
+        # In Vibe5D (open-source), settings are always accessible
+        # We don't check is_authenticated anymore
+        is_authenticated = True  # Always show settings
+        user_email = getattr(context.window_manager, 'vibe5d_user_email', '')
+        user_plan = getattr(context.window_manager, 'vibe5d_user_plan', '')
 
         try:
             from ....utils.instructions_manager import instruction_manager
             from ....utils.storage import secure_storage
 
-            current_instruction_in_scene = getattr(context.scene, 'vibe4d_custom_instruction', '')
+            current_instruction_in_scene = getattr(context.scene, 'vibe5d_custom_instruction', '')
 
             if not current_instruction_in_scene:
 
                 saved_instruction = secure_storage.load_custom_instruction()
                 if saved_instruction:
-                    context.scene.vibe4d_custom_instruction = str(saved_instruction)
+                    context.scene.vibe5d_custom_instruction = str(saved_instruction)
                     logger.info(
                     )
                 else:
@@ -506,22 +508,22 @@ class SettingsView(BaseView):
         except Exception as e:
             logger.error(f"Failed to load custom instructions for settings view: {e}")
 
-        current_usage = getattr(context.window_manager, 'vibe4d_current_usage', 0)
-        usage_limit = getattr(context.window_manager, 'vibe4d_usage_limit', 100)
+        current_usage = getattr(context.window_manager, 'vibe5d_current_usage', 0)
+        usage_limit = getattr(context.window_manager, 'vibe5d_usage_limit', 100)
 
         if is_authenticated and not self.usage_data_fetched and not self.is_fetching_usage:
             self.usage_data_fetched = True
             self._fetch_usage_data_async()
 
         main_layout = self._create_layout_container(
-        ,
-        LayoutConfig(
-            strategy=LayoutStrategy.ABSOLUTE,
-            padding_top=get_container_internal_padding(),
-            padding_right=get_container_internal_padding(),
-            padding_bottom=get_container_internal_padding(),
-            padding_left=get_container_internal_padding()
-        )
+            "main",
+            LayoutConfig(
+                strategy=LayoutStrategy.ABSOLUTE,
+                padding_top=get_container_internal_padding(),
+                padding_right=get_container_internal_padding(),
+                padding_bottom=get_container_internal_padding(),
+                padding_left=get_container_internal_padding(),
+            )
         )
         layouts['main'] = main_layout
 
@@ -550,7 +552,7 @@ class SettingsView(BaseView):
             current_y = adjustCurrectY(current_y, get_label_height(),
                                        CoordinateSystem.scale_int(6))
 
-            plan_name = getattr(context.window_manager, 'vibe4d_plan_name', '')
+            plan_name = getattr(context.window_manager, 'vibe5d_plan_name', '')
             if plan_name:
                 plan_display = plan_name
             else:
@@ -657,7 +659,7 @@ class SettingsView(BaseView):
             instruction_container.corner_radius = get_container_radius()
             components['instruction_container'] = instruction_container
 
-            current_instruction = getattr(context.scene, 'vibe4d_custom_instruction', '')
+            current_instruction = getattr(context.scene, 'vibe5d_custom_instruction', '')
 
             instruction_current_y = current_y - get_container_internal_padding()
             instruction_input_height = instruction_container_height - (get_container_internal_padding() * 2)
@@ -685,6 +687,202 @@ class SettingsView(BaseView):
             components['instruction_input'] = instruction_input
 
             current_y = adjustCurrectY(current_y, instruction_container_height, get_big_spacing())
+
+            # --- LLM Provider Configuration Section ---
+            provider_section_title = Label("LLM Provider", get_left_margin(), current_y,
+                                           get_plan_label_width(), get_label_height())
+            provider_section_title.style = get_themed_component_style("title")
+            provider_section_title.style.font_size = get_font_size()
+            provider_section_title.set_text_align("left")
+            components['provider_section_title'] = provider_section_title
+
+            current_y = adjustCurrectY(current_y, get_label_height(), get_small_spacing())
+
+            # Provider selection label
+            current_provider = getattr(context.scene, 'vibe5d_provider', 'openai')
+            provider_display_names = {
+                'openai': 'OpenAI / ChatGPT',
+                'local': 'Local LLM (Ollama, LM Studio, etc.)'
+            }
+            provider_display = provider_display_names.get(current_provider, current_provider)
+
+            # Provider buttons container
+            provider_container_height = CoordinateSystem.scale_int(130)
+            provider_container = Container(get_left_margin(), current_y - provider_container_height,
+                                           viewport_width - get_left_margin() - get_right_margin(),
+                                           provider_container_height)
+            provider_container.style.background_color = get_theme_color('bg_panel')
+            provider_container.style.border_color = BORDER_COLOR
+            provider_container.style.border_width = get_thin_border()
+            provider_container.corner_radius = get_container_radius()
+            components['provider_container'] = provider_container
+
+            provider_inner_y = current_y - get_container_internal_padding()
+
+            # Provider type label
+            provider_type_label = Label(f"Active: {provider_display}",
+                                        get_left_margin() + get_container_internal_padding(),
+                                        provider_inner_y - get_label_height(),
+                                        viewport_width - get_left_margin() - get_right_margin() - (get_container_internal_padding() * 2),
+                                        get_label_height())
+            provider_type_label.style = get_themed_component_style("label")
+            provider_type_label.style.font_size = get_font_size()
+            provider_type_label.set_text_align("left")
+            components['provider_type_label'] = provider_type_label
+
+            provider_inner_y = provider_inner_y - get_label_height() - get_small_spacing()
+
+            # Provider selection buttons
+            button_width = CoordinateSystem.scale_int(90)
+            button_height = CoordinateSystem.scale_int(24)
+            button_x = get_left_margin() + get_container_internal_padding()
+            button_spacing = CoordinateSystem.scale_int(8)
+
+            for provider_id, provider_name in [('openai', 'OpenAI'), ('local', 'Local')]:
+                is_active = (current_provider == provider_id)
+                btn = Button(provider_name, button_x, provider_inner_y - button_height,
+                             button_width, button_height)
+                btn.style = get_themed_component_style("button")
+                btn.style.font_size = get_font_size()
+                if is_active:
+                    btn.style.background_color = get_theme_color('text_selected')
+                    btn.style.text_color = get_theme_color('bg_base')
+                btn.on_click = lambda pid=provider_id: self._handle_provider_change(pid)
+                components[f'provider_btn_{provider_id}'] = btn
+                button_x += button_width + button_spacing
+
+            provider_inner_y = provider_inner_y - button_height - get_small_spacing()
+
+            # Provider model input
+            current_provider_model = getattr(context.scene, 'vibe5d_provider_model', '')
+            if current_provider == 'openai':
+                model_placeholder = "gpt-4o-mini"
+            elif current_provider == 'local':
+                model_placeholder = "llama3"
+            else:
+                model_placeholder = "gpt-5-mini"
+
+            model_label = Label("Model:", get_left_margin() + get_container_internal_padding(),
+                                provider_inner_y - get_small_label_height(),
+                                CoordinateSystem.scale_int(50), get_small_label_height())
+            model_label.style = get_themed_component_style("label")
+            model_label.style.font_size = get_font_size()
+            model_label.set_text_align("left")
+            components['provider_model_label'] = model_label
+
+            model_input_x = get_left_margin() + get_container_internal_padding() + CoordinateSystem.scale_int(55)
+            model_input = TextInput(
+                x=model_input_x,
+                y=provider_inner_y - get_small_label_height(),
+                width=viewport_width - model_input_x - get_right_margin() - get_container_internal_padding(),
+                height=get_small_label_height(),
+                placeholder=model_placeholder,
+                multiline=False,
+                auto_resize=False,
+            )
+            model_input.set_text(current_provider_model)
+            model_input.on_change = self._handle_provider_model_change
+            model_input.style = get_themed_component_style("input")
+            model_input.style.font_size = get_font_size()
+            model_input.style.background_color = get_theme_color('bg_panel')
+            model_input.style.border_color = BORDER_COLOR
+            model_input.style.border_width = get_thin_border()
+            model_input.corner_radius = CoordinateSystem.scale_int(4)
+            components['provider_model_input'] = model_input
+
+            current_y = adjustCurrectY(current_y, provider_container_height, get_small_spacing())
+
+            # API Key input (for OpenAI provider)
+            if current_provider in ('openai',):
+                api_key_label = Label("API Key:", get_left_margin(), current_y - get_small_label_height(),
+                                      viewport_width - get_left_margin() - get_right_margin(), get_small_label_height())
+                api_key_label.style = get_themed_component_style("label")
+                api_key_label.style.font_size = get_font_size()
+                api_key_label.set_text_align("left")
+                components['api_key_label'] = api_key_label
+
+                current_y = adjustCurrectY(current_y, get_small_label_height(), CoordinateSystem.scale_int(2))
+
+                current_api_key = getattr(context.scene, 'vibe5d_provider_api_key', '')
+                api_key_display = ('•' * min(len(current_api_key), 20)) if current_api_key else ''
+
+                api_key_input = TextInput(
+                    x=get_left_margin(),
+                    y=current_y - get_small_label_height(),
+                    width=viewport_width - get_left_margin() - get_right_margin(),
+                    height=get_small_label_height(),
+                    placeholder="sk-... (your OpenAI API key)",
+                    multiline=False,
+                    auto_resize=False,
+                )
+                api_key_input.set_text(api_key_display)
+                api_key_input.on_change = self._handle_api_key_change
+                api_key_input.style = get_themed_component_style("input")
+                api_key_input.style.font_size = get_font_size()
+                api_key_input.style.background_color = get_theme_color('bg_panel')
+                api_key_input.style.border_color = BORDER_COLOR
+                api_key_input.style.border_width = get_thin_border()
+                api_key_input.corner_radius = CoordinateSystem.scale_int(4)
+                components['api_key_input'] = api_key_input
+
+                current_y = adjustCurrectY(current_y, get_small_label_height(), get_small_spacing())
+
+            # Base URL input (for local/openai providers)
+            if current_provider in ('openai', 'local'):
+                base_url_label = Label("Base URL:", get_left_margin(), current_y - get_small_label_height(),
+                                       viewport_width - get_left_margin() - get_right_margin(), get_small_label_height())
+                base_url_label.style = get_themed_component_style("label")
+                base_url_label.style.font_size = get_font_size()
+                base_url_label.set_text_align("left")
+                components['base_url_label'] = base_url_label
+
+                current_y = adjustCurrectY(current_y, get_small_label_height(), CoordinateSystem.scale_int(2))
+
+                current_base_url = getattr(context.scene, 'vibe5d_provider_base_url', '')
+                if current_provider == 'local':
+                    url_placeholder = "http://localhost:11434/v1"
+                else:
+                    url_placeholder = "https://api.openai.com/v1"
+
+                base_url_input = TextInput(
+                    x=get_left_margin(),
+                    y=current_y - get_small_label_height(),
+                    width=viewport_width - get_left_margin() - get_right_margin(),
+                    height=get_small_label_height(),
+                    placeholder=url_placeholder,
+                    multiline=False,
+                    auto_resize=False,
+                )
+                base_url_input.set_text(current_base_url)
+                base_url_input.on_change = self._handle_base_url_change
+                base_url_input.style = get_themed_component_style("input")
+                base_url_input.style.font_size = get_font_size()
+                base_url_input.style.background_color = get_theme_color('bg_panel')
+                base_url_input.style.border_color = BORDER_COLOR
+                base_url_input.style.border_width = get_thin_border()
+                base_url_input.corner_radius = CoordinateSystem.scale_int(4)
+                components['base_url_input'] = base_url_input
+
+                current_y = adjustCurrectY(current_y, get_small_label_height(), get_small_spacing())
+
+            # Provider info help text
+            if current_provider == 'openai':
+                help_text = "Get your API key at platform.openai.com"
+            elif current_provider == 'local':
+                help_text = "Start Ollama/LM Studio, then use its API URL"
+            else:
+                help_text = "Select a provider above"
+
+            provider_help = Label(help_text, get_left_margin(), current_y - get_small_label_height(),
+                                  viewport_width - get_left_margin() - get_right_margin(), get_small_label_height())
+            provider_help.style = get_themed_component_style("label")
+            provider_help.style.text_color = get_theme_color('text_muted')
+            provider_help.style.font_size = get_font_size()
+            provider_help.set_text_align("left")
+            components['provider_help'] = provider_help
+
+            current_y = adjustCurrectY(current_y, get_small_label_height(), get_big_spacing())
+            # --- End LLM Provider Section ---
         else:
             auth_message = Label("Please authenticate to access settings", get_left_margin(), current_y,
                                  viewport_width - get_left_margin() - get_right_margin(), get_label_height())
@@ -695,7 +893,7 @@ class SettingsView(BaseView):
             components['auth_message'] = auth_message
             current_y = adjustCurrectY(current_y, get_label_height(), get_big_spacing())
 
-        links_section_title = Label("Vibe4D links", get_left_margin(), current_y, get_plan_label_width(),
+        links_section_title = Label("Vibe5D links", get_left_margin(), current_y, get_plan_label_width(),
                                     get_label_height())
         links_section_title.style = get_themed_component_style("title")
         links_section_title.style.font_size = get_font_size()
@@ -706,8 +904,6 @@ class SettingsView(BaseView):
 
         links = [
             ("Github ↗", self._handle_open_github),
-            ("Website ↗", self._handle_open_website),
-            ("Twitter (X) ↗", self._handle_open_twitter),
             ("Discord ↗", self._handle_open_discord)
         ]
 
@@ -737,9 +933,9 @@ class SettingsView(BaseView):
         self.layouts = layouts
 
         return {
-        :layouts,
-        : components,
-        :self._get_all_components()
+            'layouts': layouts,
+            'components': components,
+            'all_components': self._get_all_components(),
         }
 
         def update_layout(self, viewport_width: int, viewport_height: int):
@@ -871,14 +1067,14 @@ class SettingsView(BaseView):
         def _handle_manage_subscription(self, segment):
 
             try:
-                bpy.ops.vibe4d.manage_subscription()
+                bpy.ops.vibe5d.manage_subscription()
             except Exception as e:
                 logger.error(f"Error opening subscription management: {e}")
 
         def _handle_logout(self):
 
             try:
-                bpy.ops.vibe4d.logout()
+                bpy.ops.vibe5d.logout()
 
                 if self.callbacks.get('on_view_change'):
                     from ..ui_factory import ViewState
@@ -891,7 +1087,7 @@ class SettingsView(BaseView):
             try:
                 context = bpy.context
 
-                context.scene.vibe4d_custom_instruction = new_text
+                context.scene.vibe5d_custom_instruction = new_text
 
                 from ....utils.instructions_manager import instruction_manager
                 instruction_manager.force_save_instruction(context)
@@ -899,25 +1095,81 @@ class SettingsView(BaseView):
             except Exception as e:
                 logger.error(f"Error handling instruction text change: {e}")
 
+        def _handle_provider_change(self, provider_id):
+            """Handle provider selection change."""
+            try:
+                context = bpy.context
+                context.scene.vibe5d_provider = provider_id
+
+                from ....utils.settings_manager import settings_manager
+                settings_manager.auto_save_settings(context)
+
+                logger.info(f"LLM provider changed to: {provider_id}")
+
+                # Refresh the settings view to show relevant fields
+                if self.refresh_callback:
+                    self.refresh_callback()
+
+            except Exception as e:
+                logger.error(f"Error changing provider: {e}")
+
+        def _handle_api_key_change(self, new_text):
+            """Handle API key input change."""
+            try:
+                context = bpy.context
+                # Only save if it's not the masked display
+                if new_text and not all(c == '•' for c in new_text):
+                    context.scene.vibe5d_provider_api_key = new_text
+
+                    from ....utils.settings_manager import settings_manager
+                    settings_manager.auto_save_settings(context)
+
+            except Exception as e:
+                logger.error(f"Error saving API key: {e}")
+
+        def _handle_base_url_change(self, new_text):
+            """Handle base URL input change."""
+            try:
+                context = bpy.context
+                context.scene.vibe5d_provider_base_url = new_text
+
+                from ....utils.settings_manager import settings_manager
+                settings_manager.auto_save_settings(context)
+
+            except Exception as e:
+                logger.error(f"Error saving base URL: {e}")
+
+        def _handle_provider_model_change(self, new_text):
+            """Handle provider model input change."""
+            try:
+                context = bpy.context
+                context.scene.vibe5d_provider_model = new_text
+
+                from ....utils.settings_manager import settings_manager
+                settings_manager.auto_save_settings(context)
+
+            except Exception as e:
+                logger.error(f"Error saving provider model: {e}")
+
         def _handle_open_github(self, segment):
 
             try:
                 import webbrowser
-                webbrowser.open("https://github.com/emalakai/vibe4d-blender")
+                webbrowser.open("https://github.com/justanotherfivemdev/vibe4d-blender")
             except Exception as e:
                 logger.error(f"Error opening GitHub: {e}")
 
         def _handle_open_website(self, segment):
 
             try:
-                bpy.ops.vibe4d.open_website()
+                bpy.ops.vibe5d.open_website()
             except Exception as e:
                 logger.error(f"Error opening website: {e}")
 
         def _handle_open_discord(self, segment):
 
             try:
-                bpy.ops.vibe4d.open_discord()
+                bpy.ops.vibe5d.open_discord()
             except Exception as e:
                 logger.error(f"Error opening Discord: {e}")
 
@@ -925,7 +1177,7 @@ class SettingsView(BaseView):
 
             try:
                 import webbrowser
-                webbrowser.open("https://x.com/thevibe4d")
+                webbrowser.open("https://github.com/justanotherfivemdev/vibe4d-blender")
             except Exception as e:
                 logger.error(f"Error opening Twitter: {e}")
 
@@ -963,8 +1215,8 @@ class SettingsView(BaseView):
             try:
                 context = bpy.context
 
-                user_id = getattr(context.window_manager, 'vibe4d_user_id', '')
-                token = getattr(context.window_manager, 'vibe4d_user_token', '')
+                user_id = getattr(context.window_manager, 'vibe5d_user_id', '')
+                token = getattr(context.window_manager, 'vibe5d_user_token', '')
 
                 if not user_id or not token:
                     logger.warning("Cannot fetch usage data - missing authentication credentials")
@@ -974,7 +1226,7 @@ class SettingsView(BaseView):
                     from ....api.client import api_client
                 except ImportError:
 
-                    from vibe4d.api.client import api_client
+                    from vibe5d.api.client import api_client
 
                 logger.info("Fetching usage data from API")
 
@@ -988,34 +1240,34 @@ class SettingsView(BaseView):
                             usage_data = data_or_error
 
                             if 'plan_id' in usage_data:
-                                context.window_manager.vibe4d_user_plan = usage_data['plan_id']
+                                context.window_manager.vibe5d_user_plan = usage_data['plan_id']
 
                             if 'plan_name' in usage_data:
-                                context.window_manager.vibe4d_plan_name = usage_data['plan_name']
+                                context.window_manager.vibe5d_plan_name = usage_data['plan_name']
 
                             if 'current_usage' in usage_data:
-                                context.window_manager.vibe4d_current_usage = usage_data['current_usage']
+                                context.window_manager.vibe5d_current_usage = usage_data['current_usage']
 
                             if 'limit' in usage_data:
-                                context.window_manager.vibe4d_usage_limit = usage_data['limit']
+                                context.window_manager.vibe5d_usage_limit = usage_data['limit']
 
                             if 'limit_type' in usage_data:
-                                context.window_manager.vibe4d_limit_type = usage_data['limit_type']
+                                context.window_manager.vibe5d_limit_type = usage_data['limit_type']
 
                             if 'plan_id' in usage_data:
-                                context.window_manager.vibe4d_plan_id = usage_data['plan_id']
+                                context.window_manager.vibe5d_plan_id = usage_data['plan_id']
 
                             if 'plan_name' in usage_data:
-                                context.window_manager.vibe4d_plan_name = usage_data['plan_name']
+                                context.window_manager.vibe5d_plan_name = usage_data['plan_name']
 
                             if 'allowed' in usage_data:
-                                context.window_manager.vibe4d_allowed = usage_data['allowed']
+                                context.window_manager.vibe5d_allowed = usage_data['allowed']
 
                             if 'usage_percentage' in usage_data:
-                                context.window_manager.vibe4d_usage_percentage = usage_data['usage_percentage']
+                                context.window_manager.vibe5d_usage_percentage = usage_data['usage_percentage']
 
                             if 'remaining_requests' in usage_data:
-                                context.window_manager.vibe4d_remaining_requests = usage_data['remaining_requests']
+                                context.window_manager.vibe5d_remaining_requests = usage_data['remaining_requests']
 
                             logger.info(
                             )
@@ -1103,3 +1355,207 @@ class SettingsView(BaseView):
 
             except Exception as e:
                 logger.debug(f"Could not force redraw: {e}")
+
+    def update_layout(self, viewport_width: int, viewport_height: int):
+        return None
+
+    def _handle_go_back(self):
+        if self.callbacks.get('on_go_back'):
+            self.callbacks['on_go_back']()
+            return
+
+        if self.callbacks.get('on_view_change'):
+            from ..ui_factory import ViewState
+
+            self.callbacks['on_view_change'](ViewState.MAIN)
+
+    def _handle_manage_subscription(self, segment):
+        try:
+            bpy.ops.vibe5d.manage_subscription()
+        except Exception as e:
+            logger.error(f"Error opening subscription management: {e}")
+
+    def _handle_logout(self):
+        try:
+            bpy.ops.vibe5d.logout()
+            if self.callbacks.get('on_view_change'):
+                from ..ui_factory import ViewState
+
+                self.callbacks['on_view_change'](ViewState.AUTH)
+        except Exception as e:
+            logger.error(f"Error during logout: {e}")
+
+    def _handle_instruction_text_change(self, new_text):
+        try:
+            context = bpy.context
+            context.scene.vibe5d_custom_instruction = new_text
+            from ....utils.instructions_manager import instruction_manager
+
+            instruction_manager.force_save_instruction(context)
+        except Exception as e:
+            logger.error(f"Error handling instruction text change: {e}")
+
+    def _handle_provider_change(self, provider_id):
+        try:
+            context = bpy.context
+            context.scene.vibe5d_provider = provider_id
+            from ....utils.settings_manager import settings_manager
+
+            settings_manager.auto_save_settings(context)
+            if self.refresh_callback:
+                self.refresh_callback()
+        except Exception as e:
+            logger.error(f"Error changing provider: {e}")
+
+    def _handle_api_key_change(self, new_text):
+        try:
+            context = bpy.context
+            if new_text and not all(ch == '•' for ch in new_text):
+                context.scene.vibe5d_provider_api_key = new_text
+                from ....utils.settings_manager import settings_manager
+
+                settings_manager.auto_save_settings(context)
+        except Exception as e:
+            logger.error(f"Error saving API key: {e}")
+
+    def _handle_base_url_change(self, new_text):
+        try:
+            context = bpy.context
+            context.scene.vibe5d_provider_base_url = new_text
+            from ....utils.settings_manager import settings_manager
+
+            settings_manager.auto_save_settings(context)
+        except Exception as e:
+            logger.error(f"Error saving base URL: {e}")
+
+    def _handle_provider_model_change(self, new_text):
+        try:
+            context = bpy.context
+            context.scene.vibe5d_provider_model = new_text
+            from ....utils.settings_manager import settings_manager
+
+            settings_manager.auto_save_settings(context)
+        except Exception as e:
+            logger.error(f"Error saving provider model: {e}")
+
+    def _handle_open_github(self, segment):
+        try:
+            import webbrowser
+
+            webbrowser.open("https://github.com/justanotherfivemdev/vibe4d-blender")
+        except Exception as e:
+            logger.error(f"Error opening GitHub: {e}")
+
+    def _handle_open_website(self, segment):
+        try:
+            bpy.ops.vibe5d.open_website()
+        except Exception as e:
+            logger.error(f"Error opening website: {e}")
+
+    def _handle_open_discord(self, segment):
+        try:
+            bpy.ops.vibe5d.open_discord()
+        except Exception as e:
+            logger.error(f"Error opening Discord: {e}")
+
+    def _handle_open_twitter(self, segment):
+        try:
+            import webbrowser
+
+            webbrowser.open("https://github.com/justanotherfivemdev/vibe4d-blender")
+        except Exception as e:
+            logger.error(f"Error opening Twitter: {e}")
+
+    def _handle_link_hover_start(self, segment):
+        return None
+
+    def _handle_link_hover_end(self, segment):
+        return None
+
+    def set_refresh_callback(self, callback):
+        self.refresh_callback = callback
+
+    def reset_usage_fetch_state(self):
+        self.usage_data_fetched = False
+        self.is_fetching_usage = False
+
+    def _fetch_usage_data_async(self):
+        if self.is_fetching_usage:
+            logger.debug("Usage data fetch already in progress, skipping")
+            return
+
+        self.is_fetching_usage = True
+        usage_thread = threading.Thread(target=self._fetch_usage_data)
+        usage_thread.daemon = True
+        usage_thread.start()
+
+    def _fetch_usage_data(self):
+        try:
+            context = bpy.context
+            user_id = getattr(context.window_manager, 'vibe5d_user_id', '')
+            token = getattr(context.window_manager, 'vibe5d_user_token', '')
+            if not user_id or not token:
+                logger.warning("Cannot fetch usage data - missing authentication credentials")
+                return
+
+            from ....api.client import api_client
+
+            success, data_or_error = api_client.get_usage_info(user_id, token)
+
+            def update_ui_on_main_thread():
+                try:
+                    if success:
+                        usage_data = data_or_error
+                        for source_key, target_attr in [
+                            ('plan_id', 'vibe5d_user_plan'),
+                            ('plan_name', 'vibe5d_plan_name'),
+                            ('current_usage', 'vibe5d_current_usage'),
+                            ('limit', 'vibe5d_usage_limit'),
+                            ('limit_type', 'vibe5d_limit_type'),
+                            ('allowed', 'vibe5d_allowed'),
+                            ('usage_percentage', 'vibe5d_usage_percentage'),
+                            ('remaining_requests', 'vibe5d_remaining_requests'),
+                        ]:
+                            if source_key in usage_data:
+                                setattr(context.window_manager, target_attr, usage_data[source_key])
+
+                        if self.refresh_callback:
+                            self.refresh_callback()
+                        else:
+                            self._notify_ui_system_of_changes()
+                    else:
+                        logger.warning(f"Failed to fetch usage data: {data_or_error.get('error', 'Unknown error')}")
+                except Exception as e:
+                    logger.error(f"Error updating UI with usage data: {e}")
+                return None
+
+            bpy.app.timers.register(update_ui_on_main_thread, first_interval=0.1)
+        except Exception as e:
+            logger.error(f"Error fetching usage data: {e}")
+        finally:
+            self.is_fetching_usage = False
+
+    def _notify_ui_system_of_changes(self):
+        try:
+            from ..components.component_registry import component_registry
+
+            component_registry.process_updates()
+            if self.refresh_callback:
+                self.refresh_callback()
+                return
+
+            from ..ui_factory import improved_ui_factory
+
+            if improved_ui_factory and hasattr(improved_ui_factory, '_refresh_current_view'):
+                improved_ui_factory._refresh_current_view()
+                return
+        except Exception as e:
+            logger.debug(f"Could not notify UI system: {e}")
+
+    def _force_redraw(self):
+        try:
+            for window in bpy.context.window_manager.windows:
+                for area in window.screen.areas:
+                    area.tag_redraw()
+        except Exception as e:
+            logger.debug(f"Could not force redraw: {e}")

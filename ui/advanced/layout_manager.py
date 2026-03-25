@@ -237,12 +237,12 @@ class LayoutManager:
                 main_size_comp = preferred_main
 
             component_info.append({
-            : comp,
-            :constraints,
-            : preferred_main,
-            :preferred_cross,
-            : main_size_comp,
-            :preferred_cross
+                    'component': comp,
+                    'constraints': constraints,
+                    'preferred_main': preferred_main,
+                    'preferred_cross': preferred_cross,
+                    'main_size': main_size_comp,
+                    'cross_size': preferred_cross,
             })
 
             total_flex_grow += constraints.flex_grow

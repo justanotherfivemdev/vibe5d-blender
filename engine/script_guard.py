@@ -5,8 +5,8 @@ from typing import Tuple, Optional
 from ..utils.logger import logger
 
 DANGEROUS_IMPORTS = [
-    ,
-,
+    'subprocess',
+    'shutil',
 ]
 
 DANGEROUS_FUNCTIONS = []

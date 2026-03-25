@@ -14,9 +14,9 @@ def get_ui_manager():
     return ui_manager
 
 
-class VIBE4D_OT_ui_modal_handler(Operator):
-    bl_idname = "vibe4d.ui_modal_handler"
-    bl_label = "Vibe4D UI Modal Handler"
+class VIBE5D_OT_ui_modal_handler(Operator):
+    bl_idname = "vibe5d.ui_modal_handler"
+    bl_label = "Vibe5D UI Modal Handler"
     bl_description = "Handle input events for the advanced UI"
     bl_options = {'REGISTER'}
 
@@ -121,8 +121,8 @@ class VIBE4D_OT_ui_modal_handler(Operator):
         return {'RUNNING_MODAL'}
 
 
-class VIBE4D_OT_show_advanced_ui(Operator):
-    bl_idname = "vibe4d.show_advanced_ui"
+class VIBE5D_OT_show_advanced_ui(Operator):
+    bl_idname = "vibe5d.show_advanced_ui"
     bl_label = "Show Advanced UI"
     bl_description = "Toggle the advanced UI overlay"
     bl_options = {'REGISTER'}
@@ -135,13 +135,13 @@ class VIBE4D_OT_show_advanced_ui(Operator):
             target_area = ui_manager.state.target_area
             ui_manager.disable_overlay()
             self._close_ui(context, ui_manager, target_area)
-            self.report({'INFO'}, "Vibe4D panel closed")
+            self.report({'INFO'}, "Vibe5D panel closed")
         else:
 
             target_area = self._open_ui(context)
             if target_area:
                 ui_manager.enable_overlay(target_area)
-                self.report({'INFO'}, "Vibe4D panel opened")
+                self.report({'INFO'}, "Vibe5D panel opened")
             else:
                 self.report({'ERROR'}, "Failed to create UI viewport")
                 return {'CANCELLED'}
@@ -336,8 +336,8 @@ class VIBE4D_OT_show_advanced_ui(Operator):
             logger.error("All methods to close UI area failed")
 
 
-class VIBE4D_OT_ui_settings_close(Operator):
-    bl_idname = "vibe4d.ui_settings_close"
+class VIBE5D_OT_ui_settings_close(Operator):
+    bl_idname = "vibe5d.ui_settings_close"
     bl_label = "Close Settings"
     bl_description = "Close the settings overlay"
     bl_options = {'REGISTER'}
@@ -348,8 +348,8 @@ class VIBE4D_OT_ui_settings_close(Operator):
         return {'FINISHED'}
 
 
-class VIBE4D_OT_test_no_connection_view(Operator):
-    bl_idname = "vibe4d.test_no_connection_view"
+class VIBE5D_OT_test_no_connection_view(Operator):
+    bl_idname = "vibe5d.test_no_connection_view"
     bl_label = "Test No Connection View"
     bl_description = "Test the no connection view functionality"
     bl_options = {'REGISTER'}
@@ -374,8 +374,8 @@ class VIBE4D_OT_test_no_connection_view(Operator):
             return {'CANCELLED'}
 
 
-class VIBE4D_OT_test_connectivity(Operator):
-    bl_idname = "vibe4d.test_connectivity"
+class VIBE5D_OT_test_connectivity(Operator):
+    bl_idname = "vibe5d.test_connectivity"
     bl_label = "Test Connectivity"
     bl_description = "Test internet connectivity and switch to appropriate view"
     bl_options = {'REGISTER'}
@@ -399,8 +399,8 @@ class VIBE4D_OT_test_connectivity(Operator):
             return {'CANCELLED'}
 
 
-class VIBE4D_OT_ui_mouse_handler(Operator):
-    bl_idname = "vibe4d.ui_mouse_handler"
+class VIBE5D_OT_ui_mouse_handler(Operator):
+    bl_idname = "vibe5d.ui_mouse_handler"
     bl_label = "Mouse Handler"
     bl_description = "Handle mouse events for the UI"
     bl_options = {'REGISTER'}
@@ -417,8 +417,8 @@ class VIBE4D_OT_ui_mouse_handler(Operator):
         return {'RUNNING_MODAL'}
 
 
-class VIBE4D_OT_ui_keyboard_handler(Operator):
-    bl_idname = "vibe4d.ui_keyboard_handler"
+class VIBE5D_OT_ui_keyboard_handler(Operator):
+    bl_idname = "vibe5d.ui_keyboard_handler"
     bl_label = "Keyboard Handler"
     bl_description = "Handle keyboard events for the UI"
     bl_options = {'REGISTER'}
@@ -435,8 +435,8 @@ class VIBE4D_OT_ui_keyboard_handler(Operator):
         return {'RUNNING_MODAL'}
 
 
-class VIBE4D_OT_ui_login(Operator):
-    bl_idname = "vibe4d.ui_login"
+class VIBE5D_OT_ui_login(Operator):
+    bl_idname = "vibe5d.ui_login"
     bl_label = "UI Login"
     bl_description = "Handle login form submission"
     bl_options = {'REGISTER'}
@@ -468,15 +468,62 @@ class VIBE4D_OT_ui_login(Operator):
         return {'FINISHED'}
 
 
+class VIBE5D_OT_attach_image(Operator):
+    bl_idname = "vibe5d.attach_image"
+    bl_label = "Attach Image Reference"
+    bl_description = "Attach an image as a reference for your prompt"
+    bl_options = {'REGISTER'}
+
+    filepath: StringProperty(
+        name="File Path",
+        description="Path to the image file",
+        subtype='FILE_PATH',
+    )
+
+    filter_glob: StringProperty(
+        default="*.png;*.jpg;*.jpeg;*.bmp;*.tiff;*.webp",
+        options={'HIDDEN'},
+    )
+
+    def execute(self, context):
+        import os
+
+        if not self.filepath or not os.path.isfile(self.filepath):
+            self.report({'ERROR'}, "Please select a valid image file")
+            return {'CANCELLED'}
+
+        allowed_extensions = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.webp'}
+        ext = os.path.splitext(self.filepath)[1].lower()
+        if ext not in allowed_extensions:
+            self.report({'ERROR'}, f"Unsupported image format: {ext}")
+            return {'CANCELLED'}
+
+        max_size_bytes = 20 * 1024 * 1024
+        file_size = os.path.getsize(self.filepath)
+        if file_size > max_size_bytes:
+            self.report({'ERROR'}, "Image file is too large (max 20MB)")
+            return {'CANCELLED'}
+
+        from ..ui.advanced.manager import ui_manager
+        ui_manager.attach_image_reference(self.filepath)
+        self.report({'INFO'}, f"Image attached: {os.path.basename(self.filepath)}")
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+
+
 classes = [
-    VIBE4D_OT_ui_modal_handler,
-    VIBE4D_OT_show_advanced_ui,
-    VIBE4D_OT_ui_settings_close,
-    VIBE4D_OT_test_no_connection_view,
-    VIBE4D_OT_test_connectivity,
-    VIBE4D_OT_ui_mouse_handler,
-    VIBE4D_OT_ui_keyboard_handler,
-    VIBE4D_OT_ui_login,
+    VIBE5D_OT_ui_modal_handler,
+    VIBE5D_OT_show_advanced_ui,
+    VIBE5D_OT_ui_settings_close,
+    VIBE5D_OT_test_no_connection_view,
+    VIBE5D_OT_test_connectivity,
+    VIBE5D_OT_ui_mouse_handler,
+    VIBE5D_OT_ui_keyboard_handler,
+    VIBE5D_OT_ui_login,
+    VIBE5D_OT_attach_image,
 ]
 
 

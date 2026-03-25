@@ -85,23 +85,23 @@ class RenderResultManager:
                 temp_file.close()
 
             render_info = {
-            :render_id,
-            : scene,
-            :scene.camera,
-            : original_camera,
-            :output_path,
-            : use_temp_file,
-            :on_complete,
-            : on_error,
-            :time.time(),
-            : 'starting',
-            :True
+                'render_id': render_id,
+                'scene': scene,
+                'camera': scene.camera,
+                'original_camera': original_camera,
+                'output_path': output_path,
+                'use_temp_file': use_temp_file,
+                'on_complete': on_complete,
+                'on_error': on_error,
+                'start_time': time.time(),
+                'status': 'starting',
+                'active': True
             }
 
             self.active_renders[render_id] = render_info
             self.render_callbacks[render_id] = {
-            :on_complete,
-            : on_error
+                'on_complete': on_complete,
+                'on_error': on_error
             }
 
 
@@ -291,12 +291,12 @@ class RenderResultManager:
 
             existing_id = f"existing_{int(time.time() * 1000)}"
             render_info = {
-            :existing_id,
-            : scene,
-            :camera,
-            : output_path,
-            :time.time() - 0.1,
-            : 'complete'
+                'render_id': existing_id,
+                'scene': scene,
+                'camera': camera,
+                'output_path': output_path,
+                'start_time': time.time() - 0.1,
+                'status': 'complete'
             }
 
 
@@ -345,20 +345,20 @@ class RenderResultManager:
             data_uri = f"data:image/png;base64,{base64_data}"
 
             result_data = {
-            :render_id,
-            : data_uri,
-            :width,
-            : height,
-            :[scene.render.resolution_x, scene.render.resolution_y],
-            : scene.render.resolution_percentage,
-            :file_size,
-            : "PNG",
-            :scene.render.engine,
-            : camera.name,
-            :scene.name,
-            : scene.frame_current,
-            :output_path,
-            : time.time() - render_info['start_time']
+                'render_id': render_id,
+                'image_data': data_uri,
+                'width': width,
+                'height': height,
+                'resolution': [scene.render.resolution_x, scene.render.resolution_y],
+                'resolution_percentage': scene.render.resolution_percentage,
+                'file_size': file_size,
+                'format': "PNG",
+                'engine': scene.render.engine,
+                'camera': camera.name,
+                'scene': scene.name,
+                'frame': scene.frame_current,
+                'output_path': output_path,
+                'render_time': time.time() - render_info['start_time']
             }
 
             return result_data
@@ -430,10 +430,10 @@ class RenderResultManager:
 
             logger.info("No existing render result found")
             return {
-            :"No render result found. Ask user if you should render image with execute tool or they can do that themselves"
+                'result': "No render result found. Ask user if you should render image with execute tool or they can do that themselves"
             }
 
-            except Exception as e:
+        except Exception as e:
             error_msg = f"Failed to check for render result: {str(e)}"
             logger.error(error_msg)
             raise RuntimeError(error_msg)
