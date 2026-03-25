@@ -516,14 +516,14 @@ class SettingsView(BaseView):
             self._fetch_usage_data_async()
 
         main_layout = self._create_layout_container(
-        ,
-        LayoutConfig(
-            strategy=LayoutStrategy.ABSOLUTE,
-            padding_top=get_container_internal_padding(),
-            padding_right=get_container_internal_padding(),
-            padding_bottom=get_container_internal_padding(),
-            padding_left=get_container_internal_padding()
-        )
+            "main",
+            LayoutConfig(
+                strategy=LayoutStrategy.ABSOLUTE,
+                padding_top=get_container_internal_padding(),
+                padding_right=get_container_internal_padding(),
+                padding_bottom=get_container_internal_padding(),
+                padding_left=get_container_internal_padding(),
+            )
         )
         layouts['main'] = main_layout
 
@@ -933,9 +933,9 @@ class SettingsView(BaseView):
         self.layouts = layouts
 
         return {
-        :layouts,
-        : components,
-        :self._get_all_components()
+            'layouts': layouts,
+            'components': components,
+            'all_components': self._get_all_components(),
         }
 
         def update_layout(self, viewport_width: int, viewport_height: int):
@@ -1355,3 +1355,207 @@ class SettingsView(BaseView):
 
             except Exception as e:
                 logger.debug(f"Could not force redraw: {e}")
+
+    def update_layout(self, viewport_width: int, viewport_height: int):
+        return None
+
+    def _handle_go_back(self):
+        if self.callbacks.get('on_go_back'):
+            self.callbacks['on_go_back']()
+            return
+
+        if self.callbacks.get('on_view_change'):
+            from ..ui_factory import ViewState
+
+            self.callbacks['on_view_change'](ViewState.MAIN)
+
+    def _handle_manage_subscription(self, segment):
+        try:
+            bpy.ops.vibe5d.manage_subscription()
+        except Exception as e:
+            logger.error(f"Error opening subscription management: {e}")
+
+    def _handle_logout(self):
+        try:
+            bpy.ops.vibe5d.logout()
+            if self.callbacks.get('on_view_change'):
+                from ..ui_factory import ViewState
+
+                self.callbacks['on_view_change'](ViewState.AUTH)
+        except Exception as e:
+            logger.error(f"Error during logout: {e}")
+
+    def _handle_instruction_text_change(self, new_text):
+        try:
+            context = bpy.context
+            context.scene.vibe5d_custom_instruction = new_text
+            from ....utils.instructions_manager import instruction_manager
+
+            instruction_manager.force_save_instruction(context)
+        except Exception as e:
+            logger.error(f"Error handling instruction text change: {e}")
+
+    def _handle_provider_change(self, provider_id):
+        try:
+            context = bpy.context
+            context.scene.vibe5d_provider = provider_id
+            from ....utils.settings_manager import settings_manager
+
+            settings_manager.auto_save_settings(context)
+            if self.refresh_callback:
+                self.refresh_callback()
+        except Exception as e:
+            logger.error(f"Error changing provider: {e}")
+
+    def _handle_api_key_change(self, new_text):
+        try:
+            context = bpy.context
+            if new_text and not all(ch == '•' for ch in new_text):
+                context.scene.vibe5d_provider_api_key = new_text
+                from ....utils.settings_manager import settings_manager
+
+                settings_manager.auto_save_settings(context)
+        except Exception as e:
+            logger.error(f"Error saving API key: {e}")
+
+    def _handle_base_url_change(self, new_text):
+        try:
+            context = bpy.context
+            context.scene.vibe5d_provider_base_url = new_text
+            from ....utils.settings_manager import settings_manager
+
+            settings_manager.auto_save_settings(context)
+        except Exception as e:
+            logger.error(f"Error saving base URL: {e}")
+
+    def _handle_provider_model_change(self, new_text):
+        try:
+            context = bpy.context
+            context.scene.vibe5d_provider_model = new_text
+            from ....utils.settings_manager import settings_manager
+
+            settings_manager.auto_save_settings(context)
+        except Exception as e:
+            logger.error(f"Error saving provider model: {e}")
+
+    def _handle_open_github(self, segment):
+        try:
+            import webbrowser
+
+            webbrowser.open("https://github.com/justanotherfivemdev/vibe4d-blender")
+        except Exception as e:
+            logger.error(f"Error opening GitHub: {e}")
+
+    def _handle_open_website(self, segment):
+        try:
+            bpy.ops.vibe5d.open_website()
+        except Exception as e:
+            logger.error(f"Error opening website: {e}")
+
+    def _handle_open_discord(self, segment):
+        try:
+            bpy.ops.vibe5d.open_discord()
+        except Exception as e:
+            logger.error(f"Error opening Discord: {e}")
+
+    def _handle_open_twitter(self, segment):
+        try:
+            import webbrowser
+
+            webbrowser.open("https://github.com/justanotherfivemdev/vibe4d-blender")
+        except Exception as e:
+            logger.error(f"Error opening Twitter: {e}")
+
+    def _handle_link_hover_start(self, segment):
+        return None
+
+    def _handle_link_hover_end(self, segment):
+        return None
+
+    def set_refresh_callback(self, callback):
+        self.refresh_callback = callback
+
+    def reset_usage_fetch_state(self):
+        self.usage_data_fetched = False
+        self.is_fetching_usage = False
+
+    def _fetch_usage_data_async(self):
+        if self.is_fetching_usage:
+            logger.debug("Usage data fetch already in progress, skipping")
+            return
+
+        self.is_fetching_usage = True
+        usage_thread = threading.Thread(target=self._fetch_usage_data)
+        usage_thread.daemon = True
+        usage_thread.start()
+
+    def _fetch_usage_data(self):
+        try:
+            context = bpy.context
+            user_id = getattr(context.window_manager, 'vibe5d_user_id', '')
+            token = getattr(context.window_manager, 'vibe5d_user_token', '')
+            if not user_id or not token:
+                logger.warning("Cannot fetch usage data - missing authentication credentials")
+                return
+
+            from ....api.client import api_client
+
+            success, data_or_error = api_client.get_usage_info(user_id, token)
+
+            def update_ui_on_main_thread():
+                try:
+                    if success:
+                        usage_data = data_or_error
+                        for source_key, target_attr in [
+                            ('plan_id', 'vibe5d_user_plan'),
+                            ('plan_name', 'vibe5d_plan_name'),
+                            ('current_usage', 'vibe5d_current_usage'),
+                            ('limit', 'vibe5d_usage_limit'),
+                            ('limit_type', 'vibe5d_limit_type'),
+                            ('allowed', 'vibe5d_allowed'),
+                            ('usage_percentage', 'vibe5d_usage_percentage'),
+                            ('remaining_requests', 'vibe5d_remaining_requests'),
+                        ]:
+                            if source_key in usage_data:
+                                setattr(context.window_manager, target_attr, usage_data[source_key])
+
+                        if self.refresh_callback:
+                            self.refresh_callback()
+                        else:
+                            self._notify_ui_system_of_changes()
+                    else:
+                        logger.warning(f"Failed to fetch usage data: {data_or_error.get('error', 'Unknown error')}")
+                except Exception as e:
+                    logger.error(f"Error updating UI with usage data: {e}")
+                return None
+
+            bpy.app.timers.register(update_ui_on_main_thread, first_interval=0.1)
+        except Exception as e:
+            logger.error(f"Error fetching usage data: {e}")
+        finally:
+            self.is_fetching_usage = False
+
+    def _notify_ui_system_of_changes(self):
+        try:
+            from ..components.component_registry import component_registry
+
+            component_registry.process_updates()
+            if self.refresh_callback:
+                self.refresh_callback()
+                return
+
+            from ..ui_factory import improved_ui_factory
+
+            if improved_ui_factory and hasattr(improved_ui_factory, '_refresh_current_view'):
+                improved_ui_factory._refresh_current_view()
+                return
+        except Exception as e:
+            logger.debug(f"Could not notify UI system: {e}")
+
+    def _force_redraw(self):
+        try:
+            for window in bpy.context.window_manager.windows:
+                for area in window.screen.areas:
+                    area.tag_redraw()
+        except Exception as e:
+            logger.debug(f"Could not force redraw: {e}")

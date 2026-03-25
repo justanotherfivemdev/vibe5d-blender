@@ -41,6 +41,7 @@ class OpenAIStreamingResponse:
         self.current_search_result_count = 0
         self.current_tool_call_id = None
         self.current_tool_arguments = None
+        self.current_tool_result = None
         self.error_code = None
         self.error_retryable = False
         self.error_suggestions = []
@@ -204,6 +205,11 @@ class OpenAIClient:
             # Map any custom roles to standard OpenAI roles
             if role not in ("user", "assistant", "system"):
                 role = "user"
+
+            # Pass through multimodal content arrays (text + image_url) as-is
+            if isinstance(content, list):
+                messages.append({"role": role, "content": content})
+                continue
 
             # Truncate individual messages if too large
             if len(content) > self.MAX_SINGLE_MESSAGE_CHARS:

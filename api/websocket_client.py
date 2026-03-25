@@ -12,30 +12,29 @@ def _is_websocket_connection_error(error_message: str) -> bool:
     error_lower = error_message.lower()
 
     websocket_error_patterns = [
-        ,
-    ,
-    ,
-    ,
-    ,
-    ,
-    ,
-    ,
-    ,
-    ,
-    ,
-    ,
-    ,
-    ,
-    ,
-    ,
-    ,
-    ,
-    ,
-    ,
-    ,
-    ,
-    ,
-
+        "connection refused",
+        "connection reset",
+        "connection aborted",
+        "connection closed",
+        "connection lost",
+        "timed out",
+        "timeout",
+        "temporary failure",
+        "name or service not known",
+        "getaddrinfo failed",
+        "network is unreachable",
+        "no route to host",
+        "host unreachable",
+        "service unavailable",
+        "server unavailable",
+        "broken pipe",
+        "econnrefused",
+        "econnreset",
+        "ssl",
+        "certificate",
+        "handshake",
+        "1006",
+        "websocket",
     ]
 
     return any(pattern in error_lower for pattern in websocket_error_patterns)
@@ -78,6 +77,7 @@ class StreamingResponse:
         self.current_search_result_count = 0
         self.current_tool_call_id = None
         self.current_tool_arguments = None
+        self.current_tool_result = None
         self.error_code = None
         self.error_retryable = False
         self.error_suggestions = []
@@ -248,14 +248,14 @@ class LLMWebSocketClient:
                 tool_state_changed = (hasattr(self.response, 'tool_call_started') or
                                       hasattr(self.response, 'tool_call_completed'))
                 special_event = event in ["status", "tool_call_request", "tool_started", "tool_completed",
-                , "web_search_completed", "response_in_progress",
-                , "output_text_done", "content_part_done",
+                "web_search_started", "web_search_completed", "response_in_progress",
+                "content_part_added", "output_text_done", "content_part_done", "output_item_done",
                 ]
 
                 if content_changed or tool_state_changed or special_event:
                     self.on_progress_callback(self.response)
                     self._last_progress_content_length = len(self.response.output_content) if hasattr(self.response,
-                                                                                                      ) else 0
+                                                                                                      'output_content') else 0
 
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse WebSocket message: {str(e)}")
@@ -291,12 +291,13 @@ class LLMWebSocketClient:
                 logger.error(f"Failed to parse tool arguments JSON: {json_err}")
                 logger.error(f"Arguments JSON content: '{arguments_json}'")
                 logger.error(f"Tool name: {tool_name}, Call ID: {call_id}")
-                raise ValueError(f"Invalid JSON in tool arguments: {json_err}")from json_err
+                raise ValueError(f"Invalid JSON in tool arguments: {json_err}") from json_err
 
             self.response.current_tool_call = {
-            :tool_name,
-            : call_id,
-            :arguments
+                "id": tool_id,
+                "call_id": call_id,
+                "name": tool_name,
+                "arguments": arguments,
             }
             self.response.tool_call_started = True
             self.response.tool_call_completed = False
@@ -312,9 +313,9 @@ class LLMWebSocketClient:
                 from ..ui.advanced.manager import ui_manager
 
                 tool_call_data = {
-                :call_id,
-                : tool_name,
-                :arguments_json
+                    "call_id": call_id,
+                    "tool_name": tool_name,
+                    "arguments": arguments_json,
                 }
                 ui_manager.handle_external_tool_call(tool_call_data)
 
@@ -361,10 +362,10 @@ class LLMWebSocketClient:
 
                                 image_message_text = "[Render captured]" if tool_name == "see_render" else "[Viewport captured]"
                                 backend_result["_image_data"] = {
-                                :tool_result[image_data_key],
-                                : image_message_text
+                                    "data_uri": tool_result[image_data_key],
+                                    "message_text": image_message_text,
                                 }
-                                else:
+                            else:
                                 ui_status_message = "Image capture failed"
                                 status = "error"
                                 backend_result["status"] = "error"
@@ -384,13 +385,14 @@ class LLMWebSocketClient:
                     logger.error(f"Error executing tool '{tool_name}' on main thread: {str(e)}")
                     self.response.tool_call_completed = True
                     backend_result = {
-                    :"error",
-                    : f"Tool call execution failed: {str(e)}"
+                        "status": "error",
+                        "result": f"Tool call execution failed: {str(e)}",
                     }
                     ui_status_message = f"Tool call execution failed: {str(e)}"
 
                 else:
                     self.response.tool_call_completed = True
+                    self.response.current_tool_result = json.dumps(backend_result)
 
                 try:
                     from ..ui.advanced.manager import ui_manager
@@ -398,12 +400,12 @@ class LLMWebSocketClient:
                     image_data = backend_result.get("_image_data")
 
                     tool_response_data = {
-                    :call_id,
-                    : json.dumps(backend_result),
-                    :backend_result.get("status") == "success",
-                    : ui_status_message,
-                    :backend_result,
-                    : image_data
+                        "call_id": call_id,
+                        "content": json.dumps(backend_result),
+                        "success": backend_result.get("status") == "success",
+                        "ui_message": ui_status_message,
+                        "original_result": backend_result,
+                        "image_data": image_data,
                     }
                     ui_manager.handle_external_tool_response(tool_response_data)
 
@@ -433,8 +435,8 @@ class LLMWebSocketClient:
 
                 self.response.tool_call_completed = True
                 self._send_tool_call_response(call_id, {
-                : "error",
-                :f"Tool call processing failed: {str(e)}"
+                    "status": "error",
+                    "result": f"Tool call processing failed: {str(e)}",
                 })
 
                 if self.on_progress_callback:
@@ -457,9 +459,9 @@ class LLMWebSocketClient:
             result_content = result.get("result", "")
 
             response_data = {
-            :call_id,
-            : json.dumps({"result": result_content}),
-            :status
+                "call_id": call_id,
+                "result": json.dumps({"result": result_content}),
+                "status": status,
             }
 
             message = json.dumps(response_data)
@@ -570,60 +572,60 @@ class LLMWebSocketClient:
     def _get_legacy_error_message(self, error_code: str) -> str:
 
         legacy_messages = {
-        :"Request format error. Please try again.",
-        : "Authentication failed. Please check your API key.",
-        :"Rate limit exceeded. Please wait before making another request.",
-        : "You've reached your plan's usage limit for this period.",
-        :"A temporary server error occurred. Please try again.",
-        : "An unexpected error occurred. Please try again.",
-        :"The AI service encountered an error. Please try again.",
-        : "This request cannot be completed as described.",
+            "INVALID_REQUEST": "Request format error. Please try again.",
+            "AUTH_ERROR": "Authentication failed. Please check your license key.",
+            "RATE_LIMIT": "Rate limit exceeded. Please wait before making another request.",
+            "USAGE_LIMIT": "You've reached your plan's usage limit for this period.",
+            "DB_ERROR": "A temporary server error occurred. Please try again.",
+            "INTERNAL_ERROR": "An unexpected error occurred. Please try again.",
+            "LLM_ERROR": "The AI service encountered an error. Please try again.",
+            "TOOL_ERROR": "This request cannot be completed as described.",
         }
         return legacy_messages.get(error_code, f"An error occurred: {error_code}")
 
     def _is_legacy_error_retryable(self, error_code: str) -> bool:
 
         retryable_codes = {
-        , "RATE_LIMIT", "DB_ERROR", "INTERNAL_ERROR", "LLM_ERROR"
+            "RATE_LIMIT", "DB_ERROR", "INTERNAL_ERROR", "LLM_ERROR"
         }
         return error_code in retryable_codes
 
     def _get_legacy_error_suggestions(self, error_code: str) -> List[str]:
 
         legacy_suggestions = {
-        :[
-            ,
-        ,
-        ],
-        :[
-            ,
-        ,
-        ,
-        ],
-        :[
-            ,
-        ,
-        ],
-        :[
-            ,
-        ,
-        ],
-        :[
-            ,
-        ,
-        ],
-        :[
-            ,
-        ,
-        ],
-        :[
-            ,
-        ,
-        ],
-        :[
-            ,
-        ,
-        ],
+            "INVALID_REQUEST": [
+                "Review the prompt or request payload and try again.",
+                "Simplify the request if it contains a large amount of data.",
+            ],
+            "AUTH_ERROR": [
+                "Sign in again to refresh your credentials.",
+                "Verify the configured account or license is still valid.",
+                "Check network access if authentication normally succeeds.",
+            ],
+            "RATE_LIMIT": [
+                "Wait a moment before sending another request.",
+                "Reduce request frequency if this happens often.",
+            ],
+            "USAGE_LIMIT": [
+                "Check the current plan usage in the addon UI.",
+                "Try again after the usage window resets.",
+            ],
+            "DB_ERROR": [
+                "Try the request again shortly.",
+                "Retry later if the service is under maintenance.",
+            ],
+            "INTERNAL_ERROR": [
+                "Retry the request in a moment.",
+                "If it keeps failing, simplify the prompt and try again.",
+            ],
+            "LLM_ERROR": [
+                "Retry the request in a moment.",
+                "Ask a narrower question or split the task into smaller steps.",
+            ],
+            "TOOL_ERROR": [
+                "Adjust the request so the tool action is more specific.",
+                "Try a read-only query first to inspect the current scene state.",
+            ],
         }
         return legacy_suggestions.get(error_code, ["Try again in a moment"])
 
@@ -705,10 +707,10 @@ class LLMWebSocketClient:
                 self.response.tool_events = []
 
             self.response.tool_events.append({
-            : "tool_started",
-            :tool_name,
-            : call_id,
-            :timestamp
+                "type": "tool_started",
+                "tool_name": tool_name,
+                "call_id": call_id,
+                "timestamp": timestamp,
             })
 
             self.response.current_tool_name = tool_name
@@ -733,11 +735,11 @@ class LLMWebSocketClient:
                 self.response.tool_events = []
 
             self.response.tool_events.append({
-            : "tool_completed",
-            :tool_name,
-            : call_id,
-            :success,
-            : timestamp
+                "type": "tool_completed",
+                "tool_name": tool_name,
+                "call_id": call_id,
+                "success": success,
+                "timestamp": timestamp,
             })
 
             self.response.current_tool_name = tool_name
@@ -760,9 +762,9 @@ class LLMWebSocketClient:
                 self.response.web_search_events = []
 
             self.response.web_search_events.append({
-            : "web_search_started",
-            :query,
-            : timestamp
+                "type": "web_search_started",
+                "query": query,
+                "timestamp": timestamp,
             })
 
             self.response.current_search_query = query
@@ -785,11 +787,11 @@ class LLMWebSocketClient:
                 self.response.web_search_events = []
 
             self.response.web_search_events.append({
-            : "web_search_completed",
-            :query,
-            : result_count,
-            :success,
-            : timestamp
+                "type": "web_search_completed",
+                "query": query,
+                "result_count": result_count,
+                "success": success,
+                "timestamp": timestamp,
             })
 
             self.response.current_search_query = query
@@ -811,11 +813,11 @@ class LLMWebSocketClient:
                 self.response.response_events = []
 
             self.response.response_events.append({
-            : "response_in_progress",
-            :timestamp
+                "type": "response_in_progress",
+                "timestamp": timestamp,
             })
 
-            except Exception as e:
+        except Exception as e:
             logger.error(f"Error handling response in progress event: {str(e)}")
 
     def _handle_content_part_added_event(self, data: Dict[str, Any]):
@@ -830,12 +832,12 @@ class LLMWebSocketClient:
                 self.response.content_events = []
 
             self.response.content_events.append({
-            : "content_part_added",
-            :content_index,
-            : timestamp
+                "type": "content_part_added",
+                "content_index": content_index,
+                "timestamp": timestamp,
             })
 
-            except Exception as e:
+        except Exception as e:
             logger.error(f"Error handling content part added event: {str(e)}")
 
     def _handle_output_text_done_event(self, data: Dict[str, Any]):
@@ -850,12 +852,12 @@ class LLMWebSocketClient:
                 self.response.output_events = []
 
             self.response.output_events.append({
-            : "output_text_done",
-            :item_id,
-            : timestamp
+                "type": "output_text_done",
+                "item_id": item_id,
+                "timestamp": timestamp,
             })
 
-            except Exception as e:
+        except Exception as e:
             logger.error(f"Error handling output text done event: {str(e)}")
 
     def _handle_content_part_done_event(self, data: Dict[str, Any]):
@@ -870,12 +872,12 @@ class LLMWebSocketClient:
                 self.response.content_events = []
 
             self.response.content_events.append({
-            : "content_part_done",
-            :content_index,
-            : timestamp
+                "type": "content_part_done",
+                "content_index": content_index,
+                "timestamp": timestamp,
             })
 
-            except Exception as e:
+        except Exception as e:
             logger.error(f"Error handling content part done event: {str(e)}")
 
     def _handle_output_item_done_event(self, data: Dict[str, Any]):
@@ -890,12 +892,12 @@ class LLMWebSocketClient:
                 self.response.output_events = []
 
             self.response.output_events.append({
-            : "output_item_done",
-            :item_type,
-            : timestamp
+                "type": "output_item_done",
+                "item_type": item_type,
+                "timestamp": timestamp,
             })
 
-            except Exception as e:
+        except Exception as e:
             logger.error(f"Error handling output item done event: {str(e)}")
 
     def close(self):

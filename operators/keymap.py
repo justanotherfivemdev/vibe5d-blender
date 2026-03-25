@@ -23,19 +23,19 @@ class KeymapManager:
 
             km = kc.keymaps.new(name="3D View", space_type='VIEW_3D')
             kmi = km.keymap_items.new(
-            ,
-            type = 'SPACE',
-            value = 'PRESS',
-            ctrl = True
+                "vibe5d.show_advanced_ui",
+                type='SPACE',
+                value='PRESS',
+                ctrl=True,
             )
             kmi.active = True
             self.keymaps.append((km, kmi))
 
             kmi2 = km.keymap_items.new(
-            ,
-            type = 'SPACE',
-            value = 'PRESS',
-            shift = True
+                "vibe5d.show_advanced_ui",
+                type='SPACE',
+                value='PRESS',
+                shift=True,
             )
             kmi2.active = True
             self.keymaps.append((km, kmi2))

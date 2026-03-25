@@ -34,9 +34,9 @@ class RenderHelper:
 
         batch = batch_for_shader(
             gpu.shader.from_builtin('UNIFORM_COLOR'),
-        ,
-        {"pos": vertices},
-        indices = indices
+            'TRIS',
+            {"pos": vertices},
+            indices=indices,
         )
 
         gpu.shader.from_builtin('UNIFORM_COLOR').bind()

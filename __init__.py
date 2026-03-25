@@ -25,6 +25,8 @@ from .utils.instructions_manager import instruction_manager
 from .utils.logger import logger
 from .utils.settings_manager import settings_manager
 
+_registered_timers = []
+
 query = api.query
 execute = api.execute
 scene_context = api.scene_context
@@ -187,6 +189,7 @@ def register():
 
         try:
             bpy.app.timers.register(delayed_modal_handler_start, first_interval=0.2)
+            _registered_timers.append(delayed_modal_handler_start)
         except Exception as e:
             logger.warning(f"Failed to schedule viewport button modal handler: {e}")
 
@@ -215,6 +218,13 @@ def unregister():
                 instruction_manager.save_instruction(bpy.context)
         except Exception as e:
             logger.debug(f"Failed to save settings/instructions on unregister: {str(e)}")
+
+        for timer_fn in _registered_timers:
+            try:
+                bpy.app.timers.unregister(timer_fn)
+            except Exception:
+                pass
+        _registered_timers.clear()
 
         if load_auth_and_settings_on_file_load in bpy.app.handlers.load_post:
             bpy.app.handlers.load_post.remove(load_auth_and_settings_on_file_load)

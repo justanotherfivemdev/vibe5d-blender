@@ -211,15 +211,14 @@ class MainView(BaseView):
         self._setup_text_input_change_handler()
 
         return {
-        :layouts,
-        : components,
-        :self._get_all_components()
+            'layouts': layouts,
+            'components': components,
+            'all_components': self._get_all_components(),
         }
 
-        def update_layout(self, viewport_width: int, viewport_height: int):
-
-            if self.components:
-                self._update_all_layouts(viewport_width, viewport_height, self.components)
+    def update_layout(self, viewport_width: int, viewport_height: int):
+        if self.components:
+            self._update_all_layouts(viewport_width, viewport_height, self.components)
 
         def get_focused_component(self):
 
@@ -247,7 +246,7 @@ class MainView(BaseView):
             layouts = {}
 
             main_layout = self._create_layout_container(
-            ,
+            "main",
             LayoutConfig(
                 strategy=LayoutStrategy.ABSOLUTE,
                 padding_top=0,
@@ -259,7 +258,7 @@ class MainView(BaseView):
             layouts['main'] = main_layout
 
             header_layout = self._create_layout_container(
-            ,
+            "header",
             LayoutConfig(
                 strategy=LayoutStrategy.FLEX_HORIZONTAL,
                 direction=FlexDirection.ROW,
@@ -275,7 +274,7 @@ class MainView(BaseView):
             layouts['header'] = header_layout
 
             buttons_layout = self._create_layout_container(
-            ,
+            "header_buttons",
             LayoutConfig(
                 strategy=LayoutStrategy.FLEX_HORIZONTAL,
                 direction=FlexDirection.ROW,
@@ -291,7 +290,7 @@ class MainView(BaseView):
             layouts['header_buttons'] = buttons_layout
 
             message_layout = self._create_layout_container(
-            ,
+            "message_area",
             LayoutConfig(
                 strategy=LayoutStrategy.ABSOLUTE,
                 padding_top=0,
@@ -303,7 +302,7 @@ class MainView(BaseView):
             layouts['message_area'] = message_layout
 
             input_layout = self._create_layout_container(
-            ,
+            "input_area",
             LayoutConfig(
                 strategy=LayoutStrategy.ABSOLUTE,
                 padding_top=0,
@@ -338,9 +337,9 @@ class MainView(BaseView):
                 current_model = getattr(context.scene, 'vibe5d_model', 'gpt-5-mini')
 
                 model_reverse_mapping = {
-                :"Claude Sonnet 4.5",
-                : "GPT 5",
-                :"GPT 5 Mini"
+                    "claude-sonnet-4-5": "Claude Sonnet 4.5",
+                    "gpt-5": "GPT 5",
+                    "gpt-5-mini": "GPT 5 Mini"
                 }
 
                 display_model = model_reverse_mapping.get(current_model, "GPT 5 Mini")
@@ -1050,3 +1049,331 @@ class MainView(BaseView):
             except Exception as e:
                 logger.error(f"Failed to extract content from message: {str(e)}")
                 return str(message)
+
+    def update_layout(self, viewport_width: int, viewport_height: int):
+        if self.components:
+            self._update_all_layouts(viewport_width, viewport_height, self.components)
+
+    def get_focused_component(self):
+        return self.components.get('text_input')
+
+    def get_send_text(self) -> str:
+        text_input = self.components.get('text_input')
+        if text_input and hasattr(text_input, 'get_text'):
+            return text_input.get_text().strip()
+        return ""
+
+    def clear_send_text(self):
+        text_input = self.components.get('text_input')
+        if text_input and hasattr(text_input, 'set_text'):
+            text_input.set_text("")
+
+    def get_message_scrollview(self):
+        return self.components.get('message_scrollview')
+
+    def _setup_layouts(self, viewport_width: int, viewport_height: int) -> Dict[str, str]:
+        layouts = {}
+        layouts['main'] = self._create_layout_container(
+            "main",
+            LayoutConfig(strategy=LayoutStrategy.ABSOLUTE, padding_top=0, padding_right=0, padding_bottom=0, padding_left=0),
+        )
+        layouts['header'] = self._create_layout_container(
+            "header",
+            LayoutConfig(
+                strategy=LayoutStrategy.FLEX_HORIZONTAL,
+                direction=FlexDirection.ROW,
+                justify_content=JustifyContent.SPACE_BETWEEN,
+                align_items=AlignItems.CENTER,
+                gap=self.HEADER_GAP,
+                padding_top=0,
+                padding_right=0,
+                padding_bottom=0,
+                padding_left=0,
+            ),
+        )
+        layouts['header_buttons'] = self._create_layout_container(
+            "header_buttons",
+            LayoutConfig(
+                strategy=LayoutStrategy.FLEX_HORIZONTAL,
+                direction=FlexDirection.ROW,
+                justify_content=JustifyContent.END,
+                align_items=AlignItems.CENTER,
+                gap=self.BUTTON_GAP,
+                padding_top=0,
+                padding_right=0,
+                padding_bottom=0,
+                padding_left=0,
+            ),
+        )
+        layouts['message_area'] = self._create_layout_container(
+            "message_area",
+            LayoutConfig(strategy=LayoutStrategy.ABSOLUTE, padding_top=0, padding_right=0, padding_bottom=0, padding_left=0),
+        )
+        layouts['input_area'] = self._create_layout_container(
+            "input_area",
+            LayoutConfig(strategy=LayoutStrategy.ABSOLUTE, padding_top=0, padding_right=0, padding_bottom=0, padding_left=0),
+        )
+        return layouts
+
+    def _create_components(self) -> Dict[str, Any]:
+        components = {}
+        model_options = ["Claude Sonnet 4.5", "GPT 5", "GPT 5 Mini"]
+        model_dropdown = ModelDropdown(
+            model_options,
+            0,
+            0,
+            self.DROPDOWN_WIDTH,
+            self.DROPDOWN_HEIGHT,
+            on_change=self.callbacks.get('on_model_change'),
+        )
+
+        try:
+            import bpy
+
+            current_model = getattr(bpy.context.scene, 'vibe5d_model', 'gpt-5-mini')
+            model_reverse_mapping = {
+                'claude-sonnet-4-5': "Claude Sonnet 4.5",
+                'gpt-5': "GPT 5",
+                'gpt-5-mini': "GPT 5 Mini",
+            }
+            display_model = model_reverse_mapping.get(current_model, "GPT 5 Mini")
+            model_dropdown.selected_index = model_options.index(display_model) if display_model in model_options else 2
+        except Exception:
+            model_dropdown.selected_index = 2
+
+        components['model_dropdown'] = model_dropdown
+
+        button_size = self.HEADER_ICON_BUTTON_SIZE
+        button_corner_radius = self.HEADER_ICON_BUTTON_CORNER_RADIUS
+        components['add_button'] = IconButton("new", 0, 0, button_size, button_size, corner_radius=button_corner_radius, on_click=self._handle_add_click)
+        components['history_button'] = IconButton("history", 0, 0, button_size, button_size, corner_radius=button_corner_radius, on_click=self._handle_history_click)
+        components['settings_button'] = IconButton("settings", 0, 0, button_size, button_size, corner_radius=button_corner_radius, on_click=self._handle_settings_click)
+
+        message_scrollview = ScrollView(0, 0, 600, 400, reverse_y_coordinate=False)
+        message_scrollview.style = get_themed_component_style("input")
+        message_scrollview.style.background_color = (0, 0, 0, 0)
+        message_scrollview.style.border_color = (0, 0, 0, 0)
+        message_scrollview.style.border_width = 0
+        message_scrollview.scroll_direction = ScrollDirection.VERTICAL
+        message_scrollview.show_scrollbars = True
+        components['message_scrollview'] = message_scrollview
+
+        text_input = TextInput(
+            placeholder="What would you like me to do?",
+            multiline=True,
+            min_height=20,
+            max_height=self.TEXT_INPUT_MAX_HEIGHT,
+            corner_radius=self.TEXT_INPUT_CORNER_RADIUS,
+            content_padding_right=self.SEND_BUTTON_SIZE + (self.SEND_BUTTON_SPACING * 2),
+            content_padding_left=self.TEXT_INPUT_CONTENT_PADDING_LEFT + self.SEND_BUTTON_SIZE + self.SEND_BUTTON_SPACING,
+        )
+        text_input.style = get_themed_component_style("input")
+        text_input.style.padding = self.TEXT_INPUT_PADDING
+        text_input.style.border_width = self.TEXT_INPUT_BORDER_WIDTH
+        text_input.on_submit = self.callbacks.get('on_send')
+        components['text_input'] = text_input
+
+        components['send_button'] = SendButton(
+            "",
+            0,
+            0,
+            self.SEND_BUTTON_SIZE,
+            self.SEND_BUTTON_SIZE,
+            corner_radius=self.SEND_BUTTON_CORNER_RADIUS,
+            on_click=self.callbacks.get('on_send'),
+        )
+
+        attach_button = IconButton(
+            "image",
+            0, 0,
+            self.SEND_BUTTON_SIZE,
+            self.SEND_BUTTON_SIZE,
+            corner_radius=self.SEND_BUTTON_CORNER_RADIUS,
+            on_click=self._handle_attach_image_click,
+        )
+        attach_button.style.background_color = (0, 0, 0, 0)
+        attach_button.style.border_width = 0
+        components['attach_button'] = attach_button
+
+        return components
+
+    def _organize_components(self, layouts: Dict[str, str], components: Dict[str, Any]):
+        self.layout_manager.add_component(layouts['header'], components['model_dropdown'])
+        self.layout_manager.add_component(layouts['header_buttons'], components['add_button'])
+        self.layout_manager.add_component(layouts['header_buttons'], components['history_button'])
+        self.layout_manager.add_component(layouts['header_buttons'], components['settings_button'])
+        self.layout_manager.add_component(
+            layouts['message_area'],
+            components['message_scrollview'],
+            LayoutConstraints(left=0, right=0, top=0, bottom=0),
+        )
+        self.layout_manager.add_component(
+            layouts['input_area'],
+            components['text_input'],
+            LayoutConstraints(left=0, right=0, top=0, bottom=0),
+        )
+        self.layout_manager.add_component(
+            layouts['input_area'],
+            components['send_button'],
+            LayoutConstraints(right=self.SEND_BUTTON_SPACING, bottom=self.SEND_BUTTON_SPACING + CoordinateSystem.scale_int(2)),
+        )
+        self.layout_manager.add_component(
+            layouts['input_area'],
+            components['attach_button'],
+            LayoutConstraints(left=self.SEND_BUTTON_SPACING, bottom=self.SEND_BUTTON_SPACING + CoordinateSystem.scale_int(2)),
+        )
+
+    def _update_all_layouts(self, viewport_width: int, viewport_height: int, components: Dict[str, Any]):
+        message_scrollview = components.get('message_scrollview')
+        buttons_container_bounds = Bounds(0, 0, self.BUTTON_CONTAINER_WIDTH_ESTIMATE, self.BUTTON_CONTAINER_HEIGHT)
+        self.layout_manager.update_layout(self.layouts['header_buttons'], buttons_container_bounds)
+        buttons_components = self.layout_manager.containers[self.layouts['header_buttons']]
+        total_width = 0
+        button_gap = self.BUTTON_GAP
+        if buttons_components:
+            total_width = sum(comp.bounds.width for comp in buttons_components) + max(0, len(buttons_components) - 1) * button_gap
+            self.layout_manager.update_layout(self.layouts['header_buttons'], Bounds(0, 0, total_width, self.BUTTON_CONTAINER_HEIGHT))
+
+        self.layout_manager.update_layout(self.layouts['main'], Bounds(0, 0, viewport_width, viewport_height))
+
+        viewport_margin = self.VIEWPORT_MARGIN
+        header_bounds = Bounds(viewport_margin, viewport_height - self.HEADER_HEIGHT - viewport_margin, viewport_width - (viewport_margin * 2), self.HEADER_HEIGHT)
+        content_x = header_bounds.x + self.HEADER_PADDING_HORIZONTAL
+        content_y = header_bounds.y + self.HEADER_PADDING_VERTICAL
+        content_width = header_bounds.width - (self.HEADER_PADDING_HORIZONTAL * 2)
+
+        dropdown = components.get('model_dropdown')
+        if dropdown:
+            dropdown.set_position(content_x, content_y)
+
+        if buttons_components:
+            current_x = content_x + content_width - total_width
+            for comp in buttons_components:
+                comp.set_position(current_x, content_y)
+                current_x += comp.bounds.width + button_gap
+
+        input_bounds = Bounds(
+            viewport_margin + self.TEXT_INPUT_MARGIN,
+            viewport_margin + self.TEXT_INPUT_MARGIN,
+            viewport_width - (viewport_margin * 2) - (self.TEXT_INPUT_MARGIN * 2),
+            self.INPUT_AREA_HEIGHT,
+        )
+        self.layout_manager.update_layout(self.layouts['input_area'], input_bounds)
+
+        message_y = input_bounds.y + input_bounds.height + self.MESSAGE_AREA_SPACING
+        message_height = header_bounds.y - message_y - self.HEADER_VERTICAL_MARGIN
+        self.layout_manager.update_layout(
+            self.layouts['message_area'],
+            Bounds(0, message_y, viewport_width, max(self.MIN_MESSAGE_HEIGHT, message_height)),
+        )
+
+        if message_scrollview and not message_scrollview.children:
+            self._show_empty_chat_message(message_scrollview)
+        elif message_scrollview:
+            self._update_empty_chat_message_position(message_scrollview)
+
+    def _handle_add_click(self):
+        if self.callbacks.get('on_stop_generation'):
+            self.callbacks['on_stop_generation']()
+
+        message_scrollview = self.get_message_scrollview()
+        if message_scrollview:
+            message_scrollview.children.clear()
+            message_scrollview._update_content_bounds()
+            self._show_empty_chat_message(message_scrollview)
+
+        if self.callbacks.get('on_add'):
+            self.callbacks['on_add']()
+
+    def _handle_history_click(self):
+        if self.callbacks.get('on_view_change'):
+            from ..ui_factory import ViewState
+
+            self.callbacks['on_view_change'](ViewState.HISTORY)
+        if self.callbacks.get('on_history'):
+            self.callbacks['on_history']()
+
+    def _handle_settings_click(self):
+        if self.callbacks.get('on_view_change'):
+            from ..ui_factory import ViewState
+
+            self.callbacks['on_view_change'](ViewState.SETTINGS)
+        if self.callbacks.get('on_settings'):
+            self.callbacks['on_settings']()
+
+    def _handle_attach_image_click(self):
+        try:
+            import bpy
+            bpy.ops.vibe5d.attach_image('INVOKE_DEFAULT')
+        except Exception as e:
+            logger.error(f"Failed to open image file browser: {e}")
+
+    def _setup_unfocus_handlers(self, components: Dict[str, Any]):
+        return None
+
+    def _convert_tool_message_to_block_format(self, content: str) -> str:
+        stripped = content.strip()
+        if not stripped or stripped in ['{}', '{"status": "success"}', 'null', 'None']:
+            return "[Tool completed]"
+        return stripped if len(stripped) < 80 else "[Tool completed]"
+
+    def _load_existing_chat_history(self):
+        message_scrollview = self.get_message_scrollview()
+        if not message_scrollview:
+            return
+        if not message_scrollview.children:
+            self._show_empty_chat_message(message_scrollview)
+
+    def _restore_unsent_text_for_current_chat(self):
+        return None
+
+    def _setup_text_input_change_handler(self):
+        text_input = self.components.get('text_input')
+        if not text_input or not hasattr(text_input, 'on_change'):
+            return
+
+        original_on_change = text_input.on_change
+
+        def combined_on_change(text):
+            if original_on_change:
+                original_on_change(text)
+            self._save_unsent_text_on_change(text)
+
+        text_input.on_change = combined_on_change
+
+    def _save_unsent_text_on_change(self, text):
+        return None
+
+    def _show_empty_chat_message(self, message_scrollview: ScrollView):
+        if message_scrollview.children:
+            return
+        label_height = 30
+        message_padding = self.MESSAGE_PADDING
+        label_width = message_scrollview.bounds.width - (message_padding * 2)
+        label_x = (message_scrollview.bounds.width - label_width) // 2
+        label_y = (message_scrollview.bounds.height - label_height) // 2
+        empty_state_label = Label("Ready when you are.", label_x, label_y, label_width, label_height)
+        empty_state_label.style = get_themed_component_style("text")
+        empty_state_label.style.text_color = get_theme_color('text_muted')
+        empty_state_label.set_text_align("center")
+        message_scrollview.add_child(empty_state_label)
+        message_scrollview.show_scrollbars = False
+        message_scrollview.max_scroll_x = 0
+        message_scrollview.max_scroll_y = 0
+        message_scrollview.scroll_x = 0
+        message_scrollview.scroll_y = 0
+
+    def _update_empty_chat_message_position(self, message_scrollview: ScrollView):
+        if not message_scrollview.children:
+            return
+        empty_state_label = message_scrollview.children[0]
+        if not (hasattr(empty_state_label, 'get_text') and empty_state_label.get_text() == "Ready when you are."):
+            return
+        label_height = 30
+        message_padding = self.MESSAGE_PADDING
+        label_width = message_scrollview.bounds.width - (message_padding * 2)
+        label_x = (message_scrollview.bounds.width - label_width) // 2
+        label_y = (message_scrollview.bounds.height - label_height) // 2
+        empty_state_label.set_position(label_x, label_y)
+        empty_state_label.set_size(label_width, label_height)
+        message_scrollview._update_content_bounds()

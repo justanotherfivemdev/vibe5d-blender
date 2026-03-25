@@ -468,6 +468,52 @@ class VIBE5D_OT_ui_login(Operator):
         return {'FINISHED'}
 
 
+class VIBE5D_OT_attach_image(Operator):
+    bl_idname = "vibe5d.attach_image"
+    bl_label = "Attach Image Reference"
+    bl_description = "Attach an image as a reference for your prompt"
+    bl_options = {'REGISTER'}
+
+    filepath: StringProperty(
+        name="File Path",
+        description="Path to the image file",
+        subtype='FILE_PATH',
+    )
+
+    filter_glob: StringProperty(
+        default="*.png;*.jpg;*.jpeg;*.bmp;*.tiff;*.webp",
+        options={'HIDDEN'},
+    )
+
+    def execute(self, context):
+        import os
+
+        if not self.filepath or not os.path.isfile(self.filepath):
+            self.report({'ERROR'}, "Please select a valid image file")
+            return {'CANCELLED'}
+
+        allowed_extensions = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.webp'}
+        ext = os.path.splitext(self.filepath)[1].lower()
+        if ext not in allowed_extensions:
+            self.report({'ERROR'}, f"Unsupported image format: {ext}")
+            return {'CANCELLED'}
+
+        max_size_bytes = 20 * 1024 * 1024
+        file_size = os.path.getsize(self.filepath)
+        if file_size > max_size_bytes:
+            self.report({'ERROR'}, "Image file is too large (max 20MB)")
+            return {'CANCELLED'}
+
+        from ..ui.advanced.manager import ui_manager
+        ui_manager.attach_image_reference(self.filepath)
+        self.report({'INFO'}, f"Image attached: {os.path.basename(self.filepath)}")
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+
+
 classes = [
     VIBE5D_OT_ui_modal_handler,
     VIBE5D_OT_show_advanced_ui,
@@ -477,6 +523,7 @@ classes = [
     VIBE5D_OT_ui_mouse_handler,
     VIBE5D_OT_ui_keyboard_handler,
     VIBE5D_OT_ui_login,
+    VIBE5D_OT_attach_image,
 ]
 
 

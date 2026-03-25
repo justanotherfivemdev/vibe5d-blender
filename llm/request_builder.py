@@ -197,7 +197,8 @@ class LLMRequestBuilder:
             api_key: str = "",
             base_url: str = "",
             model: Optional[str] = None,
-            include_history: bool = True
+            include_history: bool = True,
+            image_data_uri: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Build a request formatted for the OpenAI-compatible client."""
         selected_model, instruction = LLMRequestBuilder._get_model_and_instruction(context)
@@ -213,14 +214,20 @@ class LLMRequestBuilder:
             )
             messages.extend(recent_messages)
 
-        messages.append({
-            "role": "user",
-            "content": prompt.strip()
-        })
+        if image_data_uri:
+            user_content = [
+                {"type": "text", "text": prompt.strip()},
+                {"type": "image_url", "image_url": {"url": image_data_uri, "detail": "auto"}},
+            ]
+            messages.append({"role": "user", "content": user_content})
+        else:
+            messages.append({"role": "user", "content": prompt.strip()})
 
-        # Truncate individual message contents
+        # Truncate individual message contents (skip multimodal content arrays)
         for msg in messages:
             content = msg.get("content", "")
+            if isinstance(content, list):
+                continue
             if len(content) > LLMRequestBuilder.MAX_MESSAGE_CONTENT_CHARS:
                 msg["content"] = LLMRequestBuilder._truncate_content(
                     content, LLMRequestBuilder.MAX_MESSAGE_CONTENT_CHARS, "message"

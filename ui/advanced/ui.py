@@ -37,35 +37,10 @@ def unregister():
 
 
 __all__ = [
-
-    ,
-,
-,
-,
-
-,
-,
-,
-,
-
-,
-,
-,
-
-,
-,
-,
-
-,
-,
-,
-,
-
-,
-
-,
-,
-,
-,
-,
+    "enable_overlay",
+    "disable_overlay",
+    "cleanup_overlay",
+    "register",
+    "unregister",
+    "ui_manager",
 ]

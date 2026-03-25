@@ -27,6 +27,7 @@ def _get_target_object(target: bpy.types.ID) -> bpy.types.Object:
         raise ValueError("Mesh datablock is not used by any object in the scene")
 
     raise TypeError(
+        f"Unsupported target type for object screenshot: {type(target).__name__}"
     )
 
 
