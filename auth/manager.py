@@ -224,111 +224,110 @@ class AuthManager:
             return None
 
         return {
-        :f'Bearer {token}',
-        : user_id,
-        :'application/json'
+            'Authorization': f'Bearer {token}',
+            'X-User-Id': user_id,
+            'Content-Type': 'application/json'
         }
 
-        def is_authenticated(self, context):
+    def is_authenticated(self, context):
 
-            if not context.window_manager.vibe5d_authenticated:
+        if not context.window_manager.vibe5d_authenticated:
+            return False
+
+        token = getattr(context.window_manager, 'vibe5d_user_token', '')
+        user_id = getattr(context.window_manager, 'vibe5d_user_id', '')
+
+        return bool(token and user_id)
+
+    def get_user_info(self, context):
+
+        if not self.is_authenticated(context):
+            return None
+
+        return {
+            'user_id': getattr(context.window_manager, 'vibe5d_user_id', ''),
+            'email': getattr(context.window_manager, 'vibe5d_user_email', ''),
+            'plan': getattr(context.window_manager, 'vibe5d_user_plan', ''),
+            'token': getattr(context.window_manager, 'vibe5d_user_token', '')
+        }
+
+    def logout(self, context):
+
+        logger.info("Logging out user")
+
+        context.window_manager.vibe5d_authenticated = False
+        context.window_manager.vibe5d_user_id = ""
+        context.window_manager.vibe5d_user_token = ""
+        context.window_manager.vibe5d_user_email = ""
+        context.window_manager.vibe5d_user_plan = ""
+        context.window_manager.vibe5d_network_error = False
+
+        context.window_manager.vibe5d_current_usage = 0
+        context.window_manager.vibe5d_usage_limit = 0
+        context.window_manager.vibe5d_limit_type = ""
+        context.window_manager.vibe5d_plan_id = ""
+        context.window_manager.vibe5d_plan_name = ""
+        context.window_manager.vibe5d_allowed = True
+        context.window_manager.vibe5d_usage_percentage = 0.0
+        context.window_manager.vibe5d_remaining_requests = 0
+
+        context.scene.vibe5d_is_generating = False
+        context.scene.vibe5d_generation_progress = 0
+        context.scene.vibe5d_generation_stage = ""
+        context.scene.vibe5d_output_content = ""
+        context.scene.vibe5d_final_code = ""
+        context.scene.vibe5d_guide_content = ""
+        context.scene.vibe5d_last_error = ""
+
+    def reset_user_state(self, context):
+
+        context.scene.vibe5d_is_generating = False
+        context.scene.vibe5d_generation_progress = 0
+        context.scene.vibe5d_generation_stage = ""
+        context.scene.vibe5d_output_content = ""
+        context.scene.vibe5d_final_code = ""
+        context.scene.vibe5d_guide_content = ""
+        context.scene.vibe5d_last_error = ""
+
+    def update_usage_info(self, context) -> bool:
+
+        try:
+            if not self.is_authenticated(context):
+                logger.warning("Cannot update usage info - user not authenticated")
                 return False
 
-            token = getattr(context.window_manager, 'vibe5d_user_token', '')
             user_id = getattr(context.window_manager, 'vibe5d_user_id', '')
+            token = getattr(context.window_manager, 'vibe5d_user_token', '')
 
-            return bool(token and user_id)
+            if not user_id or not token:
+                logger.warning("Cannot update usage info - missing credentials")
+                return False
 
-        def get_user_info(self, context):
+            success, data_or_error = api_client.get_usage_info(user_id, token)
 
-            if not self.is_authenticated(context):
-                return None
+            if success:
 
-            return {
-            :getattr(context.window_manager, 'vibe5d_user_id', ''),
-            : getattr(context.window_manager, 'vibe5d_user_email', ''),
-            :getattr(context.window_manager, 'vibe5d_user_plan', ''),
-            : getattr(context.window_manager, 'vibe5d_user_token', '')
-            }
+                usage_data = data_or_error
 
-            def logout(self, context):
+                context.window_manager.vibe5d_current_usage = usage_data.get("current_usage", 0)
+                context.window_manager.vibe5d_usage_limit = usage_data.get("limit", 0)
+                context.window_manager.vibe5d_limit_type = usage_data.get("limit_type", "")
+                context.window_manager.vibe5d_plan_id = usage_data.get("plan_id", "")
+                context.window_manager.vibe5d_plan_name = usage_data.get("plan_name", "")
+                context.window_manager.vibe5d_allowed = usage_data.get("allowed", True)
+                context.window_manager.vibe5d_usage_percentage = usage_data.get("usage_percentage", 0.0)
+                context.window_manager.vibe5d_remaining_requests = usage_data.get("remaining_requests", 0)
 
-                logger.info("Logging out user")
+                return True
+            else:
 
-                context.window_manager.vibe5d_authenticated = False
-                context.window_manager.vibe5d_user_id = ""
-                context.window_manager.vibe5d_user_token = ""
-                context.window_manager.vibe5d_user_email = ""
-                context.window_manager.vibe5d_user_plan = ""
-                context.window_manager.vibe5d_network_error = False
+                error_msg = data_or_error.get('error', 'Unknown error')
+                logger.warning(f"Failed to update usage info: {error_msg}")
+                return False
 
-                context.window_manager.vibe5d_current_usage = 0
-                context.window_manager.vibe5d_usage_limit = 0
-                context.window_manager.vibe5d_limit_type = ""
-                context.window_manager.vibe5d_plan_id = ""
-                context.window_manager.vibe5d_plan_name = ""
-                context.window_manager.vibe5d_allowed = True
-                context.window_manager.vibe5d_usage_percentage = 0.0
-                context.window_manager.vibe5d_remaining_requests = 0
+        except Exception as e:
+            logger.error(f"Error updating usage info: {str(e)}")
+            return False
 
-                context.scene.vibe5d_is_generating = False
-                context.scene.vibe5d_generation_progress = 0
-                context.scene.vibe5d_generation_stage = ""
-                context.scene.vibe5d_output_content = ""
-                context.scene.vibe5d_final_code = ""
-                context.scene.vibe5d_guide_content = ""
-                context.scene.vibe5d_last_error = ""
 
-            def reset_user_state(self, context):
-
-                context.scene.vibe5d_is_generating = False
-                context.scene.vibe5d_generation_progress = 0
-                context.scene.vibe5d_generation_stage = ""
-                context.scene.vibe5d_output_content = ""
-                context.scene.vibe5d_final_code = ""
-                context.scene.vibe5d_guide_content = ""
-                context.scene.vibe5d_last_error = ""
-
-            def update_usage_info(self, context) -> bool:
-
-                try:
-                    if not self.is_authenticated(context):
-                        logger.warning("Cannot update usage info - user not authenticated")
-                        return False
-
-                    user_id = getattr(context.window_manager, 'vibe5d_user_id', '')
-                    token = getattr(context.window_manager, 'vibe5d_user_token', '')
-
-                    if not user_id or not token:
-                        logger.warning("Cannot update usage info - missing credentials")
-                        return False
-
-                    success, data_or_error = api_client.get_usage_info(user_id, token)
-
-                    if success:
-
-                        usage_data = data_or_error
-
-                        context.window_manager.vibe5d_current_usage = usage_data.get("current_usage", 0)
-                        context.window_manager.vibe5d_usage_limit = usage_data.get("limit", 0)
-                        context.window_manager.vibe5d_limit_type = usage_data.get("limit_type", "")
-                        context.window_manager.vibe5d_plan_id = usage_data.get("plan_id", "")
-                        context.window_manager.vibe5d_plan_name = usage_data.get("plan_name", "")
-                        context.window_manager.vibe5d_allowed = usage_data.get("allowed", True)
-                        context.window_manager.vibe5d_usage_percentage = usage_data.get("usage_percentage", 0.0)
-                        context.window_manager.vibe5d_remaining_requests = usage_data.get("remaining_requests", 0)
-
-                        logger.info(
-                        )
-                        return True
-                    else:
-
-                        error_msg = data_or_error.get('error', 'Unknown error')
-                        logger.warning(f"Failed to update usage info: {error_msg}")
-                        return False
-
-                except Exception as e:
-                    logger.error(f"Error updating usage info: {str(e)}")
-                    return False
-
-        auth_manager = AuthManager()
+auth_manager = AuthManager()
