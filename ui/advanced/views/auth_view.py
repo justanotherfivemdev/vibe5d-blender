@@ -306,8 +306,7 @@ class AuthView(BaseView):
                 auth_button = self.components['auth_button']
                 button_spacing = int(6 * CoordinateSystem.get_ui_scale())
                 auth_button.set_position(
-                    layout_params['center_x'] + layout_params['input_width'] // 2 - layout_params[
-                    ] - button_spacing,
+                    layout_params['center_x'] + layout_params['input_width'] // 2 - layout_params['button_size'] - button_spacing,
                     positions['input_y'] + button_spacing
                 )
                 auth_button.set_size(layout_params['button_size'], layout_params['button_size'])
@@ -465,24 +464,24 @@ class AuthView(BaseView):
             actual_input_width = min(default_input_width, available_width)
 
             layout_params = {
-            :viewport_width // 2,
-            : viewport_height // 2,
-            :get_auth_logo_size(),
-            : get_auth_logo_size(),
-            :get_auth_welcome_width(),
-            : get_auth_welcome_height(),
-            :get_auth_status_width(),
-            : get_auth_status_height(),
-            :get_auth_error_width(),
-            : get_auth_error_height(),
-            :actual_input_width,
-            : get_auth_input_height(),
-            :get_auth_button_size(),
-            : get_auth_license_text_height(),
-            :get_auth_combined_license_width(),
-            : get_auth_gap_large(),
-            :get_auth_gap_medium(),
-            : get_auth_gap_small(),
+                'center_x': viewport_width // 2,
+                'center_y': viewport_height // 2,
+                'logo_width': get_auth_logo_size(),
+                'logo_height': get_auth_logo_size(),
+                'welcome_width': get_auth_welcome_width(),
+                'welcome_height': get_auth_welcome_height(),
+                'status_width': get_auth_status_width(),
+                'status_height': get_auth_status_height(),
+                'error_width': get_auth_error_width(),
+                'error_height': get_auth_error_height(),
+                'input_width': actual_input_width,
+                'input_height': get_auth_input_height(),
+                'button_size': get_auth_button_size(),
+                'license_text_height': get_auth_license_text_height(),
+                'combined_license_width': get_auth_combined_license_width(),
+                'gap_large': get_auth_gap_large(),
+                'gap_medium': get_auth_gap_medium(),
+                'gap_small': get_auth_gap_small(),
             }
 
 
@@ -556,11 +555,11 @@ class AuthView(BaseView):
                 layout_data = self._get_auth_layout_params(viewport_width, viewport_height)
 
                 required_param_keys = [
-                    , 'center_y', 'logo_width', 'logo_height',
-                , 'welcome_height', 'status_width', 'status_height',
-                , 'error_height', 'input_width', 'input_height',
-                , 'license_text_height', 'combined_license_width',
-                , 'gap_medium', 'gap_small'
+                    'center_x', 'center_y', 'logo_width', 'logo_height',
+                    'welcome_width', 'welcome_height', 'status_width', 'status_height',
+                    'error_width', 'error_height', 'input_width', 'input_height',
+                    'button_size', 'license_text_height', 'combined_license_width',
+                    'gap_large', 'gap_medium', 'gap_small'
                 ]
 
                 required_position_keys = ['logo_y', 'welcome_y', 'status_y', 'error_y', 'input_y', 'license_y']

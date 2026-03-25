@@ -65,10 +65,10 @@ class FontManager:
     def __init__(self):
         self.fonts = {}
         self._font_paths = {
-        :'fonts/regular.ttf',
-        : 'fonts/bold.ttf',
-        :'fonts/italic.ttf',
-        : 'fonts/medium.ttf'
+            'regular': 'fonts/regular.ttf',
+            'bold': 'fonts/bold.ttf',
+            'italic': 'fonts/italic.ttf',
+            'medium': 'fonts/medium.ttf'
         }
         self._loaded_fonts = {}
         self._addon_path = None
@@ -230,35 +230,35 @@ class MarkdownElement:
         text_lower = self.text.lower()
 
         completed_indicators = [
-            , 'execution complete', 'executed successfully',
-        , 'scene analyzed', 'analysis complete',
-        , 'search completed', 'search finished',
-        , 'image processing complete',
-        , 'viewport capture complete', 'screenshot captured',
-        , 'render complete', 'render finished', 'rendered successfully',
-        , 'settings read',
-        , 'tool finished', 'execution done',
-        , 'scene updated', 'objects created',
-        , 'modification complete', 'update complete',
-        , 'execution failed', 'scene reading failed',
-        , 'web search failed', 'image analysis failed',
-        , 'render failed', 'properties reading failed',
-        , 'nodes analysis failed', 'tool failed'
+            'code executed', 'execution complete', 'executed successfully',
+            'scene read', 'scene analyzed', 'analysis complete',
+            'web search complete', 'search completed', 'search finished',
+            'image analyzed', 'image processing complete',
+            'viewport captured', 'viewport capture complete', 'screenshot captured',
+            'render completed', 'render complete', 'render finished', 'rendered successfully',
+            'properties read', 'settings read',
+            'tool executed', 'tool finished', 'execution done',
+            'objects modified', 'scene updated', 'objects created',
+            'update applied', 'modification complete', 'update complete',
+            'code failed', 'execution failed', 'scene reading failed',
+            'search failed', 'web search failed', 'image analysis failed',
+            'capture failed', 'render failed', 'properties reading failed',
+            'analysis failed', 'nodes analysis failed', 'tool failed'
         ]
 
         if any(indicator in text_lower for indicator in completed_indicators):
             return False
 
         in_progress_indicators = [
-            , 'reading scene', 'analyzing scene', 'querying',
-        , 'thinking', 'processing', 'searching web', 'searching',
-        , 'processing image', 'reading image',
-        , 'viewport capture', 'taking screenshot',
-        , 'render capture',
-        , 'rendering', 'scene render',
-        , 'generating text', 'finding', 'locating',
-        , 'analyzing data', 'processing data',
-        , 'updating scene', 'creating objects', 'adding objects'
+            'executing code', 'reading scene', 'analyzing scene', 'querying',
+            'analyzing', 'thinking', 'processing', 'searching web', 'searching',
+            'analyzing image', 'processing image', 'reading image',
+            'capturing viewport', 'viewport capture', 'taking screenshot',
+            'capturing render', 'render capture',
+            'starting render', 'rendering', 'scene render',
+            'generating code', 'generating text', 'finding', 'locating',
+            'reading data', 'analyzing data', 'processing data',
+            'modifying scene', 'updating scene', 'creating objects', 'adding objects'
         ]
 
         return any(indicator in text_lower for indicator in in_progress_indicators)
@@ -286,20 +286,20 @@ class BlockIconManager:
             return None
 
         icon_mapping = {
-        :'scene',
-        : 'brain',
-        :'code',
-        : 'code',
-        :'bug',
-        : 'globe',
-        :'settings',
-        : 'brain',
-        :'scene',
-        : 'image',
-        :'pen',
-        : 'search',
-        :'image',
-        : 'image',
+            'scene_reading': 'scene',
+            'thinking': 'brain',
+            'code_execution': 'code',
+            'code_generation': 'code',
+            'debugging': 'bug',
+            'web_search': 'globe',
+            'settings': 'settings',
+            'analysis': 'brain',
+            'scene_query': 'scene',
+            'image_analysis': 'image',
+            'content_generation': 'pen',
+            'search': 'search',
+            'viewport_capture': 'image',
+            'render_capture': 'image',
         }
 
         icon_name = icon_mapping.get(block_type)
@@ -330,17 +330,17 @@ class ImprovedMarkdownRenderer:
     def __init__(self):
         self.elements = []
         self.patterns = {
-        :re.compile(r'^(#{1,6})\s+(.+)$', re.MULTILINE),
-        : re.compile(r'^(?:\*{3,}|-{3,}|_{3,})\s*$', re.MULTILINE),
-        :re.compile(r'^```(?:\w+)?\n(.*?)\n```$', re.MULTILINE | re.DOTALL),
-        : re.compile(r'^(\|.*\|)\s*$', re.MULTILINE),
-        :re.compile(r'(?:\[([^\]]+)\]\(([^)]+)\)|<(https?://[^>]+)>)'),
-        : re.compile(r'!\[([^\]]*)\]\(([^)]+)\)'),
-        :re.compile(r'(?:\*\*|__)([^*_]+)(?:\*\*|__)'),
-        : re.compile(r'(?<!\*)\*([^*]+)\*(?!\*)|(?<!_)_([^_]+)_(?!_)'),
-        :re.compile(r'`([^`]+)`'),
-        : re.compile(r'^(?:\s*[-*+]|\s*\d+\.)\s+(.+)$', re.MULTILINE),
-        :re.compile(r'^\[([^\]]+)\](?:\s*[.!?]*)?\s*(.*)$', re.MULTILINE),
+            'heading': re.compile(r'^(#{1,6})\s+(.+)$', re.MULTILINE),
+            'hr': re.compile(r'^(?:\*{3,}|-{3,}|_{3,})\s*$', re.MULTILINE),
+            'code_block': re.compile(r'^```(?:\w+)?\n(.*?)\n```$', re.MULTILINE | re.DOTALL),
+            'table': re.compile(r'^(\|.*\|)\s*$', re.MULTILINE),
+            'link': re.compile(r'(?:\[([^\]]+)\]\(([^)]+)\)|<(https?://[^>]+)>)'),
+            'image': re.compile(r'!\[([^\]]*)\]\(([^)]+)\)'),
+            'bold': re.compile(r'(?:\*\*|__)([^*_]+)(?:\*\*|__)'),
+            'italic': re.compile(r'(?<!\*)\*([^*]+)\*(?!\*)|(?<!_)_([^_]+)_(?!_)'),
+            'inline_code': re.compile(r'`([^`]+)`'),
+            'list_item': re.compile(r'^(?:\s*[-*+]|\s*\d+\.)\s+(.+)$', re.MULTILINE),
+            'block': re.compile(r'^\[([^\]]+)\](?:\s*[.!?]*)?\s*(.*)$', re.MULTILINE),
         }
 
         def parse_markdown(self, markdown_text: str) -> List[MarkdownElement]:
@@ -1101,11 +1101,11 @@ class ImprovedMarkdownRenderer:
                     font_id = font_manager.get_font_id('regular')
 
                 formatted_spans.append({
-                : p_text,
-                :p_type,
-                : fs,
-                :color,
-                : font_id
+                    'text': p_text,
+                    'type': p_type,
+                    'fs': fs,
+                    'color': color,
+                    'font_id': font_id
                 })
 
 
@@ -1117,11 +1117,11 @@ class ImprovedMarkdownRenderer:
 
                         if line_idx > 0:
                             newline_mini = {
-                            :'\n',
-                            : span['type'],
-                            :span['fs'],
-                            : span['color'],
-                            :span['font_id']
+                                'text': '\n',
+                                'type': span['type'],
+                                'fs': span['fs'],
+                                'color': span['color'],
+                                'font_id': span['font_id']
                             }
                             mini_spans.append(newline_mini)
 
@@ -1136,11 +1136,11 @@ class ImprovedMarkdownRenderer:
 
                         if leading_whitespace:
                             whitespace_mini = {
-                            :leading_whitespace,
-                            : span['type'],
-                            :span['fs'],
-                            : span['color'],
-                            :span['font_id']
+                                'text': leading_whitespace,
+                                'type': span['type'],
+                                'fs': span['fs'],
+                                'color': span['color'],
+                                'font_id': span['font_id']
                             }
                             mini_spans.append(whitespace_mini)
 
@@ -1161,11 +1161,11 @@ class ImprovedMarkdownRenderer:
 
                         for word in words:
                             word_mini = {
-                            :word,
-                            : span['type'],
-                            :span['fs'],
-                            : span['color'],
-                            :span['font_id']
+                                'text': word,
+                                'type': span['type'],
+                                'fs': span['fs'],
+                                'color': span['color'],
+                                'font_id': span['font_id']
                             }
                             mini_spans.append(word_mini)
 
@@ -1609,20 +1609,20 @@ class ImprovedMarkdownRenderer:
                     self._render_animated_gradient(renderer, block_bounds, element.get_animation_progress())
 
                 icon_map = {
-                :'scene',
-                : 'brain',
-                :'code',
-                : 'code',
-                :'bug',
-                : 'globe',
-                :'settings',
-                : 'brain',
-                :'scene',
-                : 'image',
-                :'pen',
-                : 'search',
-                :'image',
-                : 'image',
+                    'scene_reading': 'scene',
+                    'thinking': 'brain',
+                    'code_execution': 'code',
+                    'code_generation': 'code',
+                    'debugging': 'bug',
+                    'web_search': 'globe',
+                    'settings': 'settings',
+                    'analysis': 'brain',
+                    'scene_query': 'scene',
+                    'image_analysis': 'image',
+                    'content_generation': 'pen',
+                    'search': 'search',
+                    'viewport_capture': 'image',
+                    'render_capture': 'image',
                 }
                 icon_name = icon_map.get(element.block_type)
 
@@ -1711,9 +1711,9 @@ class ImprovedMarkdownRenderer:
 
                         batch = batch_for_shader(
                             renderer.shader,
-                        ,
-                        {"pos": vertices},
-                        indices = indices
+                            'TRIS',
+                            {"pos": vertices},
+                            indices=indices
                         )
 
                         gpu.state.blend_set('ALPHA')
@@ -2131,13 +2131,13 @@ class ImprovedMarkdownRenderer:
 
                 if text:
                     self._rendered_text_positions.append({
-                    : element_index,
-                    :text,
-                    : x,
-                    :y,
-                    : width,
-                    :height,
-                    : len(text)
+                        'element_index': element_index,
+                        'text': text,
+                        'x': x,
+                        'y': y,
+                        'width': width,
+                        'height': height,
+                        'text_length': len(text)
                     })
 
                 def _render_selection_highlights(self, renderer: 'UIRenderer', x: int, y: int, width: int, height: int):
