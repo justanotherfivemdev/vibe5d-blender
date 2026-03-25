@@ -148,6 +148,36 @@ def register_properties():
         default=""
     )
 
+    Scene.vibe4d_provider = EnumProperty(
+        name="LLM Provider",
+        description="Which LLM provider to use for AI interactions",
+        items=[
+            ('vibe4d', 'Vibe4D', 'Use Vibe4D cloud backend (requires license)'),
+            ('openai', 'OpenAI / ChatGPT', 'Use OpenAI API directly (requires API key)'),
+            ('local', 'Local LLM', 'Use a local OpenAI-compatible server (Ollama, LM Studio, etc.)'),
+        ],
+        default='openai'
+    )
+
+    Scene.vibe4d_provider_api_key = StringProperty(
+        name="API Key",
+        description="API key for the selected LLM provider",
+        default="",
+        subtype='PASSWORD'
+    )
+
+    Scene.vibe4d_provider_base_url = StringProperty(
+        name="Base URL",
+        description="Base URL for the LLM API endpoint",
+        default=""
+    )
+
+    Scene.vibe4d_provider_model = StringProperty(
+        name="Provider Model",
+        description="Model name for the selected provider (e.g., gpt-4o-mini, llama3)",
+        default=""
+    )
+
     Scene.vibe4d_ui_active = BoolProperty(
         name="UI Active",
         description="Whether the UI overlay is currently active",
@@ -305,15 +335,16 @@ def register_properties():
 
 def unregister_properties():
     properties_to_remove = [
-        , 'vibe4d_prompt', 'vibe4d_output_content', 'vibe4d_final_code',
-    , 'vibe4d_last_error', 'vibe4d_console_output',
-    , 'vibe4d_execution_pending',
-    , 'vibe4d_chat_messages_index',
-    , 'vibe4d_current_text_input',
-    ,
-    , 'vibe4d_ui_viewport_config', 'vibe4d_ui_current_view',
-    , 'vibe4d_ui_layout_version', 'vibe4d_ui_area_markers',
-    , 'vibe4d_generation_stage'
+        "vibe4d_model", 'vibe4d_prompt', 'vibe4d_output_content', 'vibe4d_final_code',
+        "vibe4d_guide_content", 'vibe4d_last_error', 'vibe4d_console_output',
+        "vibe4d_is_generating", 'vibe4d_execution_pending',
+        "vibe4d_chat_messages", 'vibe4d_chat_messages_index',
+        "vibe4d_current_chat_id", 'vibe4d_current_text_input',
+        "vibe4d_custom_instruction",
+        "vibe4d_provider", "vibe4d_provider_api_key", "vibe4d_provider_base_url", "vibe4d_provider_model",
+        "vibe4d_ui_active", 'vibe4d_ui_viewport_config', 'vibe4d_ui_current_view',
+        "vibe4d_ui_conversation_state", 'vibe4d_ui_layout_version', 'vibe4d_ui_area_markers',
+        "vibe4d_generation_progress", 'vibe4d_generation_stage'
     ]
 
     for prop_name in properties_to_remove:
@@ -321,11 +352,11 @@ def unregister_properties():
             delattr(Scene, prop_name)
 
     wm_properties_to_remove = [
-        , 'vibe4d_user_id', 'vibe4d_user_token', 'vibe4d_user_email',
-    , 'vibe4d_status', 'vibe4d_network_error', 'vibe4d_current_usage',
-    , 'vibe4d_limit_type', 'vibe4d_plan_id', 'vibe4d_plan_name',
-    , 'vibe4d_usage_percentage', 'vibe4d_remaining_requests',
-    , 'vibe4d_ui_was_active'
+        "vibe4d_authenticated", 'vibe4d_user_id', 'vibe4d_user_token', 'vibe4d_user_email',
+        "vibe4d_user_plan", 'vibe4d_status', 'vibe4d_network_error', 'vibe4d_current_usage',
+        "vibe4d_usage_limit", 'vibe4d_limit_type', 'vibe4d_plan_id', 'vibe4d_plan_name',
+        "vibe4d_allowed", 'vibe4d_usage_percentage', 'vibe4d_remaining_requests',
+        "vibe4d_remember_credentials", 'vibe4d_ui_was_active'
     ]
 
     for prop_name in wm_properties_to_remove:

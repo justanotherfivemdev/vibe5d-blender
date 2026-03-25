@@ -352,12 +352,87 @@ class UIManager:
                 self._last_sent_prompt = prompt
 
                 from ...llm.request_builder import LLMRequestBuilder
+
+                context = bpy.context
+
+                # Determine which provider to use
+                provider = getattr(context.scene, 'vibe4d_provider', 'openai')
+
+                if provider in ('openai', 'local'):
+                    # Use OpenAI-compatible client
+                    self._start_openai_generation(prompt, context, provider)
+                else:
+                    # Use Vibe4D WebSocket client (requires authentication)
+                    self._start_vibe4d_generation(prompt, context)
+
+            except Exception as e:
+                logger.error(f"Error starting real API generation: {e}")
+                self._handle_api_error(f"Failed to start generation: {str(e)}")
+
+        def _start_openai_generation(self, prompt: str, context, provider: str):
+            """Start generation using OpenAI-compatible API."""
+            try:
+                from ...llm.request_builder import LLMRequestBuilder
+                from ...api.openai_client import openai_client
+
+                if not openai_client.is_ready_for_new_request():
+                    logger.info("OpenAI client is busy, waiting...")
+
+                # Get provider-specific settings
+                api_key = getattr(context.scene, 'vibe4d_provider_api_key', '')
+                base_url = getattr(context.scene, 'vibe4d_provider_base_url', '')
+                provider_model = getattr(context.scene, 'vibe4d_provider_model', '')
+
+                # Set defaults based on provider type
+                if provider == 'local':
+                    if not base_url:
+                        base_url = 'http://localhost:11434/v1'
+                    if not provider_model:
+                        provider_model = 'llama3'
+                else:  # openai
+                    if not base_url:
+                        base_url = 'https://api.openai.com/v1'
+                    if not provider_model:
+                        provider_model = 'gpt-4o-mini'
+
+                selected_model = provider_model or getattr(context.scene, 'vibe4d_model', 'gpt-4o-mini')
+
+                request = LLMRequestBuilder.build_openai_chat_request(
+                    context=context,
+                    prompt=prompt,
+                    api_key=api_key,
+                    base_url=base_url,
+                    model=selected_model
+                )
+
+                self._websocket_client = openai_client
+
+                success = openai_client.send_prompt_request(
+                    request_data=request,
+                    on_progress=self._handle_api_progress,
+                    on_complete=self._handle_api_complete,
+                    on_error=self._handle_api_error
+                )
+
+                if not success:
+                    logger.error("Failed to start OpenAI generation")
+                    self._handle_api_error("Failed to start generation")
+                    return
+
+                logger.info(f"OpenAI chat request. Prompt: '{prompt[:200]}' using model: {selected_model}")
+
+            except Exception as e:
+                logger.error(f"Error starting OpenAI generation: {e}")
+                self._handle_api_error(f"Failed to start generation: {str(e)}")
+
+        def _start_vibe4d_generation(self, prompt: str, context):
+            """Start generation using Vibe4D WebSocket backend."""
+            try:
+                from ...llm.request_builder import LLMRequestBuilder
                 from ...api.websocket_client import llm_websocket_client
 
                 if not llm_websocket_client.is_ready_for_new_request():
                     logger.info("WebSocket client is busy or has active connection, waiting...")
-
-                context = bpy.context
 
                 if not getattr(context.window_manager, 'vibe4d_authenticated', False):
                     logger.error("Not authenticated")
@@ -396,10 +471,10 @@ class UIManager:
                     self._handle_api_error("Failed to start generation")
                     return
 
-                logger.info(f"Chat request. Prompt: '{prompt[:200]}' using model: {selected_model}")
+                logger.info(f"Vibe4D chat request. Prompt: '{prompt[:200]}' using model: {selected_model}")
 
             except Exception as e:
-                logger.error(f"Error starting real API generation: {e}")
+                logger.error(f"Error starting Vibe4D generation: {e}")
                 self._handle_api_error(f"Failed to start generation: {str(e)}")
 
         def _handle_api_progress(self, response):
@@ -985,6 +1060,15 @@ class UIManager:
 
             except Exception as e:
                 logger.debug(f"Error during WebSocket cleanup: {e}")
+
+            try:
+                from ...api.openai_client import openai_client
+
+                if not openai_client.is_ready_for_new_request():
+                    openai_client.close()
+
+            except Exception as e:
+                logger.debug(f"Error during OpenAI client cleanup: {e}")
 
         def cleanup(self):
             if self._is_generating:

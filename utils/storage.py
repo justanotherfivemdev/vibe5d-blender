@@ -303,18 +303,21 @@ class SecureStorage:
                 return False
 
             normalized_settings = {
-            :str(settings_data.get("agent_model", "gpt-5-mini")),
-            : str(settings_data.get("ask_model", "gpt-5-mini")),
-            :str(settings_data.get("model", "gpt-5-mini")),
-            : str(settings_data.get("mode", "agent"))
+                "agent_model": str(settings_data.get("agent_model", "gpt-5-mini")),
+                "ask_model": str(settings_data.get("ask_model", "gpt-5-mini")),
+                "model": str(settings_data.get("model", "gpt-5-mini")),
+                "mode": str(settings_data.get("mode", "agent")),
+                "provider": str(settings_data.get("provider", "openai")),
+                "provider_api_key": str(settings_data.get("provider_api_key", "")),
+                "provider_base_url": str(settings_data.get("provider_base_url", "")),
+                "provider_model": str(settings_data.get("provider_model", ""))
             }
 
 
             success = self._atomic_write(self.settings_file, normalized_settings)
 
             if success:
-                logger.info(
-                )
+                logger.info("Settings saved successfully")
             else:
                 logger.error("Failed to save settings")
 
@@ -339,10 +342,14 @@ class SecureStorage:
                 return None
 
             settings = {
-            :str(data.get("agent_model", "gpt-5-mini")),
-            : str(data.get("ask_model", "gpt-5-mini")),
-            :str(data.get("model", "gpt-5-mini")),
-            : str(data.get("mode", "agent"))
+                "agent_model": str(data.get("agent_model", "gpt-5-mini")),
+                "ask_model": str(data.get("ask_model", "gpt-5-mini")),
+                "model": str(data.get("model", "gpt-5-mini")),
+                "mode": str(data.get("mode", "agent")),
+                "provider": str(data.get("provider", "openai")),
+                "provider_api_key": str(data.get("provider_api_key", "")),
+                "provider_base_url": str(data.get("provider_base_url", "")),
+                "provider_model": str(data.get("provider_model", ""))
             }
 
             return settings

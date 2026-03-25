@@ -685,6 +685,203 @@ class SettingsView(BaseView):
             components['instruction_input'] = instruction_input
 
             current_y = adjustCurrectY(current_y, instruction_container_height, get_big_spacing())
+
+            # --- LLM Provider Configuration Section ---
+            provider_section_title = Label("LLM Provider", get_left_margin(), current_y,
+                                           get_plan_label_width(), get_label_height())
+            provider_section_title.style = get_themed_component_style("title")
+            provider_section_title.style.font_size = get_font_size()
+            provider_section_title.set_text_align("left")
+            components['provider_section_title'] = provider_section_title
+
+            current_y = adjustCurrectY(current_y, get_label_height(), get_small_spacing())
+
+            # Provider selection label
+            current_provider = getattr(context.scene, 'vibe4d_provider', 'openai')
+            provider_display_names = {
+                'vibe4d': 'Vibe4D (Cloud)',
+                'openai': 'OpenAI / ChatGPT',
+                'local': 'Local LLM (Ollama, LM Studio, etc.)'
+            }
+            provider_display = provider_display_names.get(current_provider, current_provider)
+
+            # Provider buttons container
+            provider_container_height = CoordinateSystem.scale_int(130)
+            provider_container = Container(get_left_margin(), current_y - provider_container_height,
+                                           viewport_width - get_left_margin() - get_right_margin(),
+                                           provider_container_height)
+            provider_container.style.background_color = get_theme_color('bg_panel')
+            provider_container.style.border_color = BORDER_COLOR
+            provider_container.style.border_width = get_thin_border()
+            provider_container.corner_radius = get_container_radius()
+            components['provider_container'] = provider_container
+
+            provider_inner_y = current_y - get_container_internal_padding()
+
+            # Provider type label
+            provider_type_label = Label(f"Active: {provider_display}",
+                                        get_left_margin() + get_container_internal_padding(),
+                                        provider_inner_y - get_label_height(),
+                                        viewport_width - get_left_margin() - get_right_margin() - (get_container_internal_padding() * 2),
+                                        get_label_height())
+            provider_type_label.style = get_themed_component_style("label")
+            provider_type_label.style.font_size = get_font_size()
+            provider_type_label.set_text_align("left")
+            components['provider_type_label'] = provider_type_label
+
+            provider_inner_y = provider_inner_y - get_label_height() - get_small_spacing()
+
+            # Provider selection buttons
+            button_width = CoordinateSystem.scale_int(90)
+            button_height = CoordinateSystem.scale_int(24)
+            button_x = get_left_margin() + get_container_internal_padding()
+            button_spacing = CoordinateSystem.scale_int(8)
+
+            for provider_id, provider_name in [('openai', 'OpenAI'), ('local', 'Local'), ('vibe4d', 'Vibe4D')]:
+                is_active = (current_provider == provider_id)
+                btn = Button(provider_name, button_x, provider_inner_y - button_height,
+                             button_width, button_height)
+                btn.style = get_themed_component_style("button")
+                btn.style.font_size = get_font_size()
+                if is_active:
+                    btn.style.background_color = get_theme_color('text_selected')
+                    btn.style.text_color = get_theme_color('bg_base')
+                btn.on_click = lambda pid=provider_id: self._handle_provider_change(pid)
+                components[f'provider_btn_{provider_id}'] = btn
+                button_x += button_width + button_spacing
+
+            provider_inner_y = provider_inner_y - button_height - get_small_spacing()
+
+            # Provider model input
+            current_provider_model = getattr(context.scene, 'vibe4d_provider_model', '')
+            if current_provider == 'openai':
+                model_placeholder = "gpt-4o-mini"
+            elif current_provider == 'local':
+                model_placeholder = "llama3"
+            else:
+                model_placeholder = "gpt-5-mini"
+
+            model_label = Label("Model:", get_left_margin() + get_container_internal_padding(),
+                                provider_inner_y - get_small_label_height(),
+                                CoordinateSystem.scale_int(50), get_small_label_height())
+            model_label.style = get_themed_component_style("label")
+            model_label.style.font_size = get_font_size()
+            model_label.set_text_align("left")
+            components['provider_model_label'] = model_label
+
+            model_input_x = get_left_margin() + get_container_internal_padding() + CoordinateSystem.scale_int(55)
+            model_input = TextInput(
+                x=model_input_x,
+                y=provider_inner_y - get_small_label_height(),
+                width=viewport_width - model_input_x - get_right_margin() - get_container_internal_padding(),
+                height=get_small_label_height(),
+                placeholder=model_placeholder,
+                multiline=False,
+                auto_resize=False,
+            )
+            model_input.set_text(current_provider_model)
+            model_input.on_change = self._handle_provider_model_change
+            model_input.style = get_themed_component_style("input")
+            model_input.style.font_size = get_font_size()
+            model_input.style.background_color = get_theme_color('bg_panel')
+            model_input.style.border_color = BORDER_COLOR
+            model_input.style.border_width = get_thin_border()
+            model_input.corner_radius = CoordinateSystem.scale_int(4)
+            components['provider_model_input'] = model_input
+
+            current_y = adjustCurrectY(current_y, provider_container_height, get_small_spacing())
+
+            # API Key input (for OpenAI provider)
+            if current_provider in ('openai',):
+                api_key_label = Label("API Key:", get_left_margin(), current_y - get_small_label_height(),
+                                      viewport_width - get_left_margin() - get_right_margin(), get_small_label_height())
+                api_key_label.style = get_themed_component_style("label")
+                api_key_label.style.font_size = get_font_size()
+                api_key_label.set_text_align("left")
+                components['api_key_label'] = api_key_label
+
+                current_y = adjustCurrectY(current_y, get_small_label_height(), CoordinateSystem.scale_int(2))
+
+                current_api_key = getattr(context.scene, 'vibe4d_provider_api_key', '')
+                api_key_display = ('•' * min(len(current_api_key), 20)) if current_api_key else ''
+
+                api_key_input = TextInput(
+                    x=get_left_margin(),
+                    y=current_y - get_small_label_height(),
+                    width=viewport_width - get_left_margin() - get_right_margin(),
+                    height=get_small_label_height(),
+                    placeholder="sk-... (your OpenAI API key)",
+                    multiline=False,
+                    auto_resize=False,
+                )
+                api_key_input.set_text(api_key_display)
+                api_key_input.on_change = self._handle_api_key_change
+                api_key_input.style = get_themed_component_style("input")
+                api_key_input.style.font_size = get_font_size()
+                api_key_input.style.background_color = get_theme_color('bg_panel')
+                api_key_input.style.border_color = BORDER_COLOR
+                api_key_input.style.border_width = get_thin_border()
+                api_key_input.corner_radius = CoordinateSystem.scale_int(4)
+                components['api_key_input'] = api_key_input
+
+                current_y = adjustCurrectY(current_y, get_small_label_height(), get_small_spacing())
+
+            # Base URL input (for local/openai providers)
+            if current_provider in ('openai', 'local'):
+                base_url_label = Label("Base URL:", get_left_margin(), current_y - get_small_label_height(),
+                                       viewport_width - get_left_margin() - get_right_margin(), get_small_label_height())
+                base_url_label.style = get_themed_component_style("label")
+                base_url_label.style.font_size = get_font_size()
+                base_url_label.set_text_align("left")
+                components['base_url_label'] = base_url_label
+
+                current_y = adjustCurrectY(current_y, get_small_label_height(), CoordinateSystem.scale_int(2))
+
+                current_base_url = getattr(context.scene, 'vibe4d_provider_base_url', '')
+                if current_provider == 'local':
+                    url_placeholder = "http://localhost:11434/v1"
+                else:
+                    url_placeholder = "https://api.openai.com/v1"
+
+                base_url_input = TextInput(
+                    x=get_left_margin(),
+                    y=current_y - get_small_label_height(),
+                    width=viewport_width - get_left_margin() - get_right_margin(),
+                    height=get_small_label_height(),
+                    placeholder=url_placeholder,
+                    multiline=False,
+                    auto_resize=False,
+                )
+                base_url_input.set_text(current_base_url)
+                base_url_input.on_change = self._handle_base_url_change
+                base_url_input.style = get_themed_component_style("input")
+                base_url_input.style.font_size = get_font_size()
+                base_url_input.style.background_color = get_theme_color('bg_panel')
+                base_url_input.style.border_color = BORDER_COLOR
+                base_url_input.style.border_width = get_thin_border()
+                base_url_input.corner_radius = CoordinateSystem.scale_int(4)
+                components['base_url_input'] = base_url_input
+
+                current_y = adjustCurrectY(current_y, get_small_label_height(), get_small_spacing())
+
+            # Provider info help text
+            if current_provider == 'openai':
+                help_text = "Get your API key at platform.openai.com"
+            elif current_provider == 'local':
+                help_text = "Start Ollama/LM Studio, then use its API URL"
+            else:
+                help_text = "Uses Vibe4D cloud (requires license key)"
+
+            provider_help = Label(help_text, get_left_margin(), current_y - get_small_label_height(),
+                                  viewport_width - get_left_margin() - get_right_margin(), get_small_label_height())
+            provider_help.style = get_themed_component_style("label")
+            provider_help.style.text_color = get_theme_color('text_muted')
+            provider_help.style.font_size = get_font_size()
+            provider_help.set_text_align("left")
+            components['provider_help'] = provider_help
+
+            current_y = adjustCurrectY(current_y, get_small_label_height(), get_big_spacing())
+            # --- End LLM Provider Section ---
         else:
             auth_message = Label("Please authenticate to access settings", get_left_margin(), current_y,
                                  viewport_width - get_left_margin() - get_right_margin(), get_label_height())
@@ -898,6 +1095,62 @@ class SettingsView(BaseView):
 
             except Exception as e:
                 logger.error(f"Error handling instruction text change: {e}")
+
+        def _handle_provider_change(self, provider_id):
+            """Handle provider selection change."""
+            try:
+                context = bpy.context
+                context.scene.vibe4d_provider = provider_id
+
+                from ....utils.settings_manager import settings_manager
+                settings_manager.auto_save_settings(context)
+
+                logger.info(f"LLM provider changed to: {provider_id}")
+
+                # Refresh the settings view to show relevant fields
+                if self.refresh_callback:
+                    self.refresh_callback()
+
+            except Exception as e:
+                logger.error(f"Error changing provider: {e}")
+
+        def _handle_api_key_change(self, new_text):
+            """Handle API key input change."""
+            try:
+                context = bpy.context
+                # Only save if it's not the masked display
+                if new_text and not all(c == '•' for c in new_text):
+                    context.scene.vibe4d_provider_api_key = new_text
+
+                    from ....utils.settings_manager import settings_manager
+                    settings_manager.auto_save_settings(context)
+
+            except Exception as e:
+                logger.error(f"Error saving API key: {e}")
+
+        def _handle_base_url_change(self, new_text):
+            """Handle base URL input change."""
+            try:
+                context = bpy.context
+                context.scene.vibe4d_provider_base_url = new_text
+
+                from ....utils.settings_manager import settings_manager
+                settings_manager.auto_save_settings(context)
+
+            except Exception as e:
+                logger.error(f"Error saving base URL: {e}")
+
+        def _handle_provider_model_change(self, new_text):
+            """Handle provider model input change."""
+            try:
+                context = bpy.context
+                context.scene.vibe4d_provider_model = new_text
+
+                from ....utils.settings_manager import settings_manager
+                settings_manager.auto_save_settings(context)
+
+            except Exception as e:
+                logger.error(f"Error saving provider model: {e}")
 
         def _handle_open_github(self, segment):
 
