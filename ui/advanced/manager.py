@@ -108,6 +108,7 @@ class UIManager:
         self._last_tool_call_state = None
         self._content_after_tool_call = False
         self._last_sent_prompt = None
+        self._last_request_data = None
 
         self._tool_completion_blocks_created = set()
         self._tool_start_blocks_created = set()
@@ -372,6 +373,7 @@ class UIManager:
                 image_data_uri=image_data_uri,
             )
 
+            self._last_request_data = request
             self._active_client = openai_client
             success = openai_client.send_prompt_request(
                 request_data=request,
@@ -509,7 +511,7 @@ class UIManager:
             self._track_assistant_message(message_id, final_content)
 
             # Handle tool calls returned by the model
-            tool_calls = getattr(response, 'tool_calls', []) or []
+            tool_calls = getattr(response, 'tool_calls', None) or []
             if tool_calls and getattr(response, 'tool_call_completed', False):
                 self._process_tool_calls(response, tool_calls, final_content)
                 return None
@@ -546,8 +548,7 @@ class UIManager:
         """Execute tool calls returned by the model and send results back."""
         try:
             from ...engine.tools import tools_manager
-            from ...llm.request_builder import LLMRequestBuilder
-            from ...api.openai_client import openai_client, OpenAIClient
+            from ...api.openai_client import openai_client
             import json as _json
 
             context = bpy.context
@@ -560,7 +561,7 @@ class UIManager:
                 raw_args = func.get("arguments", "{}")
 
                 try:
-                    arguments = _json.loads(raw_args) if raw_args else {}
+                    arguments = _json.loads(raw_args) if raw_args and raw_args.strip() else {}
                 except _json.JSONDecodeError:
                     arguments = {}
 
@@ -584,35 +585,40 @@ class UIManager:
                     self.factory.add_markdown_message_to_scrollview(completion_block, is_ai_response=True)
                     self._request_redraw()
 
-            # Build a follow-up request with the tool results so the model
-            # can incorporate them into its next response.
-            api_key = getattr(context.scene, 'vibe5d_provider_api_key', '')
-            base_url = getattr(context.scene, 'vibe5d_provider_base_url', '')
-            provider = getattr(context.scene, 'vibe5d_provider', 'openai')
-            provider_model = getattr(context.scene, 'vibe5d_provider_model', '')
-
-            if provider == 'local':
-                base_url = base_url or 'http://localhost:11434/v1'
-                provider_model = provider_model or 'llama3'
+            # Re-use the stored request data from the original call so the
+            # full conversation context (history, instructions, schema) is
+            # preserved.  Fall back to a fresh build if not available.
+            if self._last_request_data:
+                followup_request = dict(self._last_request_data)
+                followup_request["messages"] = list(self._last_request_data.get("messages", []))
             else:
-                base_url = base_url or 'https://api.openai.com/v1'
-                provider_model = provider_model or 'gpt-4o-mini'
+                from ...llm.request_builder import LLMRequestBuilder
 
-            # Re-build the original request and append the assistant message
-            # with tool_calls + tool results.
-            original_request = LLMRequestBuilder.build_openai_chat_request(
-                context=context,
-                prompt=self._last_sent_prompt or "",
-                api_key=api_key,
-                base_url=base_url,
-                model=provider_model,
-            )
+                api_key = getattr(context.scene, 'vibe5d_provider_api_key', '')
+                base_url = getattr(context.scene, 'vibe5d_provider_base_url', '')
+                provider = getattr(context.scene, 'vibe5d_provider', 'openai')
+                provider_model = getattr(context.scene, 'vibe5d_provider_model', '')
+
+                if provider == 'local':
+                    base_url = base_url or 'http://localhost:11434/v1'
+                    provider_model = provider_model or 'llama3'
+                else:
+                    base_url = base_url or 'https://api.openai.com/v1'
+                    provider_model = provider_model or 'gpt-4o-mini'
+
+                followup_request = LLMRequestBuilder.build_openai_chat_request(
+                    context=context,
+                    prompt=self._last_sent_prompt or "",
+                    api_key=api_key,
+                    base_url=base_url,
+                    model=provider_model,
+                )
 
             # Append assistant message with tool_calls and tool result messages
             assistant_msg = {"role": "assistant", "content": assistant_content or ""}
             assistant_msg["tool_calls"] = tool_calls
-            original_request["messages"].append(assistant_msg)
-            original_request["messages"].extend(tool_results)
+            followup_request["messages"].append(assistant_msg)
+            followup_request["messages"].extend(tool_results)
 
             self._is_generating = True
             self.factory._set_send_button_mode(False)
@@ -623,7 +629,7 @@ class UIManager:
                 openai_client.close()
 
             success = openai_client.send_prompt_request(
-                request_data=original_request,
+                request_data=followup_request,
                 on_progress=self._handle_api_progress,
                 on_complete=self._handle_api_complete,
                 on_error=self._handle_api_error,
@@ -673,6 +679,7 @@ class UIManager:
         self._content_after_tool_call = False
         self._current_ai_component = None
         self._active_client = None
+        self._last_request_data = None
         self._cleanup_active_client()
         if self.factory:
             self.factory._set_send_button_mode(True)

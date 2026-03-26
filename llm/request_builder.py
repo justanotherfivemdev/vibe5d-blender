@@ -220,6 +220,6 @@ class LLMRequestBuilder:
         """
         try:
             from ..api.openai_client import OpenAIClient
-            return list(OpenAIClient.TOOL_DEFINITIONS)
+            return OpenAIClient.TOOL_DEFINITIONS
         except Exception:
             return []

@@ -491,9 +491,10 @@ class OpenAIClient:
                     entry["function"]["arguments"] += func["arguments"]
 
             self.response.tool_call_started = True
-            self.response.current_tool_call_id = self.response.tool_calls[-1].get("id", "")
+            last_call = self.response.tool_calls[-1]
+            self.response.current_tool_call_id = last_call.get("id", "")
             self.response.current_tool_name = (
-                self.response.tool_calls[-1].get("function", {}).get("name", "")
+                last_call.get("function", {}).get("name", "")
             )
             self._notify_progress()
 
