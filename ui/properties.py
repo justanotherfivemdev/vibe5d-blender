@@ -1,5 +1,5 @@
 import bpy
-from bpy.props import StringProperty, BoolProperty, IntProperty, EnumProperty, CollectionProperty, FloatProperty
+from bpy.props import StringProperty, BoolProperty, IntProperty, EnumProperty, CollectionProperty
 from bpy.types import Scene, PropertyGroup, WindowManager
 
 
@@ -213,104 +213,6 @@ def register_properties():
         default="{}"
     )
 
-    WindowManager.vibe5d_authenticated = BoolProperty(
-        name="Authenticated",
-        description="Whether user is authenticated",
-        default=False
-    )
-
-    WindowManager.vibe5d_user_id = StringProperty(
-        name="User ID",
-        description="Authenticated user ID",
-        default=""
-    )
-
-    WindowManager.vibe5d_user_token = StringProperty(
-        name="User Token",
-        description="Authentication token",
-        default=""
-    )
-
-    WindowManager.vibe5d_user_email = StringProperty(
-        name="User Email",
-        description="Authenticated user email",
-        default=""
-    )
-
-    WindowManager.vibe5d_user_plan = StringProperty(
-        name="User Plan",
-        description="User subscription plan",
-        default=""
-    )
-
-    WindowManager.vibe5d_status = StringProperty(
-        name="Status",
-        description="Current authentication/connection status",
-        default=""
-    )
-
-    WindowManager.vibe5d_network_error = BoolProperty(
-        name="Network Error",
-        description="Whether there's a network connectivity issue",
-        default=False
-    )
-
-    WindowManager.vibe5d_current_usage = IntProperty(
-        name="Current Usage",
-        description="Current usage count",
-        default=0
-    )
-
-    WindowManager.vibe5d_usage_limit = IntProperty(
-        name="Usage Limit",
-        description="Usage limit for current plan",
-        default=0
-    )
-
-    WindowManager.vibe5d_limit_type = StringProperty(
-        name="Limit Type",
-        description="Type of usage limit (daily, monthly, etc.)",
-        default=""
-    )
-
-    WindowManager.vibe5d_plan_id = StringProperty(
-        name="Plan ID",
-        description="Plan identifier",
-        default=""
-    )
-
-    WindowManager.vibe5d_plan_name = StringProperty(
-        name="Plan Name",
-        description="Plan display name",
-        default=""
-    )
-
-    WindowManager.vibe5d_allowed = BoolProperty(
-        name="Allowed",
-        description="Whether user is allowed to make requests",
-        default=True
-    )
-
-    WindowManager.vibe5d_usage_percentage = FloatProperty(
-        name="Usage Percentage",
-        description="Usage as percentage of limit",
-        default=0.0,
-        min=0.0,
-        max=100.0
-    )
-
-    WindowManager.vibe5d_remaining_requests = IntProperty(
-        name="Remaining Requests",
-        description="Number of remaining requests",
-        default=0
-    )
-
-    WindowManager.vibe5d_remember_credentials = BoolProperty(
-        name="Remember Credentials",
-        description="Remember login credentials",
-        default=False
-    )
-
     WindowManager.vibe5d_ui_was_active = BoolProperty(
         name="UI Was Active",
         description="Tracks if UI was previously active for state recovery",
@@ -351,11 +253,7 @@ def unregister_properties():
             delattr(Scene, prop_name)
 
     wm_properties_to_remove = [
-        "vibe5d_authenticated", 'vibe5d_user_id', 'vibe5d_user_token', 'vibe5d_user_email',
-        "vibe5d_user_plan", 'vibe5d_status', 'vibe5d_network_error', 'vibe5d_current_usage',
-        "vibe5d_usage_limit", 'vibe5d_limit_type', 'vibe5d_plan_id', 'vibe5d_plan_name',
-        "vibe5d_allowed", 'vibe5d_usage_percentage', 'vibe5d_remaining_requests',
-        "vibe5d_remember_credentials", 'vibe5d_ui_was_active'
+        'vibe5d_ui_was_active'
     ]
 
     for prop_name in wm_properties_to_remove:

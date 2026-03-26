@@ -22,7 +22,7 @@ Vibe5D is a fully open-source AI assistant for Blender 3D. It integrates directl
 
 ![auth](docs/media/6.gif)
 
-1. **Download** the addon from [Releases](https://github.com/justanotherfivemdev/vibe5d-blender/releases) or use the `dist/vibe5d.zip` file
+1. **Download** the addon from [Releases](https://github.com/justanotherfivemdev/vibe5d-blender/releases) or build it yourself with `python build.py`
 
 2. **Install in Blender:**
    - Go to `Edit > Preferences > Add-ons > Install...`

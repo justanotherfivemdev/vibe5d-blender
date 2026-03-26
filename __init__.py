@@ -20,7 +20,6 @@ from . import llm
 from . import operators
 from . import ui
 from . import utils
-from .auth.manager import auth_manager
 from .utils.instructions_manager import instruction_manager
 from .utils.logger import logger
 from .utils.settings_manager import settings_manager
@@ -45,17 +44,13 @@ screenshot_object = api.screenshot_object
 
 
 @persistent
-def load_auth_and_settings_on_file_load(file):
+def load_settings_on_file_load(file):
     try:
         if bpy.context.scene:
-            is_authenticated = getattr(bpy.context.window_manager, 'vibe5d_authenticated', False)
-            if not is_authenticated:
-                auth_manager.initialize_auth(bpy.context)
-
             settings_manager.initialize_settings(bpy.context)
             instruction_manager.initialize_instruction(bpy.context)
     except Exception as e:
-        logger.debug(f"Failed to load auth/settings/instructions on file load: {str(e)}")
+        logger.debug(f"Failed to load settings/instructions on file load: {str(e)}")
 
 
 @persistent
@@ -165,8 +160,8 @@ def register():
         engine.register()
         utils.register()
 
-        if load_auth_and_settings_on_file_load not in bpy.app.handlers.load_post:
-            bpy.app.handlers.load_post.append(load_auth_and_settings_on_file_load)
+        if load_settings_on_file_load not in bpy.app.handlers.load_post:
+            bpy.app.handlers.load_post.append(load_settings_on_file_load)
 
         if recover_ui_overlay_on_file_load not in bpy.app.handlers.load_post:
             bpy.app.handlers.load_post.append(recover_ui_overlay_on_file_load)
@@ -195,11 +190,10 @@ def register():
 
         try:
             if bpy.context.scene:
-                auth_manager.initialize_auth(bpy.context)
                 settings_manager.initialize_settings(bpy.context)
                 instruction_manager.initialize_instruction(bpy.context)
         except Exception as e:
-            logger.debug(f"Failed to load initial auth/settings/instructions: {str(e)}")
+            logger.debug(f"Failed to load initial settings/instructions: {str(e)}")
 
         logger.info("Vibe5D addon registered successfully")
 
@@ -226,8 +220,8 @@ def unregister():
                 pass
         _registered_timers.clear()
 
-        if load_auth_and_settings_on_file_load in bpy.app.handlers.load_post:
-            bpy.app.handlers.load_post.remove(load_auth_and_settings_on_file_load)
+        if load_settings_on_file_load in bpy.app.handlers.load_post:
+            bpy.app.handlers.load_post.remove(load_settings_on_file_load)
         if recover_ui_overlay_on_file_load in bpy.app.handlers.load_post:
             bpy.app.handlers.load_post.remove(recover_ui_overlay_on_file_load)
         if ensure_viewport_button_handler in bpy.app.handlers.load_post:
