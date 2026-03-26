@@ -20,7 +20,7 @@ class SettingsManager:
 
             if saved_settings:
 
-                model = saved_settings.get("model", "gpt-5-mini")
+                model = saved_settings.get("model", "gpt-4o-mini")
                 context.scene.vibe5d_model = model
 
                 # Load provider settings
@@ -55,7 +55,7 @@ class SettingsManager:
 
         try:
 
-            current_model = getattr(context.scene, 'vibe5d_model', 'gpt-5-mini')
+            current_model = getattr(context.scene, 'vibe5d_model', 'gpt-4o-mini')
             current_provider = getattr(context.scene, 'vibe5d_provider', 'openai')
             current_api_key = getattr(context.scene, 'vibe5d_provider_api_key', '')
             current_base_url = getattr(context.scene, 'vibe5d_provider_base_url', '')
@@ -103,7 +103,7 @@ class SettingsManager:
 
             secure_storage.clear_settings()
 
-            context.scene.vibe5d_model = "gpt-5-mini"
+            context.scene.vibe5d_model = "gpt-4o-mini"
 
             if hasattr(context.scene, 'vibe5d_provider'):
                 context.scene.vibe5d_provider = 'openai'

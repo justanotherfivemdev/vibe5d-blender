@@ -760,7 +760,7 @@ class SettingsView(BaseView):
             elif current_provider == 'local':
                 model_placeholder = "llama3"
             else:
-                model_placeholder = "gpt-5-mini"
+                model_placeholder = "gpt-4o-mini"
 
             model_label = Label("Model:", get_left_margin() + get_container_internal_padding(),
                                 provider_inner_y - get_small_label_height(),

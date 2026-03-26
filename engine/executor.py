@@ -57,6 +57,16 @@ class PrintCapture:
 
 
 class CodeExecutor:
+    """Execute AI-generated Python code inside Blender.
+
+    SECURITY NOTE — TRUSTED EXECUTION:
+        Code is validated by :class:`ScriptGuard` (blocklist-based AST
+        check) and then executed with ``exec()`` in a *restricted*
+        globals dict that only exposes ``bpy``, ``bmesh``, and
+        ``mathutils``.  This is **not** a sandbox — the executed code
+        still runs with the full privileges of the Blender process.
+        Users should always review generated code before accepting it.
+    """
 
     def __init__(self):
         self.execution_state = ExecutionState()

@@ -1,3 +1,18 @@
+"""
+Script guard for AI-generated code validation.
+
+IMPORTANT — SECURITY MODEL:
+    This guard uses an AST-based **blocklist** to reject known-dangerous
+    patterns (e.g. subprocess, os.system, eval/exec).  It is NOT a
+    sandbox and does NOT prevent all possible harmful operations.
+    Code that passes validation still runs with full Blender/Python
+    privileges via ``exec()``.
+
+    Users MUST treat every execution as **trusted** — the guard is a
+    best-effort safety net, not an isolation boundary.  Always review
+    AI-generated code before accepting execution.
+"""
+
 import ast
 import textwrap
 from typing import Tuple, Optional
@@ -7,11 +22,49 @@ from ..utils.logger import logger
 DANGEROUS_IMPORTS = [
     'subprocess',
     'shutil',
+    'os',
+    'sys',
+    'socket',
+    'http',
+    'urllib',
+    'ftplib',
+    'smtplib',
+    'ctypes',
+    'multiprocessing',
+    'signal',
+    'importlib',
+    'code',
+    'codeop',
+    'compileall',
+    'pickle',
+    'shelve',
+    'marshal',
+    'webbrowser',
+    'antigravity',
+    'pathlib',
 ]
 
-DANGEROUS_FUNCTIONS = []
+DANGEROUS_FUNCTIONS = [
+    'eval',
+    'exec',
+    'compile',
+    '__import__',
+    'globals',
+    'locals',
+    'getattr',
+    'setattr',
+    'delattr',
+    'open',
+]
 
-DANGEROUS_ATTRIBUTES = []
+DANGEROUS_ATTRIBUTES = [
+    '__subclasses__',
+    '__bases__',
+    '__globals__',
+    '__code__',
+    '__reduce__',
+    '__reduce_ex__',
+]
 
 
 class ScriptGuard:

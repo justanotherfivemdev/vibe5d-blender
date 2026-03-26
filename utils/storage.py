@@ -303,9 +303,9 @@ class SecureStorage:
                 return False
 
             normalized_settings = {
-                "agent_model": str(settings_data.get("agent_model", "gpt-5-mini")),
-                "ask_model": str(settings_data.get("ask_model", "gpt-5-mini")),
-                "model": str(settings_data.get("model", "gpt-5-mini")),
+                "agent_model": str(settings_data.get("agent_model", "gpt-4o-mini")),
+                "ask_model": str(settings_data.get("ask_model", "gpt-4o-mini")),
+                "model": str(settings_data.get("model", "gpt-4o-mini")),
                 "mode": str(settings_data.get("mode", "agent")),
                 "provider": str(settings_data.get("provider", "openai")),
                 "provider_api_key": str(settings_data.get("provider_api_key", "")),
@@ -342,9 +342,9 @@ class SecureStorage:
                 return None
 
             settings = {
-                "agent_model": str(data.get("agent_model", "gpt-5-mini")),
-                "ask_model": str(data.get("ask_model", "gpt-5-mini")),
-                "model": str(data.get("model", "gpt-5-mini")),
+                "agent_model": str(data.get("agent_model", "gpt-4o-mini")),
+                "ask_model": str(data.get("ask_model", "gpt-4o-mini")),
+                "model": str(data.get("model", "gpt-4o-mini")),
                 "mode": str(data.get("mode", "agent")),
                 "provider": str(data.get("provider", "openai")),
                 "provider_api_key": str(data.get("provider_api_key", "")),
