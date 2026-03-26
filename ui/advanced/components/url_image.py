@@ -41,455 +41,408 @@ class URLImageManager:
 
         with self._download_lock:
             self._download_cache[url] = {
-            :state,
-            : temp_path,
-            :error
+                'state': state,
+                'temp_path': temp_path,
+                'error': error
             }
 
-        def is_downloading(self, url: str) -> bool:
+    def is_downloading(self, url: str) -> bool:
 
-            with self._download_lock:
-                return url in self._active_downloads
+        with self._download_lock:
+            return url in self._active_downloads
 
-        def start_download(self, url: str):
+    def start_download(self, url: str):
 
-            with self._download_lock:
-                self._active_downloads.add(url)
+        with self._download_lock:
+            self._active_downloads.add(url)
 
-        def finish_download(self, url: str):
+    def finish_download(self, url: str):
 
-            with self._download_lock:
-                self._active_downloads.discard(url)
+        with self._download_lock:
+            self._active_downloads.discard(url)
 
-        def cleanup(self):
+    def cleanup(self):
 
-            with self._download_lock:
-                for cache_data in self._download_cache.values():
-                    temp_path = cache_data.get('temp_path')
-                    if temp_path and os.path.exists(temp_path):
-                        try:
-                            os.unlink(temp_path)
-                        except Exception as e:
-                            logger.debug(f"Could not delete temp file {temp_path}: {e}")
-                self._download_cache.clear()
-                self._active_downloads.clear()
+        with self._download_lock:
+            for cache_data in self._download_cache.values():
+                temp_path = cache_data.get('temp_path')
+                if temp_path and os.path.exists(temp_path):
+                    try:
+                        os.unlink(temp_path)
+                    except Exception as e:
+                        logger.debug(f"Could not delete temp file {temp_path}: {e}")
+            self._download_cache.clear()
+            self._active_downloads.clear()
 
-    url_image_manager = URLImageManager()
+url_image_manager = URLImageManager()
 
-    class URLImageComponent(ImageComponent):
+class URLImageComponent(ImageComponent):
 
-        def __init__(self,
-                     image_url: str,
-                     x: int = 0,
-                     y: int = 0,
-                     width: int = 100,
-                     height: int = 100,
-                     fit: ImageFit = ImageFit.CONTAIN,
-                     position: ImagePosition = ImagePosition.CENTER,
-                     corner_radius: int = 8,
-                     on_load: Optional[Callable] = None,
-                     on_error: Optional[Callable] = None,
-                     on_size_changed: Optional[Callable] = None,
-                     show_loading_text: bool = True,
-                     show_error_text: bool = True,
-                     loading_text: str = "Loading image...",
-                     error_text: str = "Failed to load image",
-                     max_height: int = None,
-                     **kwargs):
+    def __init__(self,
+                 image_url: str,
+                 x: int = 0,
+                 y: int = 0,
+                 width: int = 100,
+                 height: int = 100,
+                 fit: ImageFit = ImageFit.CONTAIN,
+                 position: ImagePosition = ImagePosition.CENTER,
+                 corner_radius: int = 8,
+                 on_load: Optional[Callable] = None,
+                 on_error: Optional[Callable] = None,
+                 on_size_changed: Optional[Callable] = None,
+                 show_loading_text: bool = True,
+                 show_error_text: bool = True,
+                 loading_text: str = "Loading image...",
+                 error_text: str = "Failed to load image",
+                 max_height: int = None,
+                 **kwargs):
 
-            super().__init__("", x, y, width, height, fit, position, corner_radius, **kwargs)
+        super().__init__("", x, y, width, height, fit, position, corner_radius, **kwargs)
 
-            self.image_url = image_url
-            self.state = URLImageState.IDLE
-            self.error_message = None
-            self.temp_file_path = None
+        self.image_url = image_url
+        self.state = URLImageState.IDLE
+        self.error_message = None
+        self.temp_file_path = None
 
-            self.on_load = on_load
-            self.on_error = on_error
-            self.on_size_changed = on_size_changed
+        self.on_load = on_load
+        self.on_error = on_error
+        self.on_size_changed = on_size_changed
 
-            self.show_loading_text = show_loading_text
-            self.show_error_text = show_error_text
-            self.loading_text = loading_text
-            self.error_text = error_text
+        self.show_loading_text = show_loading_text
+        self.show_error_text = show_error_text
+        self.loading_text = loading_text
+        self.error_text = error_text
 
-            self.container_width = width
-            self.max_height = CoordinateSystem.scale_int(max_height) if max_height else CoordinateSystem.scale_int(800)
+        self.container_width = width
+        self.max_height = CoordinateSystem.scale_int(max_height) if max_height else CoordinateSystem.scale_int(800)
 
-            self.loading_animation_dots = 0
-            self.loading_animation_time = 0
+        self.loading_animation_dots = 0
+        self.loading_animation_time = 0
 
-            cached_state = url_image_manager.get_cached_state(self.image_url)
-            if cached_state['state'] == URLImageState.LOADED and cached_state.get('temp_path'):
+        cached_state = url_image_manager.get_cached_state(self.image_url)
+        if cached_state['state'] == URLImageState.LOADED and cached_state.get('temp_path'):
 
-                self.temp_file_path = cached_state['temp_path']
-                self.state = URLImageState.LOADED
-                self._update_image_path()
-            elif cached_state['state'] == URLImageState.ERROR:
+            self.temp_file_path = cached_state['temp_path']
+            self.state = URLImageState.LOADED
+            self._update_image_path()
+        elif cached_state['state'] == URLImageState.ERROR:
 
-                self.state = URLImageState.ERROR
-                self.error_message = cached_state.get('error', 'Unknown error')
-            else:
+            self.state = URLImageState.ERROR
+            self.error_message = cached_state.get('error', 'Unknown error')
+        else:
 
-                self._start_download()
+            self._start_download()
 
-        def _start_download(self):
+    def _start_download(self):
 
-            if not self.image_url or self.image_url.startswith("data:"):
-                logger.debug("Skipping download for data URL or empty URL")
-                return
+        if not self.image_url or self.image_url.startswith("data:"):
+            logger.debug("Skipping download for data URL or empty URL")
+            return
 
-            if url_image_manager.is_downloading(self.image_url):
-                self.state = URLImageState.LOADING
-                return
-
-            cached_state = url_image_manager.get_cached_state(self.image_url)
-            if cached_state['state'] in [URLImageState.LOADED, URLImageState.ERROR]:
-                return
-
+        if url_image_manager.is_downloading(self.image_url):
             self.state = URLImageState.LOADING
-            url_image_manager.set_cached_state(self.image_url, URLImageState.LOADING)
-            url_image_manager.start_download(self.image_url)
+            return
 
-            def download_worker():
+        cached_state = url_image_manager.get_cached_state(self.image_url)
+        if cached_state['state'] in [URLImageState.LOADED, URLImageState.ERROR]:
+            return
 
-                temp_path = None
-                try:
-                    logger.info(f"Starting download of image: {self.image_url}")
+        self.state = URLImageState.LOADING
+        url_image_manager.set_cached_state(self.image_url, URLImageState.LOADING)
+        url_image_manager.start_download(self.image_url)
 
-                    headers = {
-                    :'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-                    }
+        def download_worker():
+
+            temp_path = None
+            try:
+                logger.info(f"Starting download of image: {self.image_url}")
+
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                }
 
 
-                    download_url = self.image_url
-                    if 'vibe5d.local' in self.image_url:
-                        try:
-                            context = bpy.context
-                            user_id = getattr(context.window_manager, 'vibe5d_user_id', '')
-                            token = getattr(context.window_manager, 'vibe5d_user_token', '')
+                download_url = self.image_url
+                if 'vibe5d.local' in self.image_url:
+                    try:
+                        context = bpy.context
+                        user_id = getattr(context.window_manager, 'vibe5d_user_id', '')
+                        token = getattr(context.window_manager, 'vibe5d_user_token', '')
 
-                            if user_id and token:
-                                separator = '&' if '?' in self.image_url else '?'
-                                download_url = f"{self.image_url}{separator}user={user_id}&token={token}"
-                                logger.debug(f"Added authentication to vibe5d.local URL")
-                        except Exception as e:
-                            logger.warning(f"Could not add authentication to image URL: {e}")
+                        if user_id and token:
+                            separator = '&' if '?' in self.image_url else '?'
+                            download_url = f"{self.image_url}{separator}user={user_id}&token={token}"
+                            logger.debug(f"Added authentication to vibe5d.local URL")
+                    except Exception as e:
+                        logger.warning(f"Could not add authentication to image URL: {e}")
 
-                    request = urllib.request.Request(
-                        download_url,
-                        headers=headers
-                    )
+                request = urllib.request.Request(
+                    download_url,
+                    headers=headers
+                )
 
-                    with urllib.request.urlopen(request, timeout=60) as response:
-                        content_type = response.headers.get('content-type', '').lower()
-                        data = response.read()
+                with urllib.request.urlopen(request, timeout=60) as response:
+                    content_type = response.headers.get('content-type', '').lower()
+                    data = response.read()
 
-                    if 'jpeg' in content_type or 'jpg' in content_type:
-                        file_ext = '.jpg'
-                    elif 'png' in content_type:
+                if 'jpeg' in content_type or 'jpg' in content_type:
+                    file_ext = '.jpg'
+                elif 'png' in content_type:
+                    file_ext = '.png'
+                elif 'gif' in content_type:
+                    file_ext = '.gif'
+                elif 'webp' in content_type:
+                    file_ext = '.webp'
+                else:
+
+                    if data.startswith(b'\x89PNG'):
                         file_ext = '.png'
-                    elif 'gif' in content_type:
+                    elif data.startswith(b'\xff\xd8\xff'):
+                        file_ext = '.jpg'
+                    elif data.startswith(b'GIF'):
                         file_ext = '.gif'
-                    elif 'webp' in content_type:
+                    elif data.startswith(b'RIFF') and b'WEBP' in data[:12]:
                         file_ext = '.webp'
                     else:
+                        file_ext = '.png'
 
-                        if data.startswith(b'\x89PNG'):
-                            file_ext = '.png'
-                        elif data.startswith(b'\xff\xd8\xff'):
-                            file_ext = '.jpg'
-                        elif data.startswith(b'GIF'):
-                            file_ext = '.gif'
-                        elif data.startswith(b'RIFF') and b'WEBP' in data[:12]:
-                            file_ext = '.webp'
-                        else:
-                            file_ext = '.png'
+                temp_file = tempfile.NamedTemporaryFile(suffix=file_ext, delete=False)
+                temp_path = temp_file.name
 
-                    temp_file = tempfile.NamedTemporaryFile(suffix=file_ext, delete=False)
-                    temp_path = temp_file.name
+                temp_file.write(data)
+                temp_file.close()
 
-                    temp_file.write(data)
-                    temp_file.close()
+                if not os.path.exists(temp_path) or os.path.getsize(temp_path) == 0:
+                    raise Exception("Downloaded file is empty or does not exist")
 
-                    if not os.path.exists(temp_path) or os.path.getsize(temp_path) == 0:
-                        raise Exception("Downloaded file is empty or does not exist")
+                logger.info(f"Successfully downloaded image to: {temp_path} (detected format: {file_ext})")
 
-                    logger.info(f"Successfully downloaded image to: {temp_path} (detected format: {file_ext})")
+                url_image_manager.set_cached_state(self.image_url, URLImageState.LOADED, temp_path)
 
-                    url_image_manager.set_cached_state(self.image_url, URLImageState.LOADED, temp_path)
-
-                    def on_download_success():
-
-                        try:
-                            if self.image_url:
-                                self.temp_file_path = temp_path
-                                self.state = URLImageState.LOADED
-                                self.error_message = None
-                                self._update_image_path()
-
-                                if self.on_load:
-                                    try:
-                                        self.on_load()
-                                    except Exception as e:
-                                        logger.error(f"Error in on_load callback: {e}")
-
-                        except Exception as e:
-                            logger.error(f"Error updating UI after download success: {e}")
-                        return None
-
-                    bpy.app.timers.register(on_download_success, first_interval=0.1)
-
-                except Exception as e:
-                    error_msg = str(e)
-                    logger.error(f"Failed to download image {self.image_url}: {error_msg}")
+                def on_download_success():
 
                     try:
-                        if temp_path and os.path.exists(temp_path):
-                            os.unlink(temp_path)
-                    except:
-                        pass
+                        if self.image_url:
+                            self.temp_file_path = temp_path
+                            self.state = URLImageState.LOADED
+                            self.error_message = None
+                            self._update_image_path()
 
-                    url_image_manager.set_cached_state(self.image_url, URLImageState.ERROR, error=error_msg)
+                            if self.on_load:
+                                try:
+                                    self.on_load()
+                                except Exception as e:
+                                    logger.error(f"Error in on_load callback: {e}")
 
-                    def on_download_error():
+                    except Exception as e:
+                        logger.error(f"Error updating UI after download success: {e}")
+                    return None
 
-                        try:
-                            if self.image_url:
-                                self.state = URLImageState.ERROR
-                                self.error_message = error_msg
+                bpy.app.timers.register(on_download_success, first_interval=0.1)
 
-                                if self.on_error:
-                                    try:
-                                        self.on_error(error_msg)
-                                    except Exception as e:
-                                        logger.error(f"Error in on_error callback: {e}")
+            except Exception as e:
+                error_msg = str(e)
+                logger.error(f"Failed to download image {self.image_url}: {error_msg}")
 
-                        except Exception as e:
-                            logger.error(f"Error updating UI after download error: {e}")
-                        return None
+                try:
+                    if temp_path and os.path.exists(temp_path):
+                        os.unlink(temp_path)
+                except:
+                    pass
 
-                    bpy.app.timers.register(on_download_error, first_interval=0.1)
+                url_image_manager.set_cached_state(self.image_url, URLImageState.ERROR, error=error_msg)
 
-                finally:
+                def on_download_error():
 
-                    url_image_manager.finish_download(self.image_url)
+                    try:
+                        if self.image_url:
+                            self.state = URLImageState.ERROR
+                            self.error_message = error_msg
 
-            download_thread = threading.Thread(target=download_worker, daemon=True)
-            download_thread.start()
+                            if self.on_error:
+                                try:
+                                    self.on_error(error_msg)
+                                except Exception as e:
+                                    logger.error(f"Error in on_error callback: {e}")
 
-        def _calculate_optimal_size(self) -> tuple[int, int]:
+                    except Exception as e:
+                        logger.error(f"Error updating UI after download error: {e}")
+                    return None
 
-            if not self.image_loaded or not self.image_width or not self.image_height:
-                return self.container_width, min(self.max_height, CoordinateSystem.scale_int(300))
+                bpy.app.timers.register(on_download_error, first_interval=0.1)
 
-            aspect_ratio = self.image_width / self.image_height
+            finally:
 
-            target_width = self.container_width
-            target_height = int(target_width / aspect_ratio)
+                url_image_manager.finish_download(self.image_url)
 
-            if target_height > self.max_height:
-                target_height = self.max_height
-                target_width = int(target_height * aspect_ratio)
+        download_thread = threading.Thread(target=download_worker, daemon=True)
+        download_thread.start()
 
-            logger.debug(f"Calculated optimal size: {target_width}x{target_height} "
+    def _calculate_optimal_size(self) -> tuple[int, int]:
 
-                         )
+        if not self.image_loaded or not self.image_width or not self.image_height:
+            return self.container_width, min(self.max_height, CoordinateSystem.scale_int(300))
 
-            return target_width, target_height
+        aspect_ratio = self.image_width / self.image_height
 
-        def set_container_width(self, width: int):
+        target_width = self.container_width
+        target_height = int(target_width / aspect_ratio)
 
-            old_width = self.container_width
-            self.container_width = width
+        if target_height > self.max_height:
+            target_height = self.max_height
+            target_width = int(target_height * aspect_ratio)
 
-            logger.debug(f"URL image container width updated from {old_width} to {width}")
+        logger.debug(f"Calculated optimal size: {target_width}x{target_height} "
 
-            if self.image_loaded and old_width != width:
+                     )
 
-                new_width, new_height = self._calculate_optimal_size()
-                logger.debug(f"Recalculating size due to container width change: {new_width}x{new_height}")
-                self.set_size(new_width, new_height)
+        return target_width, target_height
 
-                if self.on_size_changed:
+    def set_container_width(self, width: int):
+
+        old_width = self.container_width
+        self.container_width = width
+
+        logger.debug(f"URL image container width updated from {old_width} to {width}")
+
+        if self.image_loaded and old_width != width:
+
+            new_width, new_height = self._calculate_optimal_size()
+            logger.debug(f"Recalculating size due to container width change: {new_width}x{new_height}")
+            self.set_size(new_width, new_height)
+
+            if self.on_size_changed:
+                try:
+                    self.on_size_changed()
+                except Exception as e:
+                    logger.error(f"Error in on_size_changed callback during container width update: {e}")
+        elif not self.image_loaded:
+
+            logger.debug(f"Container width updated but image not loaded yet - will recalculate when image loads")
+
+    def _update_image_path(self):
+
+        if self.temp_file_path and os.path.exists(self.temp_file_path):
+            logger.debug(f"Updating image path to: {self.temp_file_path}")
+
+            old_image_loaded = self.image_loaded
+            old_texture_attempted = self._texture_creation_attempted
+            old_size = (self.bounds.width, self.bounds.height)
+
+            self.set_image(self.temp_file_path)
+
+            if self.image_data and not self.image_loaded:
+                logger.debug("Image data loaded but texture not created, forcing GPU texture creation")
+                self._texture_creation_attempted = False
+                self._ensure_gpu_texture()
+
+            if self.image_loaded:
+                optimal_width, optimal_height = self._calculate_optimal_size()
+                logger.debug(f"Setting optimal size: {optimal_width}x{optimal_height}")
+                self.set_size(optimal_width, optimal_height)
+
+                new_size = (optimal_width, optimal_height)
+                if new_size != old_size and self.on_size_changed:
                     try:
                         self.on_size_changed()
                     except Exception as e:
-                        logger.error(f"Error in on_size_changed callback during container width update: {e}")
-            elif not self.image_loaded:
+                        logger.error(f"Error in on_size_changed callback: {e}")
 
-                logger.debug(f"Container width updated but image not loaded yet - will recalculate when image loads")
+            logger.debug(f"Image update result - loaded: {old_image_loaded} -> {self.image_loaded}, "
 
-        def _update_image_path(self):
+                         )
+        else:
+            logger.error(f"Cannot update image path - temp file not found: {self.temp_file_path}")
 
-            if self.temp_file_path and os.path.exists(self.temp_file_path):
-                logger.debug(f"Updating image path to: {self.temp_file_path}")
+    def _resolve_image_path(self) -> str:
 
-                old_image_loaded = self.image_loaded
-                old_texture_attempted = self._texture_creation_attempted
-                old_size = (self.bounds.width, self.bounds.height)
-
-                self.set_image(self.temp_file_path)
-
-                if self.image_data and not self.image_loaded:
-                    logger.debug("Image data loaded but texture not created, forcing GPU texture creation")
-                    self._texture_creation_attempted = False
-                    self._ensure_gpu_texture()
-
-                if self.image_loaded:
-                    optimal_width, optimal_height = self._calculate_optimal_size()
-                    logger.debug(f"Setting optimal size: {optimal_width}x{optimal_height}")
-                    self.set_size(optimal_width, optimal_height)
-
-                    new_size = (optimal_width, optimal_height)
-                    if new_size != old_size and self.on_size_changed:
-                        try:
-                            self.on_size_changed()
-                        except Exception as e:
-                            logger.error(f"Error in on_size_changed callback: {e}")
-
-                logger.debug(f"Image update result - loaded: {old_image_loaded} -> {self.image_loaded}, "
-
-                             )
+        if os.path.isabs(self.image_path):
+            if os.path.exists(self.image_path):
+                logger.debug(f"Using absolute path: {self.image_path}")
+                return self.image_path
             else:
-                logger.error(f"Cannot update image path - temp file not found: {self.temp_file_path}")
+                logger.error(f"Absolute path does not exist: {self.image_path}")
+                return self.image_path
 
-        def _resolve_image_path(self) -> str:
+        return super()._resolve_image_path()
 
-            if os.path.isabs(self.image_path):
-                if os.path.exists(self.image_path):
-                    logger.debug(f"Using absolute path: {self.image_path}")
-                    return self.image_path
-                else:
-                    logger.error(f"Absolute path does not exist: {self.image_path}")
-                    return self.image_path
+    def render(self, renderer):
 
-            return super()._resolve_image_path()
+        if not self.visible:
+            return
 
-        def render(self, renderer):
+        if self.bounds.width <= 0 or self.bounds.height <= 0:
+            logger.debug(f"Skipping render - invalid bounds: {self.bounds.width}x{self.bounds.height}")
+            return
 
-            if not self.visible:
-                return
+        if self.state == URLImageState.LOADED:
+            logger.debug(f"Rendering URL image - state: {self.state}, image_loaded: {self.image_loaded}, "
+                         )
 
-            if self.bounds.width <= 0 or self.bounds.height <= 0:
-                logger.debug(f"Skipping render - invalid bounds: {self.bounds.width}x{self.bounds.height}")
-                return
+        if self.background_color:
+            if self.corner_radius > 0:
+                renderer.draw_rounded_rect(self.bounds, self.background_color, self.corner_radius)
+            else:
+                renderer.draw_rect(self.bounds, self.background_color)
 
-            if self.state == URLImageState.LOADED:
-                logger.debug(f"Rendering URL image - state: {self.state}, image_loaded: {self.image_loaded}, "
-                             )
+        if self.state == URLImageState.LOADED:
 
-            if self.background_color:
-                if self.corner_radius > 0:
-                    renderer.draw_rounded_rect(self.bounds, self.background_color, self.corner_radius)
-                else:
-                    renderer.draw_rect(self.bounds, self.background_color)
+            if self.image_data and not self.image_loaded and not self._texture_creation_attempted:
+                logger.debug("Image data exists but no GPU texture, creating texture...")
+                self._ensure_gpu_texture()
 
-            if self.state == URLImageState.LOADED:
+            if self.image_loaded and self.image_texture:
 
-                if self.image_data and not self.image_loaded and not self._texture_creation_attempted:
-                    logger.debug("Image data exists but no GPU texture, creating texture...")
-                    self._ensure_gpu_texture()
+                logger.debug("Rendering loaded image")
+                super().render(renderer)
+            else:
 
-                if self.image_loaded and self.image_texture:
-
-                    logger.debug("Rendering loaded image")
-                    super().render(renderer)
-                else:
-
-                    logger.warning(
-                    )
-                    self._render_error_state(renderer)
-            elif self.state == URLImageState.LOADING:
-
-                self._render_loading_state(renderer)
-            elif self.state == URLImageState.ERROR:
-
+                logger.warning(
+                )
                 self._render_error_state(renderer)
-            else:
+        elif self.state == URLImageState.LOADING:
 
-                self._render_placeholder(renderer)
+            self._render_loading_state(renderer)
+        elif self.state == URLImageState.ERROR:
 
-            if self.border_width > 0:
-                if self.corner_radius > 0:
-                    renderer.draw_rounded_rect_outline(
-                        self.bounds, self.border_color, self.border_width, self.corner_radius
-                    )
-                else:
-                    renderer.draw_rect_outline(self.bounds, self.border_color, self.border_width)
+            self._render_error_state(renderer)
+        else:
 
-        def _render_loading_state(self, renderer):
+            self._render_placeholder(renderer)
 
-            placeholder_color = Styles.lighten_color(Styles.Panel, 10)
+        if self.border_width > 0:
             if self.corner_radius > 0:
-                renderer.draw_rounded_rect(self.bounds, placeholder_color, self.corner_radius)
-            else:
-                renderer.draw_rect(self.bounds, placeholder_color)
-
-            if self.show_loading_text:
-
-                current_time = time.time()
-                if current_time - self.loading_animation_time > 0.5:
-                    self.loading_animation_dots = (self.loading_animation_dots + 1) % 4
-                    self.loading_animation_time = current_time
-
-                dots = "." * self.loading_animation_dots
-                animated_text = self.loading_text + dots
-
-                text_width, text_height = renderer.get_text_dimensions(animated_text, 16)
-
-                text_x = self.bounds.x + (self.bounds.width - text_width) // 2
-                text_y = self.bounds.y + (self.bounds.height - text_height) // 2
-
-                renderer.draw_text(
-                    animated_text,
-                    text_x,
-                    text_y,
-                    16,
-                    Styles.Text,
-                    0
+                renderer.draw_rounded_rect_outline(
+                    self.bounds, self.border_color, self.border_width, self.corner_radius
                 )
-
-        def _render_error_state(self, renderer):
-
-            error_bg_color = (0.8, 0.2, 0.2, 0.1)
-            if self.corner_radius > 0:
-                renderer.draw_rounded_rect(self.bounds, error_bg_color, self.corner_radius)
             else:
-                renderer.draw_rect(self.bounds, error_bg_color)
+                renderer.draw_rect_outline(self.bounds, self.border_color, self.border_width)
 
-            if self.show_error_text:
-                text_width, text_height = renderer.get_text_dimensions(self.error_text, 16)
+    def _render_loading_state(self, renderer):
 
-                text_x = self.bounds.x + (self.bounds.width - text_width) // 2
-                text_y = self.bounds.y + (self.bounds.height - text_height) // 2
+        placeholder_color = Styles.lighten_color(Styles.Panel, 10)
+        if self.corner_radius > 0:
+            renderer.draw_rounded_rect(self.bounds, placeholder_color, self.corner_radius)
+        else:
+            renderer.draw_rect(self.bounds, placeholder_color)
 
-                error_text_color = (0.9, 0.3, 0.3, 1.0)
-                renderer.draw_text(
-                    self.error_text,
-                    text_x,
-                    text_y,
-                    16,
-                    error_text_color,
-                    0
-                )
+        if self.show_loading_text:
 
-        def _render_placeholder(self, renderer):
+            current_time = time.time()
+            if current_time - self.loading_animation_time > 0.5:
+                self.loading_animation_dots = (self.loading_animation_dots + 1) % 4
+                self.loading_animation_time = current_time
 
-            placeholder_color = Styles.lighten_color(Styles.Panel, 5)
-            if self.corner_radius > 0:
-                renderer.draw_rounded_rect(self.bounds, placeholder_color, self.corner_radius)
-            else:
-                renderer.draw_rect(self.bounds, placeholder_color)
+            dots = "." * self.loading_animation_dots
+            animated_text = self.loading_text + dots
 
-            placeholder_text = "Image"
-            text_width, text_height = renderer.get_text_dimensions(placeholder_text, 16)
+            text_width, text_height = renderer.get_text_dimensions(animated_text, 16)
 
             text_x = self.bounds.x + (self.bounds.width - text_width) // 2
             text_y = self.bounds.y + (self.bounds.height - text_height) // 2
 
             renderer.draw_text(
-                placeholder_text,
+                animated_text,
                 text_x,
                 text_y,
                 16,
@@ -497,56 +450,103 @@ class URLImageManager:
                 0
             )
 
-        def set_url(self, new_url: str):
+    def _render_error_state(self, renderer):
 
-            if self.image_url != new_url:
+        error_bg_color = (0.8, 0.2, 0.2, 0.1)
+        if self.corner_radius > 0:
+            renderer.draw_rounded_rect(self.bounds, error_bg_color, self.corner_radius)
+        else:
+            renderer.draw_rect(self.bounds, error_bg_color)
 
-                self.cleanup()
+        if self.show_error_text:
+            text_width, text_height = renderer.get_text_dimensions(self.error_text, 16)
 
-                self.image_url = new_url
-                self.state = URLImageState.IDLE
-                self.error_message = None
-                self.temp_file_path = None
+            text_x = self.bounds.x + (self.bounds.width - text_width) // 2
+            text_y = self.bounds.y + (self.bounds.height - text_height) // 2
 
-                cached_state = url_image_manager.get_cached_state(self.image_url)
-                if cached_state['state'] == URLImageState.LOADED and cached_state.get('temp_path'):
-                    self.temp_file_path = cached_state['temp_path']
-                    self.state = URLImageState.LOADED
-                    self._update_image_path()
-                elif cached_state['state'] == URLImageState.ERROR:
-                    self.state = URLImageState.ERROR
-                    self.error_message = cached_state.get('error', 'Unknown error')
-                else:
-                    self._start_download()
+            error_text_color = (0.9, 0.3, 0.3, 1.0)
+            renderer.draw_text(
+                self.error_text,
+                text_x,
+                text_y,
+                16,
+                error_text_color,
+                0
+            )
 
-        def retry_download(self):
+    def _render_placeholder(self, renderer):
 
-            if self.state == URLImageState.ERROR:
-                url_image_manager.set_cached_state(self.image_url, URLImageState.IDLE)
-                self.state = URLImageState.IDLE
-                self.error_message = None
+        placeholder_color = Styles.lighten_color(Styles.Panel, 5)
+        if self.corner_radius > 0:
+            renderer.draw_rounded_rect(self.bounds, placeholder_color, self.corner_radius)
+        else:
+            renderer.draw_rect(self.bounds, placeholder_color)
+
+        placeholder_text = "Image"
+        text_width, text_height = renderer.get_text_dimensions(placeholder_text, 16)
+
+        text_x = self.bounds.x + (self.bounds.width - text_width) // 2
+        text_y = self.bounds.y + (self.bounds.height - text_height) // 2
+
+        renderer.draw_text(
+            placeholder_text,
+            text_x,
+            text_y,
+            16,
+            Styles.Text,
+            0
+        )
+
+    def set_url(self, new_url: str):
+
+        if self.image_url != new_url:
+
+            self.cleanup()
+
+            self.image_url = new_url
+            self.state = URLImageState.IDLE
+            self.error_message = None
+            self.temp_file_path = None
+
+            cached_state = url_image_manager.get_cached_state(self.image_url)
+            if cached_state['state'] == URLImageState.LOADED and cached_state.get('temp_path'):
+                self.temp_file_path = cached_state['temp_path']
+                self.state = URLImageState.LOADED
+                self._update_image_path()
+            elif cached_state['state'] == URLImageState.ERROR:
+                self.state = URLImageState.ERROR
+                self.error_message = cached_state.get('error', 'Unknown error')
+            else:
                 self._start_download()
 
-        def _ensure_gpu_texture(self):
+    def retry_download(self):
 
-            if hasattr(self, 'temp_file_path') and self.temp_file_path:
-                if not os.path.exists(self.temp_file_path):
-                    logger.error(f"Temp file was cleaned up before GPU texture creation: {self.temp_file_path}")
-                    self.state = URLImageState.ERROR
-                    self.error_message = "Image file was cleaned up"
-                    return False
+        if self.state == URLImageState.ERROR:
+            url_image_manager.set_cached_state(self.image_url, URLImageState.IDLE)
+            self.state = URLImageState.IDLE
+            self.error_message = None
+            self._start_download()
 
-            result = super()._ensure_gpu_texture()
+    def _ensure_gpu_texture(self):
 
-            if not result and self.state == URLImageState.LOADED:
-                logger.error(f"GPU texture creation failed for loaded image: {self.image_path}")
+        if hasattr(self, 'temp_file_path') and self.temp_file_path:
+            if not os.path.exists(self.temp_file_path):
+                logger.error(f"Temp file was cleaned up before GPU texture creation: {self.temp_file_path}")
+                self.state = URLImageState.ERROR
+                self.error_message = "Image file was cleaned up"
+                return False
 
-            return result
+        result = super()._ensure_gpu_texture()
 
-        def cleanup(self):
+        if not result and self.state == URLImageState.LOADED:
+            logger.error(f"GPU texture creation failed for loaded image: {self.image_path}")
 
-            super().cleanup()
+        return result
 
-    def cleanup_url_image_manager():
+    def cleanup(self):
 
-        url_image_manager.cleanup()
+        super().cleanup()
+
+def cleanup_url_image_manager():
+
+    url_image_manager.cleanup()

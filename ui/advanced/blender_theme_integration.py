@@ -18,54 +18,54 @@ class ThemeToken:
 
 class BlenderThemeIntegration:
     THEME_TOKENS = {
-    :ThemeToken(
-        token='bg_primary',
-        blender_path='user_interface.wcol_regular.inner',
-        description='Primary background color',
-        fallback_color=(0.33, 0.33, 0.33, 1.0)
-    ),
-    : ThemeToken(
-        token='bg_panel',
-        blender_path='user_interface.wcol_box.inner',
-        description='Panel background color',
-        fallback_color=(0.11, 0.11, 0.11, 1.0)
-    ),
-    :ThemeToken(
-        token='bg_selected',
-        blender_path='user_interface.wcol_menu.inner_sel',
-        description='Selected background color',
-        fallback_color=(0.28, 0.45, 0.70, 1.0)
-    ),
-    : ThemeToken(
-        token='border',
-        blender_path='user_interface.wcol_regular.outline',
-        description='Border color',
-        fallback_color=(0.24, 0.24, 0.24, 1.0)
-    ),
-    :ThemeToken(
-        token='text',
-        blender_path='user_interface.wcol_regular.text',
-        description='Primary text color',
-        fallback_color=(0.90, 0.90, 0.90, 1.0)
-    ),
-    : ThemeToken(
-        token='text_selected',
-        blender_path='user_interface.wcol_regular.text_sel',
-        description='Selected text color',
-        fallback_color=(1.0, 1.0, 1.0, 1.0)
-    ),
-    :ThemeToken(
-        token='text_muted',
-        blender_path='user_interface.wcol_menu_back.text',
-        description='Muted text color',
-        fallback_color=(0.60, 0.60, 0.60, 1.0)
-    ),
-    : ThemeToken(
-        token='bg_menu',
-        blender_path='user_interface.wcol_menu.inner',
-        description='Menu background color',
-        fallback_color=(0.16, 0.16, 0.16, 1.0)
-    ),
+        'bg_primary': ThemeToken(
+            token='bg_primary',
+            blender_path='user_interface.wcol_regular.inner',
+            description='Primary background color',
+            fallback_color=(0.33, 0.33, 0.33, 1.0)
+        ),
+        'bg_panel': ThemeToken(
+            token='bg_panel',
+            blender_path='user_interface.wcol_box.inner',
+            description='Panel background color',
+            fallback_color=(0.11, 0.11, 0.11, 1.0)
+        ),
+        'bg_selected': ThemeToken(
+            token='bg_selected',
+            blender_path='user_interface.wcol_menu.inner_sel',
+            description='Selected background color',
+            fallback_color=(0.28, 0.45, 0.70, 1.0)
+        ),
+        'border': ThemeToken(
+            token='border',
+            blender_path='user_interface.wcol_regular.outline',
+            description='Border color',
+            fallback_color=(0.24, 0.24, 0.24, 1.0)
+        ),
+        'text': ThemeToken(
+            token='text',
+            blender_path='user_interface.wcol_regular.text',
+            description='Primary text color',
+            fallback_color=(0.90, 0.90, 0.90, 1.0)
+        ),
+        'text_selected': ThemeToken(
+            token='text_selected',
+            blender_path='user_interface.wcol_regular.text_sel',
+            description='Selected text color',
+            fallback_color=(1.0, 1.0, 1.0, 1.0)
+        ),
+        'text_muted': ThemeToken(
+            token='text_muted',
+            blender_path='user_interface.wcol_menu_back.text',
+            description='Muted text color',
+            fallback_color=(0.60, 0.60, 0.60, 1.0)
+        ),
+        'bg_menu': ThemeToken(
+            token='bg_menu',
+            blender_path='user_interface.wcol_menu.inner',
+            description='Menu background color',
+            fallback_color=(0.16, 0.16, 0.16, 1.0)
+        ),
     }
 
     def __init__(self):

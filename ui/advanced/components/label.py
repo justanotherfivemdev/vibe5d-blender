@@ -133,14 +133,14 @@ class Label(UIComponent):
         self.hovered_segment: Optional[TextSegment] = None
 
         self.highlight_styles: Dict[str, Dict] = {
-        :{
-        : (0.3, 0.5, 0.8, 0),
-        :(1.0, 1.0, 1.0, 1.0)
-        },
-        :{
-        : (0.8, 0.8, 0.2, 0),
-        :(0.0, 0.0, 0.0, 1.0)
-        }
+            'selection': {
+                'background': (0.3, 0.5, 0.8, 0),
+                'foreground': (1.0, 1.0, 1.0, 1.0)
+            },
+            'search': {
+                'background': (0.8, 0.8, 0.2, 0),
+                'foreground': (0.0, 0.0, 0.0, 1.0)
+            }
         }
 
 

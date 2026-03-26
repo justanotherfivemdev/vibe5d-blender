@@ -139,16 +139,17 @@ class ComponentRegistry:
     def get_stats(self) -> Dict[str, Any]:
 
         return {
-        :len(self._components),
-        : {
-            comp_type.__name__: len(components)
-            for comp_type, components in self._components_by_type.items()
-        },
-        :len(self._update_queue),
-        : {
-            state.value: sum(1 for s in self._component_states.values() if s == state)
-            for state in ComponentState
-        }
+            'total_components': len(self._components),
+            'by_type': {
+                comp_type.__name__: len(components)
+                for comp_type, components in self._components_by_type.items()
+            },
+            'pending_updates': len(self._update_queue),
+            'by_state': {
+                state.value: sum(1 for s in self._component_states.values() if s == state)
+                for state in ComponentState
+            }
         }
 
-    component_registry = ComponentRegistry()
+
+component_registry = ComponentRegistry()

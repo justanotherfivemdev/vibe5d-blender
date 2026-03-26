@@ -253,11 +253,11 @@ class UIStateManager:
             config.area_index = -1
 
         fingerprint_data = {
-        :area.type,
-        : f"{config.relative_x:.3f},{config.relative_y:.3f}",
-        :f"{config.relative_width:.3f},{config.relative_height:.3f}",
-        : config.area_index,
-        :len(screen.areas)
+            'type': area.type,
+            'relative_pos': f"{config.relative_x:.3f},{config.relative_y:.3f}",
+            'relative_size': f"{config.relative_width:.3f},{config.relative_height:.3f}",
+            'index': config.area_index,
+            'total_areas': len(screen.areas)
         }
         config.viewport_fingerprint = json.dumps(fingerprint_data, sort_keys=True)
 
@@ -283,9 +283,9 @@ class UIStateManager:
     def _analyze_area_neighbors(self, target_area, all_areas) -> Dict[str, Any]:
 
         neighbors = {
-        :[], 'right': [], 'above': [], 'below': [],
-        :len(all_areas),
-        : 0
+            'left': [], 'right': [], 'above': [], 'below': [],
+            'total_areas': len(all_areas),
+            'view3d_count': 0
         }
 
         try:
@@ -300,36 +300,36 @@ class UIStateManager:
                         area.y + area.height > target_area.y and
                         area.x + area.width <= target_area.x):
                     neighbors['left'].append({
-                    : area.type,
-                    :target_area.x - (area.x + area.width)
+                        'type': area.type,
+                        'distance': target_area.x - (area.x + area.width)
                     })
-                    elif (area.y < target_area.y + target_area.height and
-                          area.y + area.height > target_area.y and
-                          area.x >= target_area.x + target_area.width):
+                elif (area.y < target_area.y + target_area.height and
+                      area.y + area.height > target_area.y and
+                      area.x >= target_area.x + target_area.width):
                     neighbors['right'].append({
-                    : area.type,
-                    :area.x - (target_area.x + target_area.width)
+                        'type': area.type,
+                        'distance': area.x - (target_area.x + target_area.width)
                     })
-                    elif (area.x < target_area.x + target_area.width and
-                          area.x + area.width > target_area.x and
-                          area.y + area.height <= target_area.y):
+                elif (area.x < target_area.x + target_area.width and
+                      area.x + area.width > target_area.x and
+                      area.y + area.height <= target_area.y):
                     neighbors['above'].append({
-                    : area.type,
-                    :target_area.y - (area.y + area.height)
+                        'type': area.type,
+                        'distance': target_area.y - (area.y + area.height)
                     })
-                    elif (area.x < target_area.x + target_area.width and
-                          area.x + area.width > target_area.x and
-                          area.y >= target_area.y + target_area.height):
+                elif (area.x < target_area.x + target_area.width and
+                      area.x + area.width > target_area.x and
+                      area.y >= target_area.y + target_area.height):
                     neighbors['below'].append({
-                    : area.type,
-                    :area.y - (target_area.y + target_area.height)
+                        'type': area.type,
+                        'distance': area.y - (target_area.y + target_area.height)
                     })
 
                 for direction in ['left', 'right', 'above', 'below']:
                     neighbors[direction].sort(key=lambda x: x['distance'])
                     neighbors[direction] = neighbors[direction][:2]
 
-            except Exception as e:
+        except Exception as e:
             self.logger.error(f"Error analyzing area neighbors: {e}")
 
         return neighbors
@@ -397,11 +397,11 @@ class UIStateManager:
                 markers = {}
 
             area_info = {
-            :area.width,
-            : area.height,
-            :area.x,
-            : area.y,
-            :time.time()
+                'width': area.width,
+                'height': area.height,
+                'x': area.x,
+                'y': area.y,
+                'timestamp': time.time()
             }
 
             markers[area_id] = area_info
@@ -562,9 +562,9 @@ class UIStateManager:
             for i, area in enumerate(screen.areas):
                 if area.type == 'VIEW_3D':
                     current_fingerprint = {
-                    :area.type,
-                    : i,
-                    :len(screen.areas)
+                        'type': area.type,
+                        'index': i,
+                        'total_areas': len(screen.areas)
                     }
 
                     screen_width = sum(a.width for a in screen.areas if a.y == 0)
