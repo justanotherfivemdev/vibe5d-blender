@@ -152,8 +152,11 @@ def register_properties():
         name="LLM Provider",
         description="Which LLM provider to use for AI interactions",
         items=[
-            ('openai', 'OpenAI / ChatGPT', 'Use OpenAI API directly (requires API key)'),
-            ('local', 'Local LLM', 'Use a local OpenAI-compatible server (Ollama, LM Studio, etc.)'),
+            ('openai', 'OpenAI / ChatGPT',
+             'Use the OpenAI API directly (requires API key from platform.openai.com)'),
+            ('local', 'Local / Custom API',
+             'Use any OpenAI-compatible API server — Ollama, LM Studio, LocalAI, '
+             'vLLM, text-generation-webui, or any other compatible endpoint'),
         ],
         default='openai'
     )
