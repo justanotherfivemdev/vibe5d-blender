@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Build script: creates a Blender-installable ZIP of the vibe4d addon.
+Build script: creates a Blender-installable ZIP of the vibe5d addon.
 
 Usage:
     python build.py          # from the repo root
     ./build.sh               # Unix/macOS wrapper
     build.bat                # Windows wrapper
 
-Output: build/vibe4d-blender-{version}.zip
+Output: build/vibe5d-blender-{version}.zip
 
 Install in Blender:
     Edit > Preferences > Add-ons > Install... > select the .zip
@@ -17,7 +17,7 @@ import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).parent
-ADDON_NAME = "vibe4d"
+ADDON_NAME = "vibe5d"
 
 # Directories and files to exclude from the ZIP
 EXCLUDE_DIRS = {".git", "__pycache__", "docs", "build", ".vscode", ".idea"}

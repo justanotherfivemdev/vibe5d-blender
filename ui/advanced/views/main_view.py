@@ -323,7 +323,7 @@ class MainView(BaseView):
             send_button_corner_radius = self.SEND_BUTTON_CORNER_RADIUS
             send_button_spacing = self.SEND_BUTTON_SPACING
 
-            model_options = ["Claude Sonnet 4.5", "GPT 5", "GPT 5 Mini"]
+            model_options = ["Claude Sonnet 4.5", "GPT-4o", "GPT-4o Mini"]
             model_dropdown = ModelDropdown(
                 model_options,
                 0, 0, self.DROPDOWN_WIDTH, self.DROPDOWN_HEIGHT,
@@ -334,15 +334,15 @@ class MainView(BaseView):
                 import bpy
                 context = bpy.context
 
-                current_model = getattr(context.scene, 'vibe5d_model', 'gpt-5-mini')
+                current_model = getattr(context.scene, 'vibe5d_model', 'gpt-4o-mini')
 
                 model_reverse_mapping = {
                     "claude-sonnet-4-5": "Claude Sonnet 4.5",
-                    "gpt-5": "GPT 5",
-                    "gpt-5-mini": "GPT 5 Mini"
+                    "gpt-4o": "GPT-4o",
+                    "gpt-4o-mini": "GPT-4o Mini"
                 }
 
-                display_model = model_reverse_mapping.get(current_model, "GPT 5 Mini")
+                display_model = model_reverse_mapping.get(current_model, "GPT-4o Mini")
 
                 if display_model in model_options:
                     model_dropdown.selected_index = model_options.index(display_model)
@@ -1117,7 +1117,7 @@ class MainView(BaseView):
 
     def _create_components(self) -> Dict[str, Any]:
         components = {}
-        model_options = ["Claude Sonnet 4.5", "GPT 5", "GPT 5 Mini"]
+        model_options = ["Claude Sonnet 4.5", "GPT-4o", "GPT-4o Mini"]
         model_dropdown = ModelDropdown(
             model_options,
             0,
@@ -1130,13 +1130,13 @@ class MainView(BaseView):
         try:
             import bpy
 
-            current_model = getattr(bpy.context.scene, 'vibe5d_model', 'gpt-5-mini')
+            current_model = getattr(bpy.context.scene, 'vibe5d_model', 'gpt-4o-mini')
             model_reverse_mapping = {
                 'claude-sonnet-4-5': "Claude Sonnet 4.5",
-                'gpt-5': "GPT 5",
-                'gpt-5-mini': "GPT 5 Mini",
+                'gpt-4o': "GPT-4o",
+                'gpt-4o-mini': "GPT-4o Mini",
             }
-            display_model = model_reverse_mapping.get(current_model, "GPT 5 Mini")
+            display_model = model_reverse_mapping.get(current_model, "GPT-4o Mini")
             model_dropdown.selected_index = model_options.index(display_model) if display_model in model_options else 2
         except Exception:
             model_dropdown.selected_index = 2

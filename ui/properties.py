@@ -66,7 +66,7 @@ def register_properties():
     Scene.vibe5d_model = StringProperty(
         name="Model",
         description="AI model to use for all interactions",
-        default="gpt-5-mini"
+        default="gpt-4o-mini"
     )
 
     Scene.vibe5d_prompt = StringProperty(
