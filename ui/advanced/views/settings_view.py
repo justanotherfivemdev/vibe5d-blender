@@ -1155,7 +1155,7 @@ class SettingsView(BaseView):
 
             try:
                 import webbrowser
-                webbrowser.open("https://github.com/justanotherfivemdev/vibe4d-blender")
+                webbrowser.open("https://github.com/justanotherfivemdev/vibe5d-blender")
             except Exception as e:
                 logger.error(f"Error opening GitHub: {e}")
 
@@ -1177,7 +1177,7 @@ class SettingsView(BaseView):
 
             try:
                 import webbrowser
-                webbrowser.open("https://github.com/justanotherfivemdev/vibe4d-blender")
+                webbrowser.open("https://github.com/justanotherfivemdev/vibe5d-blender")
             except Exception as e:
                 logger.error(f"Error opening Twitter: {e}")
 
@@ -1442,7 +1442,7 @@ class SettingsView(BaseView):
         try:
             import webbrowser
 
-            webbrowser.open("https://github.com/justanotherfivemdev/vibe4d-blender")
+            webbrowser.open("https://github.com/justanotherfivemdev/vibe5d-blender")
         except Exception as e:
             logger.error(f"Error opening GitHub: {e}")
 
@@ -1462,7 +1462,7 @@ class SettingsView(BaseView):
         try:
             import webbrowser
 
-            webbrowser.open("https://github.com/justanotherfivemdev/vibe4d-blender")
+            webbrowser.open("https://github.com/justanotherfivemdev/vibe5d-blender")
         except Exception as e:
             logger.error(f"Error opening Twitter: {e}")
 

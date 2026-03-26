@@ -37,7 +37,7 @@ class APIClient:
 
             headers = {
                 'Content-Type': 'application/json',
-                'User-Agent': 'Vibe5D-Blender-Addon/0.0.4'
+                'User-Agent': 'Vibe5D-Blender-Addon/0.4.0'
             }
 
 
@@ -88,7 +88,7 @@ class APIClient:
         try:
 
             headers = {
-                'User-Agent': 'Vibe5D-Blender-Addon/0.0.4'
+                'User-Agent': 'Vibe5D-Blender-Addon/0.4.0'
             }
 
 
@@ -239,7 +239,7 @@ class APIClient:
             headers = {
                 'Content-Type': 'image/png',
                 'X-Source-Type': source_type,
-                'User-Agent': 'Vibe5D-Blender-Addon/0.0.4'
+                'User-Agent': 'Vibe5D-Blender-Addon/0.4.0'
             }
 
             req = urllib.request.Request(url, data=image_data, headers=headers, method="POST")
@@ -287,7 +287,7 @@ class APIClient:
 
         try:
             headers = {
-                'User-Agent': 'Vibe5D-Blender-Addon/0.0.4'
+                'User-Agent': 'Vibe5D-Blender-Addon/0.4.0'
             }
 
             req = urllib.request.Request(url, headers=headers, method="GET")

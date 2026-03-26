@@ -13,7 +13,7 @@ Vibe5D is a fully open-source AI assistant for Blender 3D. It integrates directl
 - 🎨 **Custom GPU-based UI** in the left sidebar with chat interface
 - 🤖 **Multiple LLM providers**: OpenAI/ChatGPT, Ollama, LM Studio, LocalAI, vLLM, or any OpenAI-compatible API
 - 🔍 **SQL-like query tool** `vibe5d.query(query)` — lets AI inspect scene data
-- 🛡️ **Safe code execution** with script guards and rollback snapshots
+- 🛡️ **Code execution guards** with blocklist validation and undo-based rollback (not a sandbox — review code before accepting)
 - 📝 **Chat history** persistence across sessions
 - ⚡ **Context size limiting** to prevent freezing with large scenes
 - 🖥️ **Fully local option** — run everything on your machine with no internet required
@@ -22,7 +22,7 @@ Vibe5D is a fully open-source AI assistant for Blender 3D. It integrates directl
 
 ![auth](docs/media/6.gif)
 
-1. **Download** the addon from [Releases](https://github.com/justanotherfivemdev/vibe4d-blender/releases) or use the `dist/vibe5d.zip` file
+1. **Download** the addon from [Releases](https://github.com/justanotherfivemdev/vibe5d-blender/releases) or use the `dist/vibe5d.zip` file
 
 2. **Install in Blender:**
    - Go to `Edit > Preferences > Add-ons > Install...`
@@ -63,5 +63,5 @@ See [LICENSE](LICENSE) for details.
 
 ## Links
 
-- [GitHub Repository](https://github.com/justanotherfivemdev/vibe4d-blender)
+- [GitHub Repository](https://github.com/justanotherfivemdev/vibe5d-blender)
 - [Discord](https://discord.gg/dXAN23NwkM)

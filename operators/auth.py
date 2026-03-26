@@ -39,7 +39,7 @@ class VIBE5D_OT_get_license_key(Operator):
     def execute(self, context):
 
         try:
-            github_url = "https://github.com/justanotherfivemdev/vibe4d-blender"
+            github_url = "https://github.com/justanotherfivemdev/vibe5d-blender"
 
             logger.info("Opening GitHub page")
             webbrowser.open(github_url)
@@ -84,7 +84,7 @@ class VIBE5D_OT_open_website(Operator):
 
     def execute(self, context):
         try:
-            website_url = "https://github.com/justanotherfivemdev/vibe4d-blender"
+            website_url = "https://github.com/justanotherfivemdev/vibe5d-blender"
 
             webbrowser.open(website_url)
 
@@ -107,7 +107,7 @@ class VIBE5D_OT_manage_subscription(Operator):
 
         try:
 
-            project_url = "https://github.com/justanotherfivemdev/vibe4d-blender"
+            project_url = "https://github.com/justanotherfivemdev/vibe5d-blender"
 
             logger.info("Opening project page")
             webbrowser.open(project_url)

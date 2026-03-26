@@ -254,7 +254,7 @@ class AuthView(BaseView):
             clickable=True,
             hoverable=True,
             on_click=lambda segment: self._handle_get_license(),
-            data={'url': 'https://github.com/justanotherfivemdev/vibe4d-blender'},
+            data={'url': 'https://github.com/justanotherfivemdev/vibe5d-blender'},
         )
         components['license_text_combined'] = license_text_combined
 
@@ -515,7 +515,7 @@ class AuthView(BaseView):
 
         def _handle_get_license(self):
 
-            webbrowser.open("https://github.com/justanotherfivemdev/vibe4d-blender")
+            webbrowser.open("https://github.com/justanotherfivemdev/vibe5d-blender")
             logger.info("Opened GitHub project page")
 
             if self.callbacks.get('on_get_license'):
@@ -828,7 +828,7 @@ class AuthView(BaseView):
         return {'params': layout_params, 'positions': positions}
 
     def _handle_get_license(self):
-        webbrowser.open("https://github.com/justanotherfivemdev/vibe4d-blender")
+        webbrowser.open("https://github.com/justanotherfivemdev/vibe5d-blender")
         logger.info("Opened GitHub project page")
 
         if self.callbacks.get('on_get_license'):
