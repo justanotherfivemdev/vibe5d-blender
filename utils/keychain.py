@@ -21,9 +21,12 @@ try:
     _keyring.get_password(SERVICE_NAME, "__probe__")
     _keyring_available = True
     logger.debug("Keyring backend available for secret storage")
-except Exception:
+except ImportError:
     _keyring_available = False
-    logger.debug("Keyring not available — secrets will be stored in config files")
+    logger.debug("Keyring module not installed — secrets will be stored in config files")
+except Exception as e:
+    _keyring_available = False
+    logger.debug(f"Keyring backend unavailable ({type(e).__name__}: {e}) — secrets will be stored in config files")
 
 
 def is_keychain_available() -> bool:

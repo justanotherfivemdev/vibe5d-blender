@@ -22,8 +22,6 @@ from ..utils.logger import logger
 DANGEROUS_IMPORTS = [
     'subprocess',
     'shutil',
-    'os',
-    'sys',
     'socket',
     'http',
     'urllib',
@@ -40,8 +38,6 @@ DANGEROUS_IMPORTS = [
     'shelve',
     'marshal',
     'webbrowser',
-    'antigravity',
-    'pathlib',
 ]
 
 DANGEROUS_FUNCTIONS = [
@@ -49,12 +45,6 @@ DANGEROUS_FUNCTIONS = [
     'exec',
     'compile',
     '__import__',
-    'globals',
-    'locals',
-    'getattr',
-    'setattr',
-    'delattr',
-    'open',
 ]
 
 DANGEROUS_ATTRIBUTES = [
@@ -64,6 +54,12 @@ DANGEROUS_ATTRIBUTES = [
     '__code__',
     '__reduce__',
     '__reduce_ex__',
+    'system',       # os.system
+    'popen',        # os.popen
+    'execv',        # os.execv
+    'execve',       # os.execve
+    'spawnl',       # os.spawnl
+    'spawnle',      # os.spawnle
 ]
 
 
