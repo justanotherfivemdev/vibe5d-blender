@@ -525,8 +525,7 @@ class UIManager:
 
             usage = getattr(response, 'usage_info', None) or {}
             if usage:
-                bpy.context.window_manager.vibe5d_current_usage = usage.get('current_usage', 0)
-                bpy.context.window_manager.vibe5d_usage_limit = usage.get('limit', 0)
+                logger.debug(f"Generation usage: {usage}")
 
             if not getattr(response, 'success', True):
                 logger.error(f"API generation failed: {getattr(response, 'error', 'Generation failed')}")

@@ -1206,11 +1206,6 @@ class SettingsView(BaseView):
             # Hosted usage tracking removed — no-op.
             pass
 
-            except Exception as e:
-                logger.error(f"Error fetching usage data: {e}")
-            finally:
-                self.is_fetching_usage = False
-
         def _notify_ui_system_of_changes(self):
 
             try:
