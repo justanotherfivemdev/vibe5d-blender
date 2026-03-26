@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Build the vibe4d Blender addon ZIP.
+# Build the vibe5d Blender addon ZIP.
 # Requirements: Python 3 (any version that ships with Blender 4.x)
 #
 # Usage:
 #   chmod +x build.sh
 #   ./build.sh
 #
-# Output: build/vibe4d-blender-<version>.zip
+# Output: build/vibe5d-blender-<version>.zip
 
 set -e
 

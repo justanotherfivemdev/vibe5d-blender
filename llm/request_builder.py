@@ -167,6 +167,7 @@ class LLMRequestBuilder:
             "messages": messages,
             "instructions": instructions,
             "schema_summary": schema_summary,
+            "tools": LLMRequestBuilder._get_tool_definitions(),
         }
 
         logger.debug(
@@ -208,3 +209,17 @@ class LLMRequestBuilder:
         if instruction_text and instruction_text.strip():
             return [instruction_text.strip()]
         return []
+
+    @staticmethod
+    def _get_tool_definitions() -> List[Dict[str, Any]]:
+        """Return OpenAI-format tool definitions for the Blender assistant.
+
+        These are passed in the request so that models which support tool
+        calling know they can execute code, query the scene, and inspect
+        the current context.
+        """
+        try:
+            from ..api.openai_client import OpenAIClient
+            return OpenAIClient.TOOL_DEFINITIONS
+        except Exception:
+            return []

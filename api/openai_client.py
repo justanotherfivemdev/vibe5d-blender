@@ -67,6 +67,8 @@ class OpenAIClient:
 
     Supports any OpenAI-compatible API endpoint including:
     - OpenAI (https://api.openai.com/v1)
+    - Anthropic via OpenAI-compatible proxy
+    - Google Gemini via OpenAI-compatible proxy
     - Ollama (http://localhost:11434/v1)
     - LM Studio (http://localhost:1234/v1)
     - LocalAI (http://localhost:8080/v1)
@@ -77,6 +79,72 @@ class OpenAIClient:
     DEFAULT_LOCAL_BASE_URL = "http://localhost:11434/v1"
     DEFAULT_MODEL = "gpt-4o-mini"
     DEFAULT_LOCAL_MODEL = "llama3"
+
+    # OpenAI-format tool definitions so models know they can call execute/query
+    TOOL_DEFINITIONS = [
+        {
+            "type": "function",
+            "function": {
+                "name": "execute_code",
+                "description": (
+                    "Execute Python code inside Blender to create or modify 3D objects, "
+                    "materials, animations, and scenes. The code runs in a restricted "
+                    "environment with access to bpy, bmesh, and mathutils."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "code": {
+                            "type": "string",
+                            "description": "Python code to execute in Blender (using bpy module)",
+                        }
+                    },
+                    "required": ["code"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "scene_query",
+                "description": (
+                    "Query the current Blender scene using a SQL-like syntax. "
+                    "Supports tables: objects, materials, lights, cameras, collections, "
+                    "scene, world, meshes, images, modifiers, constraints, custom_properties, "
+                    "texts, curves. Example: SELECT name, location FROM objects WHERE type = 'MESH'"
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "sql": {
+                            "type": "string",
+                            "description": "SQL-like query for scene data",
+                        },
+                        "format": {
+                            "type": "string",
+                            "enum": ["csv", "json", "table"],
+                            "description": "Output format (default: csv)",
+                        },
+                    },
+                    "required": ["sql"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "scene_context",
+                "description": (
+                    "Get current Blender scene context including selected objects, "
+                    "active object, frame range, render engine, and viewport info."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                },
+            },
+        },
+    ]
 
     # Context size limits to prevent freezing
     MAX_CONTEXT_CHARS = 100000
@@ -247,6 +315,13 @@ class OpenAIClient:
                 "temperature": 0.7,
             }
 
+            # Include tool definitions so the model knows it can execute code
+            # and query the scene.  Some local models may not support tools —
+            # if the endpoint rejects the request we fall back without them.
+            tools = request_data.get("tools")
+            if tools:
+                payload["tools"] = tools
+
             headers = {
                 "Content-Type": "application/json",
                 "Accept": "text/event-stream",
@@ -390,6 +465,39 @@ class OpenAIClient:
             self.response.progress = min(90, self.response.progress + 1)
             self._notify_progress()
 
+        # Handle tool_calls chunks (streamed incrementally by OpenAI-compatible APIs)
+        tool_calls = delta.get("tool_calls")
+        if tool_calls:
+            for tc in tool_calls:
+                idx = tc.get("index", 0)
+
+                # Grow the list to accommodate the index
+                while len(self.response.tool_calls) <= idx:
+                    self.response.tool_calls.append({
+                        "id": "",
+                        "type": "function",
+                        "function": {"name": "", "arguments": ""},
+                    })
+
+                entry = self.response.tool_calls[idx]
+
+                # First chunk carries the id and function name
+                if tc.get("id"):
+                    entry["id"] = tc["id"]
+                func = tc.get("function", {})
+                if func.get("name"):
+                    entry["function"]["name"] = func["name"]
+                if func.get("arguments"):
+                    entry["function"]["arguments"] += func["arguments"]
+
+            self.response.tool_call_started = True
+            last_call = self.response.tool_calls[-1]
+            self.response.current_tool_call_id = last_call.get("id", "")
+            self.response.current_tool_name = (
+                last_call.get("function", {}).get("name", "")
+            )
+            self._notify_progress()
+
         # Handle finish reason
         finish_reason = choice.get("finish_reason")
         if finish_reason:
@@ -398,6 +506,11 @@ class OpenAIClient:
                 self.response.success = True
             elif finish_reason == "length":
                 self.response.status_messages.append("Response truncated due to length limit")
+                self.response.success = True
+            elif finish_reason == "tool_calls":
+                # The model wants to invoke tools — mark as successful so the
+                # caller can inspect response.tool_calls and act on them.
+                self.response.tool_call_completed = True
                 self.response.success = True
 
         # Handle usage info if present

@@ -1308,6 +1308,22 @@ class MainView(BaseView):
         except Exception as e:
             logger.error(f"Failed to open image file browser: {e}")
 
+    def show_image_attachment_indicator(self, filename: str):
+        """Update the text input placeholder to show the attached filename."""
+        if not self.components:
+            return
+        text_input = self.components.get('text_input')
+        if text_input and hasattr(text_input, 'placeholder'):
+            text_input.placeholder = f"\U0001F4CE {filename} — type your prompt..."
+
+    def hide_image_attachment_indicator(self):
+        """Reset the text input placeholder to the default."""
+        if not self.components:
+            return
+        text_input = self.components.get('text_input')
+        if text_input and hasattr(text_input, 'placeholder'):
+            text_input.placeholder = "What would you like me to do?"
+
     def _setup_unfocus_handlers(self, components: Dict[str, Any]):
         return None
 
