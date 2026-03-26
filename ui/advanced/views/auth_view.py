@@ -254,7 +254,7 @@ class AuthView(BaseView):
             clickable=True,
             hoverable=True,
             on_click=lambda segment: self._handle_get_license(),
-            data={'url': 'https://github.com/justanotherfivemdev/vibe4d-blender'},
+            data={'url': 'https://github.com/justanotherfivemdev/vibe5d-blender'},
         )
         components['license_text_combined'] = license_text_combined
 
@@ -267,6 +267,370 @@ class AuthView(BaseView):
             'all_components': self._get_all_components(),
         }
 
+        def update_layout(self, viewport_width: int, viewport_height: int):
+
+            layout_data = self._get_auth_layout_params(viewport_width, viewport_height)
+            layout_params = layout_data['params']
+            positions = layout_data['positions']
+
+            if 'logo' in self.components:
+                logo = self.components['logo']
+                logo.set_position(layout_params['center_x'] - layout_params['logo_width'] // 2, positions['logo_y'])
+                logo.set_size(layout_params['logo_width'], layout_params['logo_height'])
+
+            if 'welcome_text' in self.components:
+                welcome_text = self.components['welcome_text']
+                welcome_text.set_position(layout_params['center_x'] - layout_params['welcome_width'] // 2,
+                                          positions['welcome_y'])
+                welcome_text.set_size(layout_params['welcome_width'], layout_params['welcome_height'])
+
+            if 'status_text' in self.components:
+                status_text = self.components['status_text']
+                status_text.set_position(layout_params['center_x'] - layout_params['status_width'] // 2,
+                                         positions['status_y'])
+                status_text.set_size(layout_params['status_width'], layout_params['status_height'])
+
+            if 'error_text' in self.components:
+                error_text = self.components['error_text']
+                error_text.set_position(layout_params['center_x'] - layout_params['error_width'] // 2,
+                                        positions['error_y'])
+                error_text.set_size(layout_params['error_width'], layout_params['error_height'])
+
+            if 'license_input' in self.components:
+                license_input = self.components['license_input']
+                license_input.set_position(layout_params['center_x'] - layout_params['input_width'] // 2,
+                                           positions['input_y'])
+                license_input.set_size(layout_params['input_width'], layout_params['input_height'])
+
+            if 'auth_button' in self.components:
+                auth_button = self.components['auth_button']
+                button_spacing = int(6 * CoordinateSystem.get_ui_scale())
+                auth_button.set_position(
+                    layout_params['center_x'] + layout_params['input_width'] // 2 - layout_params[
+                    ] - button_spacing,
+                    positions['input_y'] + button_spacing
+                )
+                auth_button.set_size(layout_params['button_size'], layout_params['button_size'])
+
+                icon_size = int(14 * CoordinateSystem.get_ui_scale())
+                icon_padding = (layout_params['button_size'] - icon_size) // 2
+                auth_button.icon_component.set_size(icon_size, icon_size)
+                auth_button.icon_component.set_position(
+                    auth_button.bounds.x + icon_padding,
+                    auth_button.bounds.y + icon_padding
+                )
+
+            if 'license_text_combined' in self.components:
+                license_text_combined = self.components['license_text_combined']
+                license_text_combined.set_position(
+                    layout_params['center_x'] - layout_params['combined_license_width'] // 2,
+                    positions['license_y'])
+                license_text_combined.set_size(layout_params['combined_license_width'],
+                                               layout_params['license_text_height'])
+
+        def get_focused_component(self):
+
+            return self.components.get('license_input')
+
+        def get_license_key(self) -> str:
+
+            license_input = self.components.get('license_input')
+            if license_input and hasattr(license_input, 'get_text'):
+                return license_input.get_text().strip()
+            return ""
+
+        def clear_license_input(self):
+
+            license_input = self.components.get('license_input')
+            if license_input and hasattr(license_input, 'set_text'):
+                license_input.set_text("")
+
+        def _show_status(self, visible: bool = True):
+
+            if 'status_text' in self.components:
+                self.components['status_text'].visible = visible
+
+        def _show_error(self, visible: bool = True):
+
+            if 'error_text' in self.components:
+                self.components['error_text'].visible = visible
+
+        def _hide_all_messages(self):
+
+            self._show_status(False)
+            self._show_error(False)
+
+        def _verify_license_async(self, license_key: str):
+
+            def verify():
+                try:
+
+                    try:
+                        from ...api.client import api_client
+                    except ImportError:
+
+                        from vibe5d.api.client import api_client
+
+                    logger.info(f"Starting license verification for key: {license_key[:8]}...")
+
+                    success, data_or_error = api_client.verify_license(license_key)
+
+                    def update_ui_result():
+                        self._handle_verification_result(success, data_or_error)
+                        return None
+
+                    bpy.app.timers.register(update_ui_result, first_interval=0.1)
+
+                except Exception as e:
+                    logger.error(f"Error during license verification: {e}")
+
+                    error_msg = str(e)
+
+                    def update_ui_error():
+                        self._handle_verification_result(False, {"error": error_msg})
+                        return None
+
+                    bpy.app.timers.register(update_ui_error, first_interval=0.1)
+
+            verification_thread = threading.Thread(target=verify)
+            verification_thread.daemon = True
+            verification_thread.start()
+
+        def _handle_verification_result(self, success: bool, data_or_error: Dict[str, Any]):
+
+            self.is_verifying = False
+            self._show_status(False)
+
+            if success:
+                logger.info("License key is valid - storing authentication data")
+
+                try:
+
+                    try:
+                        from ...auth.manager import auth_manager
+                    except ImportError:
+
+                        from vibe5d.auth.manager import auth_manager
+
+                    context = bpy.context
+
+                    data = data_or_error
+                    context.window_manager.vibe5d_user_id = data.get("user_id", "")
+                    context.window_manager.vibe5d_user_token = data.get("token", "")
+                    context.window_manager.vibe5d_user_email = data.get("email", "")
+                    context.window_manager.vibe5d_user_plan = data.get("plan_id", "")
+
+                    context.window_manager.vibe5d_authenticated = True
+                    plan_name = data.get("plan_id", "unknown")
+                    context.window_manager.vibe5d_status = f"Authenticated ({plan_name} plan)"
+
+                    auth_manager.save_auth_state(context)
+
+                    auth_manager.update_usage_info(context)
+
+                    logger.info(f"Successfully authenticated user: {data.get('email', 'Unknown')}")
+
+                    if self.callbacks.get('on_view_change'):
+                        from ..ui_factory import ViewState
+                        self.callbacks['on_view_change'](ViewState.MAIN)
+                    else:
+                        logger.error("No on_view_change callback available")
+
+                except Exception as e:
+                    logger.error(f"Error storing authentication data: {e}")
+                    self._show_error(True)
+            else:
+                logger.info("License key is invalid - showing error")
+
+                error_data = data_or_error
+                error_msg = error_data.get("error", "Authentication failed")
+
+                logger.error(f"Authentication failed: {error_msg}")
+
+                try:
+                    context = bpy.context
+                    context.window_manager.vibe5d_status = "Authentication failed"
+                except Exception as e:
+                    logger.warning(f"Could not update status in context: {e}")
+
+                self._show_error(True)
+
+        def _get_auth_layout_params(self, viewport_width: int, viewport_height: int) -> Dict[str, Any]:
+
+            main_padding = get_main_padding()
+            available_width = viewport_width - (main_padding * 2)
+
+            default_input_width = get_auth_input_width()
+
+            actual_input_width = min(default_input_width, available_width)
+
+            layout_params = {
+            :viewport_width // 2,
+            : viewport_height // 2,
+            :get_auth_logo_size(),
+            : get_auth_logo_size(),
+            :get_auth_welcome_width(),
+            : get_auth_welcome_height(),
+            :get_auth_status_width(),
+            : get_auth_status_height(),
+            :get_auth_error_width(),
+            : get_auth_error_height(),
+            :actual_input_width,
+            : get_auth_input_height(),
+            :get_auth_button_size(),
+            : get_auth_license_text_height(),
+            :get_auth_combined_license_width(),
+            : get_auth_gap_large(),
+            :get_auth_gap_medium(),
+            : get_auth_gap_small(),
+            }
+
+
+            uniform_gap = int(10 * CoordinateSystem.get_ui_scale())
+
+            input_style_padding = int(10 * CoordinateSystem.get_ui_scale())
+            input_border_width = layout_params.get('input_border_width', 1)
+            input_internal_padding = (input_style_padding * 2) + (input_border_width * 2)
+
+            total_height = (layout_params['logo_height'] +
+                            layout_params['welcome_height'] +
+                            layout_params['input_height'] +
+                            layout_params['license_text_height'] +
+                            3 * uniform_gap)
+
+            start_y = layout_params['center_y'] + (total_height // 2)
+
+            positions = {}
+            positions['logo_y'] = start_y
+            positions['welcome_y'] = positions['logo_y'] - layout_params['logo_height'] - uniform_gap
+            positions['input_y'] = positions['welcome_y'] - layout_params['welcome_height'] - uniform_gap
+
+            input_visual_bottom = positions['input_y'] - layout_params['input_height'] + input_internal_padding
+            positions['license_y'] = input_visual_bottom - uniform_gap
+
+            positions['status_y'] = positions['input_y'] - layout_params['input_height'] - (uniform_gap // 2)
+            positions['error_y'] = positions['input_y'] - layout_params['input_height'] - (uniform_gap // 2)
+
+            return {'params': layout_params, 'positions': positions}
+
+        def _handle_get_license(self):
+
+            webbrowser.open("https://github.com/justanotherfivemdev/vibe5d-blender")
+            logger.info("Opened GitHub project page")
+
+            if self.callbacks.get('on_get_license'):
+                self.callbacks['on_get_license']()
+
+        def _handle_auth_submit(self):
+
+            # In Vibe5D (open source), auth is not required
+            # If the user enters an API key here, save it; otherwise just proceed
+            logger.info("Auth submit clicked - proceeding to main view")
+
+            try:
+                api_key = self.get_license_key()  # Reuses same input field
+
+                if api_key:
+                    # Save as OpenAI API key
+                    import bpy
+                    context = bpy.context
+                    context.scene.vibe5d_provider_api_key = api_key
+                    from ....utils.settings_manager import settings_manager
+                    settings_manager.auto_save_settings(context)
+                    logger.info("API key saved from auth view")
+
+                # Navigate to main view
+                if self.callbacks.get('on_view_change'):
+                    from ..ui_factory import ViewState
+                    self.callbacks['on_view_change'](ViewState.MAIN)
+
+            except Exception as e:
+                logger.error(f"Error in auth submit handler: {e}")
+                import traceback
+                logger.error(f"Traceback: {traceback.format_exc()}")
+
+        def validate_layout_consistency(self, viewport_width: int, viewport_height: int) -> bool:
+
+            try:
+
+                layout_data = self._get_auth_layout_params(viewport_width, viewport_height)
+
+                required_param_keys = [
+                    , 'center_y', 'logo_width', 'logo_height',
+                , 'welcome_height', 'status_width', 'status_height',
+                , 'error_height', 'input_width', 'input_height',
+                , 'license_text_height', 'combined_license_width',
+                , 'gap_medium', 'gap_small'
+                ]
+
+                required_position_keys = ['logo_y', 'welcome_y', 'status_y', 'error_y', 'input_y', 'license_y']
+
+                params_valid = all(key in layout_data['params'] for key in required_param_keys)
+                positions_valid = all(key in layout_data['positions'] for key in required_position_keys)
+
+                positions = layout_data['positions']
+                logical_order = (
+                        positions['logo_y'] > positions['welcome_y'] >
+                        positions['input_y'] > positions['license_y']
+                )
+
+                logger.info(
+                )
+                return params_valid and positions_valid and logical_order
+
+            except Exception as e:
+                logger.error(f"Auth layout validation failed: {e}")
+                return False
+
+        def is_authenticated(self) -> bool:
+
+            try:
+
+                try:
+                    from ...auth.manager import auth_manager
+                except ImportError:
+
+                    from vibe5d.auth.manager import auth_manager
+
+                context = bpy.context
+                return auth_manager.is_authenticated(context)
+            except Exception as e:
+                logger.error(f"Error checking authentication status: {e}")
+                return False
+
+        def get_user_info(self) -> Dict[str, Any]:
+
+            try:
+
+                try:
+                    from ...auth.manager import auth_manager
+                except ImportError:
+
+                    from vibe5d.auth.manager import auth_manager
+
+                context = bpy.context
+                return auth_manager.get_user_info(context) or {}
+            except Exception as e:
+                logger.error(f"Error getting user info: {e}")
+                return {}
+
+        def logout(self) -> bool:
+
+            try:
+
+                try:
+                    from ...auth.manager import auth_manager
+                except ImportError:
+
+                    from vibe5d.auth.manager import auth_manager
+
+                context = bpy.context
+                auth_manager.logout(context)
+                logger.info("User logged out successfully")
+                return True
+            except Exception as e:
+                logger.error(f"Error during logout: {e}")
+                return False
 
     def update_layout(self, viewport_width: int, viewport_height: int):
         layout_data = self._get_auth_layout_params(viewport_width, viewport_height)
@@ -464,7 +828,7 @@ class AuthView(BaseView):
         return {'params': layout_params, 'positions': positions}
 
     def _handle_get_license(self):
-        webbrowser.open("https://github.com/justanotherfivemdev/vibe4d-blender")
+        webbrowser.open("https://github.com/justanotherfivemdev/vibe5d-blender")
         logger.info("Opened GitHub project page")
 
         if self.callbacks.get('on_get_license'):

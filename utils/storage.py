@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Dict, Optional, List
 
 from .logger import logger
+from . import keychain
 
 
 class SecureStorage:
@@ -302,13 +303,20 @@ class SecureStorage:
                 logger.error(f"Invalid settings format: expected dict, got {type(settings_data)}")
                 return False
 
+            api_key = str(settings_data.get("provider_api_key", ""))
+
+            # Try to store the API key in the platform keychain so it is
+            # not written to the plaintext JSON settings file.
+            key_in_keychain = keychain.store_api_key(api_key) if api_key else False
+
             normalized_settings = {
-                "agent_model": str(settings_data.get("agent_model", "gpt-5-mini")),
-                "ask_model": str(settings_data.get("ask_model", "gpt-5-mini")),
-                "model": str(settings_data.get("model", "gpt-5-mini")),
+                "agent_model": str(settings_data.get("agent_model", "gpt-4o-mini")),
+                "ask_model": str(settings_data.get("ask_model", "gpt-4o-mini")),
+                "model": str(settings_data.get("model", "gpt-4o-mini")),
                 "mode": str(settings_data.get("mode", "agent")),
                 "provider": str(settings_data.get("provider", "openai")),
-                "provider_api_key": str(settings_data.get("provider_api_key", "")),
+                # Only write the key to disk when the keychain is unavailable
+                "provider_api_key": "" if key_in_keychain else api_key,
                 "provider_base_url": str(settings_data.get("provider_base_url", "")),
                 "provider_model": str(settings_data.get("provider_model", ""))
             }
@@ -341,13 +349,19 @@ class SecureStorage:
                 logger.error("Invalid settings file format: expected dict")
                 return None
 
+            # Prefer the API key from the platform keychain over the
+            # (possibly empty) value in the plaintext JSON file.
+            file_api_key = str(data.get("provider_api_key", ""))
+            keychain_api_key = keychain.load_api_key()
+            api_key = keychain_api_key or file_api_key
+
             settings = {
-                "agent_model": str(data.get("agent_model", "gpt-5-mini")),
-                "ask_model": str(data.get("ask_model", "gpt-5-mini")),
-                "model": str(data.get("model", "gpt-5-mini")),
+                "agent_model": str(data.get("agent_model", "gpt-4o-mini")),
+                "ask_model": str(data.get("ask_model", "gpt-4o-mini")),
+                "model": str(data.get("model", "gpt-4o-mini")),
                 "mode": str(data.get("mode", "agent")),
                 "provider": str(data.get("provider", "openai")),
-                "provider_api_key": str(data.get("provider_api_key", "")),
+                "provider_api_key": api_key,
                 "provider_base_url": str(data.get("provider_base_url", "")),
                 "provider_model": str(data.get("provider_model", ""))
             }
@@ -364,6 +378,8 @@ class SecureStorage:
     def clear_settings(self) -> bool:
 
         try:
+            keychain.delete_api_key()
+
             if self.settings_file.exists():
                 self.settings_file.unlink()
                 logger.info("Global settings cleared")

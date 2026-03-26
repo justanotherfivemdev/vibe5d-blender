@@ -7,7 +7,7 @@ from ..utils.logger import logger
 
 
 class LLMRequestBuilder:
-    DEFAULT_MODEL = "gpt-5-mini"
+    DEFAULT_MODEL = "gpt-4o-mini"
     SOFTWARE_NAME = "blender"
     DEFAULT_HISTORY_MESSAGE_LIMIT = 10
 

@@ -2,11 +2,11 @@ bl_info = {
     "name": "Vibe5D",
     "author": "Vibe5D Community",
     "version": (0, 4, 0),
-    "blender": (4, 5, 3),
+    "blender": (4, 4, 0),
     "location": "View3D > Sidebar > Vibe5D",
     "description": "Open-source Blender AI assistant — use OpenAI or local LLMs",
     "doc_url": "",
-    "tracker_url": "https://github.com/justanotherfivemdev/vibe4d-blender",
+    "tracker_url": "https://github.com/justanotherfivemdev/vibe5d-blender",
     "category": "Development",
 }
 

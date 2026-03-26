@@ -332,16 +332,14 @@ class UIManager:
             self._reset_generation_state()
 
     def _start_real_api_generation(self, prompt: str, image_data_uri: str = None):
+        """Route to the OpenAI-compatible client for both 'openai' and 'local' providers."""
         try:
             self._start_conversation_tracking(prompt)
             self._last_sent_prompt = prompt
 
             context = bpy.context
             provider = getattr(context.scene, 'vibe5d_provider', 'openai')
-            if provider in {'openai', 'local'}:
-                self._start_openai_generation(prompt, context, provider, image_data_uri=image_data_uri)
-            else:
-                self._start_vibe5d_generation(prompt, context)
+            self._start_openai_generation(prompt, context, provider, image_data_uri=image_data_uri)
         except Exception as e:
             logger.error(f"Error starting generation: {e}")
             self._handle_api_error(f"Failed to start generation: {e}")
@@ -385,34 +383,6 @@ class UIManager:
                 self._handle_api_error("Failed to start generation")
         except Exception as e:
             logger.error(f"Error starting OpenAI generation: {e}")
-            self._handle_api_error(f"Failed to start generation: {e}")
-
-    def _start_vibe5d_generation(self, prompt: str, context):
-        try:
-            from ...llm.request_builder import LLMRequestBuilder
-            from ...api.websocket_client import llm_websocket_client
-
-            user_id = getattr(context.window_manager, 'vibe5d_user_id', '')
-            token = getattr(context.window_manager, 'vibe5d_user_token', '')
-            request = LLMRequestBuilder.build_chat_request(
-                context=context,
-                prompt=prompt,
-                user_id=user_id,
-                token=token,
-                model=getattr(context.scene, 'vibe5d_model', 'gpt-5-mini'),
-            )
-
-            self._websocket_client = llm_websocket_client
-            success = llm_websocket_client.send_prompt_request(
-                request_data=request,
-                on_progress=self._handle_api_progress,
-                on_complete=self._handle_api_complete,
-                on_error=self._handle_api_error,
-            )
-            if not success:
-                self._handle_api_error("Failed to start generation")
-        except Exception as e:
-            logger.error(f"Error starting Vibe5D generation: {e}")
             self._handle_api_error(f"Failed to start generation: {e}")
 
     def _handle_api_progress(self, response):
@@ -790,8 +760,8 @@ class UIManager:
         try:
             model_mapping = {
                 'Claude Sonnet 4.5': 'claude-sonnet-4-5',
-                'GPT 5': 'gpt-5',
-                'GPT 5 Mini': 'gpt-5-mini',
+                'GPT-4o': 'gpt-4o',
+                'GPT-4o Mini': 'gpt-4o-mini',
             }
             bpy.context.scene.vibe5d_model = model_mapping.get(
                 selected_model,

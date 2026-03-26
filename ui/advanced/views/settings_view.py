@@ -760,7 +760,7 @@ class SettingsView(BaseView):
             elif current_provider == 'local':
                 model_placeholder = "llama3"
             else:
-                model_placeholder = "gpt-5-mini"
+                model_placeholder = "gpt-4o-mini"
 
             model_label = Label("Model:", get_left_margin() + get_container_internal_padding(),
                                 provider_inner_y - get_small_label_height(),
@@ -1155,7 +1155,7 @@ class SettingsView(BaseView):
 
             try:
                 import webbrowser
-                webbrowser.open("https://github.com/justanotherfivemdev/vibe4d-blender")
+                webbrowser.open("https://github.com/justanotherfivemdev/vibe5d-blender")
             except Exception as e:
                 logger.error(f"Error opening GitHub: {e}")
 
@@ -1177,7 +1177,7 @@ class SettingsView(BaseView):
 
             try:
                 import webbrowser
-                webbrowser.open("https://github.com/justanotherfivemdev/vibe4d-blender")
+                webbrowser.open("https://github.com/justanotherfivemdev/vibe5d-blender")
             except Exception as e:
                 logger.error(f"Error opening Twitter: {e}")
 
@@ -1442,7 +1442,7 @@ class SettingsView(BaseView):
         try:
             import webbrowser
 
-            webbrowser.open("https://github.com/justanotherfivemdev/vibe4d-blender")
+            webbrowser.open("https://github.com/justanotherfivemdev/vibe5d-blender")
         except Exception as e:
             logger.error(f"Error opening GitHub: {e}")
 
@@ -1462,7 +1462,7 @@ class SettingsView(BaseView):
         try:
             import webbrowser
 
-            webbrowser.open("https://github.com/justanotherfivemdev/vibe4d-blender")
+            webbrowser.open("https://github.com/justanotherfivemdev/vibe5d-blender")
         except Exception as e:
             logger.error(f"Error opening Twitter: {e}")
 
