@@ -151,4 +151,5 @@ class ComponentRegistry:
             }
         }
 
-    component_registry = ComponentRegistry()
+
+component_registry = ComponentRegistry()

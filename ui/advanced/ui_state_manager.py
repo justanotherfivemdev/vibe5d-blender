@@ -254,8 +254,8 @@ class UIStateManager:
 
         fingerprint_data = {
             'type': area.type,
-            'position': f"{config.relative_x:.3f},{config.relative_y:.3f}",
-            'size': f"{config.relative_width:.3f},{config.relative_height:.3f}",
+            'relative_pos': f"{config.relative_x:.3f},{config.relative_y:.3f}",
+            'relative_size': f"{config.relative_width:.3f},{config.relative_height:.3f}",
             'index': config.area_index,
             'total_areas': len(screen.areas)
         }
