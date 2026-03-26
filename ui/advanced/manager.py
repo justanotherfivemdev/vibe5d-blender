@@ -103,7 +103,7 @@ class UIManager:
 
         self._is_generating = False
         self._current_ai_component = None
-        self._websocket_client = None
+        self._active_client = None
         self._last_content_length = 0
         self._last_tool_call_state = None
         self._content_after_tool_call = False
@@ -372,7 +372,7 @@ class UIManager:
                 image_data_uri=image_data_uri,
             )
 
-            self._websocket_client = openai_client
+            self._active_client = openai_client
             success = openai_client.send_prompt_request(
                 request_data=request,
                 on_progress=self._handle_api_progress,
@@ -573,20 +573,13 @@ class UIManager:
         self._last_tool_call_state = None
         self._content_after_tool_call = False
         self._current_ai_component = None
-        self._websocket_client = None
-        self._cleanup_websocket_connection()
+        self._active_client = None
+        self._cleanup_active_client()
         if self.factory:
             self.factory._set_send_button_mode(True)
         self._reset_conversation_tracking()
 
-    def _cleanup_websocket_connection(self):
-        try:
-            from ...api.websocket_client import llm_websocket_client
-            if not llm_websocket_client.is_ready_for_new_request():
-                llm_websocket_client.close()
-        except Exception:
-            pass
-
+    def _cleanup_active_client(self):
         try:
             from ...api.openai_client import openai_client
             if not openai_client.is_ready_for_new_request():

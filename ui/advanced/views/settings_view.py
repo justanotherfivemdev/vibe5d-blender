@@ -1199,105 +1199,12 @@ class SettingsView(BaseView):
             self.is_fetching_usage = False
 
         def _fetch_usage_data_async(self):
-
-            if self.is_fetching_usage:
-                logger.debug("Usage data fetch already in progress, skipping")
-                return
-
-            self.is_fetching_usage = True
-
-            usage_thread = threading.Thread(target=self._fetch_usage_data)
-            usage_thread.daemon = True
-            usage_thread.start()
+            # Hosted usage tracking removed — no-op.
+            pass
 
         def _fetch_usage_data(self):
-
-            try:
-                context = bpy.context
-
-                user_id = getattr(context.window_manager, 'vibe5d_user_id', '')
-                token = getattr(context.window_manager, 'vibe5d_user_token', '')
-
-                if not user_id or not token:
-                    logger.warning("Cannot fetch usage data - missing authentication credentials")
-                    return
-
-                try:
-                    from ....api.client import api_client
-                except ImportError:
-
-                    from vibe5d.api.client import api_client
-
-                logger.info("Fetching usage data from API")
-
-                success, data_or_error = api_client.get_usage_info(user_id, token)
-
-                def update_ui_on_main_thread():
-
-                    try:
-                        if success:
-
-                            usage_data = data_or_error
-
-                            if 'plan_id' in usage_data:
-                                context.window_manager.vibe5d_user_plan = usage_data['plan_id']
-
-                            if 'plan_name' in usage_data:
-                                context.window_manager.vibe5d_plan_name = usage_data['plan_name']
-
-                            if 'current_usage' in usage_data:
-                                context.window_manager.vibe5d_current_usage = usage_data['current_usage']
-
-                            if 'limit' in usage_data:
-                                context.window_manager.vibe5d_usage_limit = usage_data['limit']
-
-                            if 'limit_type' in usage_data:
-                                context.window_manager.vibe5d_limit_type = usage_data['limit_type']
-
-                            if 'plan_id' in usage_data:
-                                context.window_manager.vibe5d_plan_id = usage_data['plan_id']
-
-                            if 'plan_name' in usage_data:
-                                context.window_manager.vibe5d_plan_name = usage_data['plan_name']
-
-                            if 'allowed' in usage_data:
-                                context.window_manager.vibe5d_allowed = usage_data['allowed']
-
-                            if 'usage_percentage' in usage_data:
-                                context.window_manager.vibe5d_usage_percentage = usage_data['usage_percentage']
-
-                            if 'remaining_requests' in usage_data:
-                                context.window_manager.vibe5d_remaining_requests = usage_data['remaining_requests']
-
-                            logger.info(
-                            )
-
-                            try:
-                                from ....auth.manager import auth_manager
-                                auth_manager.save_auth_state(context)
-                            except Exception as e:
-                                logger.debug(f"Could not save auth state: {e}")
-
-                            if self.refresh_callback:
-                                self.refresh_callback()
-                            else:
-
-                                self._notify_ui_system_of_changes()
-
-                        else:
-
-                            error_msg = data_or_error.get('error', 'Unknown error')
-                            logger.warning(f"Failed to fetch usage data: {error_msg}")
-
-
-
-
-                    except Exception as e:
-                        logger.error(f"Error updating UI with usage data: {e}")
-
-                    return None
-
-                bpy.app.timers.register(update_ui_on_main_thread, first_interval=0.1)
+            # Hosted usage tracking removed — no-op.
+            pass
 
             except Exception as e:
                 logger.error(f"Error fetching usage data: {e}")
@@ -1480,60 +1387,12 @@ class SettingsView(BaseView):
         self.is_fetching_usage = False
 
     def _fetch_usage_data_async(self):
-        if self.is_fetching_usage:
-            logger.debug("Usage data fetch already in progress, skipping")
-            return
-
-        self.is_fetching_usage = True
-        usage_thread = threading.Thread(target=self._fetch_usage_data)
-        usage_thread.daemon = True
-        usage_thread.start()
+        # Hosted usage tracking removed — no-op.
+        pass
 
     def _fetch_usage_data(self):
-        try:
-            context = bpy.context
-            user_id = getattr(context.window_manager, 'vibe5d_user_id', '')
-            token = getattr(context.window_manager, 'vibe5d_user_token', '')
-            if not user_id or not token:
-                logger.warning("Cannot fetch usage data - missing authentication credentials")
-                return
-
-            from ....api.client import api_client
-
-            success, data_or_error = api_client.get_usage_info(user_id, token)
-
-            def update_ui_on_main_thread():
-                try:
-                    if success:
-                        usage_data = data_or_error
-                        for source_key, target_attr in [
-                            ('plan_id', 'vibe5d_user_plan'),
-                            ('plan_name', 'vibe5d_plan_name'),
-                            ('current_usage', 'vibe5d_current_usage'),
-                            ('limit', 'vibe5d_usage_limit'),
-                            ('limit_type', 'vibe5d_limit_type'),
-                            ('allowed', 'vibe5d_allowed'),
-                            ('usage_percentage', 'vibe5d_usage_percentage'),
-                            ('remaining_requests', 'vibe5d_remaining_requests'),
-                        ]:
-                            if source_key in usage_data:
-                                setattr(context.window_manager, target_attr, usage_data[source_key])
-
-                        if self.refresh_callback:
-                            self.refresh_callback()
-                        else:
-                            self._notify_ui_system_of_changes()
-                    else:
-                        logger.warning(f"Failed to fetch usage data: {data_or_error.get('error', 'Unknown error')}")
-                except Exception as e:
-                    logger.error(f"Error updating UI with usage data: {e}")
-                return None
-
-            bpy.app.timers.register(update_ui_on_main_thread, first_interval=0.1)
-        except Exception as e:
-            logger.error(f"Error fetching usage data: {e}")
-        finally:
-            self.is_fetching_usage = False
+        # Hosted usage tracking removed — no-op.
+        pass
 
     def _notify_ui_system_of_changes(self):
         try:

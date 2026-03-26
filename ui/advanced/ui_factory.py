@@ -461,9 +461,9 @@ class ImprovedUIFactory:
                     except Exception as save_error:
                         logger.error(f"Failed to save conversation data before stop: {str(save_error)}")
 
-            from ...api.websocket_client import llm_websocket_client
+            from ...api.openai_client import openai_client
 
-            llm_websocket_client.close()
+            openai_client.close()
 
             if hasattr(ui_manager, '_reset_generation_state'):
                 ui_manager._reset_generation_state()
@@ -522,28 +522,12 @@ class ImprovedUIFactory:
         }
 
     def check_and_handle_connectivity(self) -> bool:
-
-        try:
-            from .views.no_connection_view import NoConnectionView
-
-            if NoConnectionView.check_internet_connection():
-                logger.debug("Internet connection is available")
-                return True
-
-            logger.warning("No internet connection detected - switching to no connection view")
-            self.switch_to_view(ViewState.NO_CONNECTION)
-            return False
-
-        except Exception as e:
-            logger.error(f"Error checking connectivity: {e}")
-            self.switch_to_view(ViewState.NO_CONNECTION)
-            return False
+        # Local-first: no cloud dependency required for startup.
+        return True
 
     def switch_to_appropriate_view_on_startup(self):
 
         try:
-            if not self.check_and_handle_connectivity():
-                return
             self.switch_to_view(ViewState.MAIN)
         except Exception as e:
             logger.error(f"Error determining startup view: {e}")

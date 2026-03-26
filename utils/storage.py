@@ -15,7 +15,6 @@ class SecureStorage:
     def __init__(self):
 
         self.config_dir = Path.home() / ".config" / "blender" / "vibe5d"
-        self.credentials_file = self.config_dir / "credentials.json"
         self.instructions_file = self.config_dir / "instructions.json"
         self.settings_file = self.config_dir / "settings.json"
 
@@ -64,64 +63,6 @@ class SecureStorage:
                     return False
 
         return False
-
-    def save_credentials(self, user_id: str, token: str, email: str = "", plan: str = "") -> bool:
-
-        try:
-            credentials = {
-                "user_id": user_id,
-                "token": token,
-                "email": email,
-                "plan": plan
-            }
-
-            success = self._atomic_write(self.credentials_file, credentials)
-
-            if success:
-                pass
-            else:
-                logger.error("Failed to save credentials")
-
-            return success
-
-        except Exception as e:
-            logger.error(f"Failed to save credentials: {str(e)}")
-            return False
-
-    def load_credentials(self) -> Optional[Dict[str, str]]:
-
-        try:
-            if not self.credentials_file.exists():
-                logger.debug("No saved credentials found")
-                return None
-
-            with open(self.credentials_file, 'r') as f:
-                credentials = json.load(f)
-
-            if not credentials.get("user_id") or not credentials.get("token"):
-                logger.warning("Invalid credentials file - missing required fields")
-                return None
-
-            return credentials
-
-        except json.JSONDecodeError as e:
-            logger.error(f"Invalid credentials file format: {str(e)}")
-            return None
-        except Exception as e:
-            logger.error(f"Failed to load credentials: {str(e)}")
-            return None
-
-    def clear_credentials(self) -> bool:
-
-        try:
-            if self.credentials_file.exists():
-                self.credentials_file.unlink()
-
-            return True
-
-        except Exception as e:
-            logger.error(f"Failed to clear credentials: {str(e)}")
-            return False
 
     def save_custom_instructions(self, instructions: List[Dict[str, any]]) -> bool:
 

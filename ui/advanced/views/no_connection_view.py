@@ -194,16 +194,10 @@ class NoConnectionView(BaseView):
         logger.info("Retry connection button clicked")
 
         try:
-            import bpy
-
-            context = bpy.context
-            is_authenticated = getattr(context.window_manager, 'vibe5d_authenticated', False)
-
             if self.callbacks.get('on_view_change'):
                 from ..ui_factory import ViewState
-
-                self.callbacks['on_view_change'](ViewState.MAIN if is_authenticated else ViewState.AUTH)
-            logger.info("Connection restored - switching to the appropriate view")
+                self.callbacks['on_view_change'](ViewState.MAIN)
+            logger.info("Switching to main view")
         except Exception as e:
             logger.error(f"Error testing connection: {e}")
             self._update_retry_button_text("Connection failed")
@@ -250,13 +244,5 @@ class NoConnectionView(BaseView):
 
     @staticmethod
     def check_internet_connection() -> bool:
-        try:
-            from ...api.client import api_client
-
-            api_client.timeout = 5
-            success = True
-            api_client.timeout = 30
-            return success
-        except Exception as e:
-            logger.debug(f"Internet connection check failed: {e}")
-            return False
+        # Local-first: no cloud dependency required.
+        return True
