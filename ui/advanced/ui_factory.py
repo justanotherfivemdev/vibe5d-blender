@@ -544,6 +544,20 @@ class ImprovedUIFactory:
         logger.info("Added image message to scrollview")
         return message_component
 
+    def show_image_attachment_indicator(self, filename: str):
+        """Show an attachment indicator in the main view input area."""
+        if self.current_view == ViewState.MAIN:
+            view = self.views.get(self.current_view)
+            if view and hasattr(view, 'show_image_attachment_indicator'):
+                view.show_image_attachment_indicator(filename)
+
+    def hide_image_attachment_indicator(self):
+        """Hide the attachment indicator in the main view input area."""
+        if self.current_view == ViewState.MAIN:
+            view = self.views.get(self.current_view)
+            if view and hasattr(view, 'hide_image_attachment_indicator'):
+                view.hide_image_attachment_indicator()
+
     def add_error_message_to_scrollview(self, error_text: str):
 
         message_scrollview = self._get_message_scrollview()

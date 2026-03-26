@@ -1,11 +1,11 @@
 @echo off
-:: Build the vibe4d Blender addon ZIP.
+:: Build the vibe5d Blender addon ZIP.
 :: Requirements: Python 3 on PATH (the python.exe that ships with Blender works too)
 ::
 :: Usage:
 ::   build.bat
 ::
-:: Output: build\vibe4d-blender-<version>.zip
+:: Output: build\vibe5d-blender-<version>.zip
 
 setlocal enabledelayedexpansion
 
